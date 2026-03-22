@@ -94,15 +94,19 @@ class MPFPTask(nn.Module):
             idx = mask_indices.unsqueeze(-1).expand(-1, -1, D)
             masked_reprs = torch.gather(all_tokens, 1, idx)  # (B, num_masked, D)
         else:
-            # CNN: encode masked PPI, then we need per-position features
-            # Use the conv feature map before pooling
-            h = encoder.ppi_conv[:-1](masked_ppi)  # before AdaptiveAvgPool1d
-            # h: (B, 256, seq_len)
-            idx = mask_indices.unsqueeze(1).expand(-1, h.size(1), -1)
-            masked_reprs = torch.gather(h, 2, idx).transpose(1, 2)  # (B, num_masked, 256)
-            # Project to hidden dim if needed
-            if masked_reprs.size(-1) != encoder.hidden_dim:
-                masked_reprs = masked_reprs  # already 256, same as hidden_dim for default
+            # CNN: encode masked PPI, then extract per-position features
+            # Use the conv feature map before AdaptiveAvgPool1d (last layer of ppi_conv)
+            h = encoder.ppi_conv[:-1](masked_ppi)  # (B, C_conv, seq_len)
+            idx = mask_indices.unsqueeze(1).expand(-1, h.size(1), -1)  # (B, C_conv, num_masked)
+            masked_reprs = torch.gather(h, 2, idx).transpose(1, 2)  # (B, num_masked, C_conv)
+            # Project conv feature dim -> hidden_dim using encoder's projection layer
+            B_sz, N_mask, feat_dim = masked_reprs.shape
+            if feat_dim != encoder.hidden_dim:
+                # projection: Linear(feat_dim, hidden_dim) + ReLU
+                # reshape to (B*N_mask, feat_dim) for linear layers
+                flat = masked_reprs.reshape(-1, feat_dim)
+                projected = encoder.projection(flat)   # (B*N_mask, hidden_dim)
+                masked_reprs = projected.reshape(B_sz, N_mask, encoder.hidden_dim)
 
         size_pred, dir_pred, ipt_pred = ssl_head.forward_mpfp(masked_reprs)
 

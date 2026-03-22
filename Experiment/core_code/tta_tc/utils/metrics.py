@@ -58,7 +58,8 @@ class MetricsTracker:
                 arrs.append(m["arr"])
         if not arrs:
             return None
-        return np.trapz(arrs) / len(arrs)
+        trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
+        return trapz(arrs) / len(arrs)
 
     def summary(self):
         """Generate summary dict."""
