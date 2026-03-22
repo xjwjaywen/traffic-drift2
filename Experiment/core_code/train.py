@@ -254,4 +254,12 @@ def main():
 
 
 if __name__ == "__main__":
+    # macOS requires 'fork' for cesnet-datazoo DataLoader; Windows only supports 'spawn'.
+    import sys
+    import multiprocessing as _mp
+    if sys.platform != "win32":
+        try:
+            _mp.set_start_method("fork", force=True)
+        except RuntimeError:
+            pass
     main()

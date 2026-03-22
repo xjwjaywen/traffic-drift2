@@ -110,7 +110,9 @@ class MPFPTask(nn.Module):
 
         size_pred, dir_pred, ipt_pred = ssl_head.forward_mpfp(masked_reprs)
 
-        loss_size = F.mse_loss(size_pred, targets["size"])
+        # Normalize size targets with log1p to prevent MSE explosion (raw byte values ~0-1500+)
+        target_size_norm = torch.log1p(targets["size"].abs())
+        loss_size = F.mse_loss(size_pred, target_size_norm)
         loss_dir = F.binary_cross_entropy_with_logits(
             dir_pred, (targets["dir"] > 0).float()
         )
