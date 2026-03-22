@@ -1,0 +1,39 @@
+# Training config: CESNET-TLS-Year22 with 1D-CNN backbone
+# Train on M-2022-1 to M-2022-3, test on M-2022-5
+
+data:
+  dataset: tls22
+  data_dir: ./data
+  size: S
+  train_period: "M-2022-3"   # cesnet-datazoo uses single period; train on latest
+  test_period: "M-2022-5"
+  batch_size: 256
+  num_workers: 4
+  val_ratio: 0.2
+
+model:
+  backbone: cnn
+  hidden_dim: 256
+  norm_type: gn
+  num_groups: 8
+  flow_stats_dim: 0
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+  fsr_target_dim: 6
+
+ssl:
+  alpha: 0.2
+  beta: 0.1
+  mask_ratio: 0.15
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
+training:
+  epochs: 30
+  lr: 0.001
+  weight_decay: 0.0001
+  ssl_weight: 1.0
+
+output_dir: outputs/tls22_cnn

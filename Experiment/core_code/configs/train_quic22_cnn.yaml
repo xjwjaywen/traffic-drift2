@@ -1,0 +1,39 @@
+# Training config: CESNET-QUIC22 with 1D-CNN backbone
+# Train on W-2022-44, validate on held-out split, test on W-2022-45
+
+data:
+  dataset: quic22
+  data_dir: ./data
+  size: S              # S=25M, M=75M; use S for dev, M for final
+  train_period: "W-2022-44"
+  test_period: "W-2022-45"
+  batch_size: 256
+  num_workers: 4
+  val_ratio: 0.2
+
+model:
+  backbone: cnn
+  hidden_dim: 256
+  norm_type: gn         # GroupNorm (TTA-safe)
+  num_groups: 8
+  flow_stats_dim: 0     # Set >0 if using flow-level features
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+  fsr_target_dim: 6
+
+ssl:
+  alpha: 0.2            # POP weight
+  beta: 0.1             # FSR weight
+  mask_ratio: 0.15      # MPFP mask ratio
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
+training:
+  epochs: 50
+  lr: 0.001
+  weight_decay: 0.0001
+  ssl_weight: 1.0       # L = L_cls + ssl_weight * L_ssl
+
+output_dir: outputs/quic22_cnn

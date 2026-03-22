@@ -1,0 +1,24 @@
+# Ablation A2: MPFP masking ratio
+
+base_config: configs/eval_quic22.yaml
+
+ablations:
+  - name: mask_5pct
+    tta:
+      mask_ratio: 0.05
+
+  - name: mask_10pct
+    tta:
+      mask_ratio: 0.10
+
+  - name: mask_15pct
+    tta:
+      mask_ratio: 0.15
+
+  - name: mask_25pct
+    tta:
+      mask_ratio: 0.25
+
+  - name: mask_50pct
+    tta:
+      mask_ratio: 0.50

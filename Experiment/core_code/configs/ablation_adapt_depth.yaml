@@ -1,0 +1,12 @@
+# Ablation A3: Adaptation depth
+
+base_config: configs/eval_quic22.yaml
+
+ablations:
+  - name: norm_only
+    tta:
+      adapt_mode: norm
+
+  - name: full_encoder
+    tta:
+      adapt_mode: encoder

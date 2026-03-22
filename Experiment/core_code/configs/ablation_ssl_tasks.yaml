@@ -1,0 +1,36 @@
+# Ablation A1: SSL task selection
+# Run TTA-TC with different SSL task combinations
+
+# Base config (inherits from eval_quic22.yaml)
+base_config: configs/eval_quic22.yaml
+
+ablations:
+  - name: mpfp_only
+    tta:
+      enable_mpfp: true
+      enable_pop: false
+      enable_fsr: false
+
+  - name: pop_only
+    tta:
+      enable_mpfp: false
+      enable_pop: true
+      enable_fsr: false
+
+  - name: fsr_only
+    tta:
+      enable_mpfp: false
+      enable_pop: false
+      enable_fsr: true
+
+  - name: mpfp_pop
+    tta:
+      enable_mpfp: true
+      enable_pop: true
+      enable_fsr: false
+
+  - name: all_tasks
+    tta:
+      enable_mpfp: true
+      enable_pop: true
+      enable_fsr: true

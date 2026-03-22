@@ -1,0 +1,24 @@
+# Ablation A5: Anti-forgetting mechanisms
+
+base_config: configs/eval_quic22.yaml
+
+ablations:
+  - name: no_anti_forgetting
+    tta:
+      fisher_alpha: 0.0
+      restore_prob: 0.0
+
+  - name: fisher_only
+    tta:
+      fisher_alpha: 2000.0
+      restore_prob: 0.0
+
+  - name: restore_only
+    tta:
+      fisher_alpha: 0.0
+      restore_prob: 0.01
+
+  - name: both
+    tta:
+      fisher_alpha: 2000.0
+      restore_prob: 0.01

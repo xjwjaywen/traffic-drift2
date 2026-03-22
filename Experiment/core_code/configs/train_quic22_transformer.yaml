@@ -1,0 +1,40 @@
+# Training config: CESNET-QUIC22 with Transformer backbone
+# Train on W-2022-44, validate on held-out split, test on W-2022-45
+
+data:
+  dataset: quic22
+  data_dir: ./data
+  size: S
+  train_period: "W-2022-44"
+  test_period: "W-2022-45"
+  batch_size: 128       # Smaller batch for Transformer
+  num_workers: 4
+  val_ratio: 0.2
+
+model:
+  backbone: transformer
+  hidden_dim: 256
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.1
+  flow_stats_dim: 0
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+  fsr_target_dim: 6
+
+ssl:
+  alpha: 0.2
+  beta: 0.1
+  mask_ratio: 0.15
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
+training:
+  epochs: 50
+  lr: 0.0005
+  weight_decay: 0.0001
+  ssl_weight: 1.0
+
+output_dir: outputs/quic22_transformer

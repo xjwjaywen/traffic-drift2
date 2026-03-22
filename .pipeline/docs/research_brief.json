@@ -1,0 +1,57 @@
+{
+  "project": {
+    "title": "TTA-TC: Test-Time Adaptation for Temporally Robust Encrypted Traffic Classification",
+    "titleZh": "TTA-TC：面向时间鲁棒加密流量分类的测试时自适应",
+    "field": "Network Security / Encrypted Traffic Classification",
+    "targetVenue": "Top-tier network security venues (NDSS, CCS, USENIX Security)",
+    "researchQuestion": "Can test-time adaptation with traffic-specific self-supervised auxiliary tasks mitigate the rapid temporal performance degradation of encrypted traffic classifiers without any labeled data?",
+    "methodApproach": "Test-Time Adaptation (TTA) with traffic-specific self-supervised auxiliary tasks (Masked Packet Feature Prediction, Packet Order Prediction, Flow Statistics Reconstruction). Class-aware selective adaptation triggered by per-class drift detection. Anti-forgetting mechanisms (Fisher regularization, stochastic restoration, PBRS buffering).",
+    "selectedIdea": "TTA-TC",
+    "selectedIdeaPath": "Ideation/ideas/idea_tta_traffic_detailed.md",
+    "datasets": {
+      "primary": {
+        "name": "CESNET-QUIC22",
+        "description": "153M QUIC flows, 102 classes, 4 weeks, from CESNET backbone",
+        "access": "Public (cesnet-datazoo Python package)",
+        "source": "https://github.com/CESNET/cesnet-datazoo"
+      },
+      "secondary": {
+        "name": "CESNET-TLS-Year22",
+        "description": "507.7M TLS flows, 180 classes, 1 year span",
+        "access": "Public (cesnet-datazoo Python package)",
+        "source": "https://github.com/CESNET/cesnet-datazoo"
+      }
+    }
+  },
+  "pipeline": {
+    "startStage": "survey",
+    "stages": {
+      "survey": { "status": "completed" },
+      "ideation": { "status": "completed" },
+      "experiment": { "status": "in-progress" },
+      "publication": { "status": "pending" }
+    }
+  },
+  "status": {
+    "currentStage": "experiment",
+    "completedStages": ["survey", "ideation"],
+    "lastUpdated": "2026-03-21",
+    "artifacts": {
+      "surveyReport": "Survey/reports/survey_report.md",
+      "ideaProposal": "Ideation/ideas/idea_tta_traffic_detailed.md",
+      "experimentCode": "Experiment/core_code/",
+      "taskPipeline": ".pipeline/tasks/tasks.json"
+    },
+    "experimentCode": {
+      "location": "Experiment/core_code/",
+      "entryPoints": {
+        "setup": "setup.sh",
+        "download": "scripts/download_data.sh",
+        "train": "train.py --config configs/<train_config>.yaml",
+        "evaluate": "evaluate_tta.py --config configs/<eval_config>.yaml --checkpoint <model.pt>",
+        "ablation": "run_ablation.py --ablation-config configs/<ablation_config>.yaml --checkpoint <model.pt>",
+        "runAll": "scripts/run_all.sh"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "instance_id": "流量漂移_2026-03-21T01-34-31-645Z",
+  "idea_maturity": "",
+  "created_at": "2026-03-21T01:34:31.645Z",
+  "instance": "/Users/lby/dr-claw/流量漂移/instance.json",
+  "category": "",
+  "Survey": {
+    "references": "/Users/lby/dr-claw/流量漂移/Survey/references",
+    "reports": "/Users/lby/dr-claw/流量漂移/Survey/reports"
+  },
+  "Ideation": {
+    "ideas": "/Users/lby/dr-claw/流量漂移/Ideation/ideas",
+    "references": "/Users/lby/dr-claw/流量漂移/Ideation/references"
+  },
+  "Experiment": {
+    "code_references": "/Users/lby/dr-claw/流量漂移/Experiment/code_references",
+    "datasets": "/Users/lby/dr-claw/流量漂移/Experiment/datasets",
+    "core_code": "/Users/lby/dr-claw/流量漂移/Experiment/core_code",
+    "analysis": "/Users/lby/dr-claw/流量漂移/Experiment/analysis"
+  },
+  "Publication": {
+    "paper": "/Users/lby/dr-claw/流量漂移/Publication/paper"
+  },
+  "Promotion": {
+    "homepage": "/Users/lby/dr-claw/流量漂移/Promotion/homepage",
+    "slides": "/Users/lby/dr-claw/流量漂移/Promotion/slides",
+    "audio": "/Users/lby/dr-claw/流量漂移/Promotion/audio",
+    "video": "/Users/lby/dr-claw/流量漂移/Promotion/video"
+  }
+}

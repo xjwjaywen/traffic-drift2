@@ -1,0 +1,18 @@
+# Ablation A8: Normalization type (BN vs GN vs LN)
+# Requires retraining with each norm type
+
+ablations:
+  - name: bn
+    train_config:
+      model:
+        norm_type: bn
+
+  - name: gn
+    train_config:
+      model:
+        norm_type: gn
+
+  - name: ln
+    train_config:
+      model:
+        norm_type: ln
