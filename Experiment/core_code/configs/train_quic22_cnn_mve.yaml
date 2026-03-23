@@ -1,0 +1,39 @@
+# MVE (Minimum Viable Experiment) config: quick 5-epoch train to validate TTA pipeline
+# Use this before committing to full 50-epoch training
+
+data:
+  dataset: quic22
+  data_dir: ./data
+  size: XS
+  train_period: "W-2022-44"
+  test_period: "W-2022-45"
+  batch_size: 256
+  num_workers: 4
+  val_ratio: 0.2
+
+model:
+  backbone: cnn
+  hidden_dim: 256
+  norm_type: gn
+  num_groups: 8
+  flow_stats_dim: 0
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+  fsr_target_dim: 6
+
+ssl:
+  alpha: 0.2
+  beta: 0.1
+  mask_ratio: 0.15
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
+training:
+  epochs: 5            # MVE: 5 epochs only (~70 min on CPU, ~10 min on GPU)
+  lr: 0.001
+  weight_decay: 0.0001
+  ssl_weight: 1.0
+
+output_dir: outputs/quic22_cnn_mve
