@@ -7,7 +7,7 @@ data:
   size: XS             # XS for this run; change to S/M for final results
   train_period: "W-2022-44"
   test_period: "W-2022-45"
-  batch_size: 256
+  batch_size: 1024
   num_workers: 4
   val_ratio: 0.2
 
