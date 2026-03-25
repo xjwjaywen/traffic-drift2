@@ -1,0 +1,32 @@
+data:
+  batch_size: 1024
+  data_dir: ./data
+  dataset: quic22
+  num_workers: 4
+  size: XS
+  test_period: W-2022-45
+  train_period: W-2022-44
+  val_ratio: 0.2
+model:
+  backbone: cnn
+  enable_fsr: true
+  enable_mpfp: true
+  enable_pop: true
+  flow_stats_dim: 0
+  fsr_target_dim: 6
+  hidden_dim: 256
+  norm_type: gn
+  num_groups: 8
+output_dir: outputs/quic22_cnn
+ssl:
+  alpha: 0.2
+  beta: 0.1
+  enable_fsr: true
+  enable_mpfp: true
+  enable_pop: true
+  mask_ratio: 0.15
+training:
+  epochs: 50
+  lr: 0.001
+  ssl_weight: 1.0
+  weight_decay: 0.0001
