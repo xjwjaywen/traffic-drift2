@@ -4,10 +4,10 @@
 data:
   dataset: tls22
   data_dir: ./data
-  size: S
+  size: XS
   train_period: "M-2022-3"   # cesnet-datazoo uses single period; train on latest
   test_period: "M-2022-5"
-  batch_size: 256
+  batch_size: 1024
   num_workers: 4
   val_ratio: 0.2
 
