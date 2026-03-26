@@ -185,6 +185,15 @@ class TTAEngine:
         info["drifted_classes"] = len(drifted_classes)
         info["abrupt_classes"] = len(abrupt_classes)
 
+        # Drift gate: skip adaptation if no class shows significant drift
+        min_drifted = self.cfg.get("min_drifted_classes", 1)
+        if len(drifted_classes) < min_drifted and len(abrupt_classes) == 0:
+            with torch.no_grad():
+                logits = self.model(ppi, flow_stats)
+            info["adapted"] = False
+            info["skipped_reason"] = "no_drift"
+            return logits, info
+
         # Determine adaptation intensity
         steps = self.adapt_steps
         if abrupt_classes:

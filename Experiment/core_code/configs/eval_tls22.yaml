@@ -41,5 +41,6 @@ tta:
   ssl_beta: 0.1
   entropy_threshold: 0.5
   buffer_size: 2000
+  min_drifted_classes: 3   # only adapt when ≥3 classes show drift signal
 
 output_dir: outputs/eval_tls22
