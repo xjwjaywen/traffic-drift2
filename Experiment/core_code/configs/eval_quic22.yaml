@@ -42,7 +42,7 @@ tta:
   entropy_filter_ratio: 0.4
   buffer_size: 1000
   adapt_steps: 1
-  min_drifted_classes: 3   # only adapt when ≥3 classes show drift signal
+  min_drifted_classes: 3   # only adapt when >= 3 classes show drift signal
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
 
