@@ -11,7 +11,7 @@ import math
 from .drift_detector import DriftDetector
 from .pbrs_buffer import PBRSBuffer
 from .anti_forgetting import FisherRegularizer, StochasticRestorer
-from ..ssl_tasks.combined import CombinedSSLLoss
+from .prototype_loss import PrototypeLoss
 
 
 class TTAEngine:
@@ -22,17 +22,19 @@ class TTAEngine:
         1. OOD filtering (energy score)
         2. Entropy filtering (SAR-style)
         3. PBRS buffering
-        4. Class-weighted SSL loss
+        4. Source Prototype Anchoring (SPA) loss
         5. Selective update (drift-aware LR)
         6. Anti-forgetting (Fisher + stochastic restore)
         7. EMA teacher update
     """
 
-    def __init__(self, model, cfg: dict):
+    def __init__(self, model, cfg: dict, prototypes: torch.Tensor = None):
         """
         Args:
             model: TTATCModel instance (source-trained)
             cfg: configuration dict
+            prototypes: (C, hidden_dim) source class prototypes for SPA loss.
+                        If None, falls back to a no-op loss.
         """
         self.cfg = cfg
         self.device = next(model.parameters()).device
@@ -59,15 +61,14 @@ class TTAEngine:
             p.requires_grad_(False)
         self.ema_momentum = cfg.get("ema_momentum", 0.999)
 
-        # SSL loss
-        self.ssl_loss_fn = CombinedSSLLoss(
-            alpha=cfg.get("ssl_alpha", 0.2),
-            beta=cfg.get("ssl_beta", 0.1),
-            mask_ratio=cfg.get("mask_ratio", 0.15),
-            enable_mpfp=cfg.get("enable_mpfp", True),
-            enable_pop=cfg.get("enable_pop", True),
-            enable_fsr=cfg.get("enable_fsr", True),
-        )
+        # Source Prototype Anchoring (SPA) loss
+        if prototypes is not None:
+            self.proto_loss = PrototypeLoss(
+                prototypes=prototypes,
+                temperature=cfg.get("spa_temperature", 0.07),
+            ).to(self.device)
+        else:
+            self.proto_loss = None
 
         # Drift detector
         self.drift_detector = DriftDetector(
@@ -107,10 +108,18 @@ class TTAEngine:
         self.step_count = 0
 
     def set_fisher(self, dataloader):
-        """Pre-compute Fisher information from source data."""
-        self.fisher_reg.compute_fisher(
-            self.source_model, dataloader, self.ssl_loss_fn
-        )
+        """Pre-compute Fisher information from source data using SPA loss."""
+        proto_loss = self.proto_loss  # capture for closure
+
+        def _loss_fn(model, ppi, flow_stats):
+            if proto_loss is None:
+                return torch.tensor(0.0, device=ppi.device, requires_grad=True), {}
+            logits, features = model(ppi, flow_stats, return_repr=True)
+            pseudo_labels = logits.detach().argmax(dim=1)
+            loss = proto_loss.compute_loss(features, pseudo_labels)
+            return loss, {}
+
+        self.fisher_reg.compute_fisher(self.source_model, dataloader, _loss_fn)
 
     def set_baseline_entropy(self, baseline: "np.ndarray"):
         """Set drift detector baseline from training data."""
@@ -204,22 +213,22 @@ class TTAEngine:
         for _ in range(steps):
             self.optimizer.zero_grad()
 
-            # Step 4: Class-weighted SSL loss
-            ssl_loss, ssl_dict = self.ssl_loss_fn(self.model, buf_ppi, buf_fs)
-
-            # Apply sample weights
-            # (Note: CombinedSSLLoss returns batch-mean loss;
-            #  for proper weighting, we'd need per-sample losses.
-            #  Simplified here as the buffer already balances classes.)
+            # Step 4: SPA loss — pull encoder features toward source class prototypes
+            buf_logits, buf_features = self.model(buf_ppi, buf_fs, return_repr=True)
+            buf_pseudo = buf_logits.detach().argmax(dim=1)
+            if self.proto_loss is not None:
+                spa_loss = self.proto_loss.compute_loss(buf_features, buf_pseudo)
+            else:
+                spa_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
 
             # Step 6: Fisher regularization
             fisher_loss = self.fisher_reg.penalty(self.model)
-            total_loss = ssl_loss + fisher_loss
+            total_loss = spa_loss + fisher_loss
 
             total_loss.backward()
             self.optimizer.step()
 
-        info["ssl_loss"] = ssl_dict
+        info["spa_loss"] = spa_loss.item()
         info["fisher_loss"] = fisher_loss.item()
         info["adapted"] = True
 

@@ -100,11 +100,18 @@ def run_single_period_eval(model_path, eval_cfg, device):
     }
     print(f"Accuracy: {static_metrics['accuracy']:.4f}, F1: {static_metrics['macro_f1']:.4f}")
 
-    # Baseline entropy
-    baseline_entropy_path = os.path.join(os.path.dirname(model_path), "baseline_entropy.npy")
+    # Baseline entropy and source prototypes
+    ckpt_dir = os.path.dirname(model_path)
     baseline_entropy = None
+    baseline_entropy_path = os.path.join(ckpt_dir, "baseline_entropy.npy")
     if os.path.exists(baseline_entropy_path):
         baseline_entropy = np.load(baseline_entropy_path)
+
+    prototypes = None
+    proto_path = os.path.join(ckpt_dir, "class_prototypes.pt")
+    if os.path.exists(proto_path):
+        prototypes = torch.load(proto_path, map_location=device, weights_only=True)
+        print(f"Loaded class prototypes: {prototypes.shape}")
 
     # Methods to evaluate
     methods_to_eval = eval_cfg.get("methods", ["bn_adapt", "tent", "eata", "cotta", "sar", "note", "tta_tc"])
@@ -152,7 +159,7 @@ def run_single_period_eval(model_path, eval_cfg, device):
                 "num_classes": num_classes,
                 **eval_cfg.get("tta", {}),
             }
-            engine = TTAEngine(tta_model, tta_cfg)
+            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes)
             if baseline_entropy is not None:
                 engine.set_baseline_entropy(baseline_entropy)
             labels, preds, t = evaluate_tta_method(engine, test_loader, device, "TTA-TC")
@@ -188,6 +195,12 @@ def run_sequential_eval(model_path, eval_cfg, device):
     if os.path.exists(baseline_entropy_path):
         baseline_entropy = np.load(baseline_entropy_path)
 
+    prototypes = None
+    proto_path = os.path.join(train_dir, "class_prototypes.pt")
+    if os.path.exists(proto_path):
+        prototypes = torch.load(proto_path, map_location=device, weights_only=True)
+        print(f"Loaded class prototypes: {prototypes.shape}")
+
     # Methods
     methods_to_eval = eval_cfg.get("methods", ["static", "tent", "eata", "tta_tc"])
     all_results = {}
@@ -208,7 +221,7 @@ def run_sequential_eval(model_path, eval_cfg, device):
         elif method_key == "tta_tc":
             tta_model = copy.deepcopy(model).to(device)
             tta_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
-            engine = TTAEngine(tta_model, tta_cfg)
+            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes)
             if baseline_entropy is not None:
                 engine.set_baseline_entropy(baseline_entropy)
 

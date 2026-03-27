@@ -238,6 +238,29 @@ def main():
             baseline_entropy[c] = entropy[mask].mean().item()
     np.save(os.path.join(output_dir, "baseline_entropy.npy"), baseline_entropy)
 
+    # Compute and save source class prototypes for SPA loss
+    model.eval()
+    proto_sum = torch.zeros(num_classes, cfg["model"]["hidden_dim"], device=device)
+    proto_count = torch.zeros(num_classes, device=device)
+    with torch.no_grad():
+        for batch in val_loader:
+            ppi = batch["ppi"].to(device)
+            labels = batch["label"].to(device)
+            flow_stats = batch.get("flow_stats")
+            if flow_stats is not None:
+                flow_stats = flow_stats.to(device)
+            _, features = model(ppi, flow_stats, return_repr=True)
+            for c in range(num_classes):
+                mask = labels == c
+                if mask.sum() > 0:
+                    proto_sum[c] += features[mask].sum(dim=0)
+                    proto_count[c] += mask.sum()
+    # Average; fall back to zero vector for unseen classes (safe — normalized later)
+    proto_count = proto_count.clamp(min=1)
+    class_prototypes = proto_sum / proto_count.unsqueeze(1)  # (C, hidden_dim)
+    torch.save(class_prototypes.cpu(), os.path.join(output_dir, "class_prototypes.pt"))
+    print(f"Class prototypes saved: shape {list(class_prototypes.shape)}")
+
     # Save results
     results = {
         "best_epoch": best_epoch,
