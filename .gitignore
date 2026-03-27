@@ -1,9 +1,21 @@
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
 # Python cache
 __pycache__/
 *.pyc
 
 # Experiment outputs (large checkpoints and logs)
-Experiment/core_code/outputs/
+# Experiment/core_code/outputs/
 Experiment/analysis/figures/
 Experiment/analysis/tables/
 Experiment/analysis/results/
