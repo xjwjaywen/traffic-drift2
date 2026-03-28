@@ -61,11 +61,12 @@ class TTAEngine:
             p.requires_grad_(False)
         self.ema_momentum = cfg.get("ema_momentum", 0.999)
 
-        # Source Prototype Anchoring (SPA) loss
+        # CASA: Class-Asymmetric Selective Adaptation loss
         if prototypes is not None:
             self.proto_loss = PrototypeLoss(
                 prototypes=prototypes,
                 temperature=cfg.get("spa_temperature", 0.07),
+                weight_tau=cfg.get("casa_weight_tau", 1.0),
             ).to(self.device)
         else:
             self.proto_loss = None
@@ -208,16 +209,30 @@ class TTAEngine:
         if abrupt_classes:
             steps = self.abrupt_adapt_steps
 
+        # Step 4: Compute per-class drift scores for CASA weighting
+        # Use teacher features (no gradient needed) to measure how far each
+        # class has drifted from its source prototype.
+        class_drift_scores = None
+        if self.proto_loss is not None:
+            with torch.no_grad():
+                _, teacher_features = self.teacher(buf_ppi, buf_fs, return_repr=True)
+                buf_teacher_pseudo = self.teacher(buf_ppi, buf_fs).argmax(dim=1)
+                class_drift_scores = self.proto_loss.per_class_drift_scores(
+                    teacher_features, buf_teacher_pseudo
+                )
+
         # Perform adaptation steps
         self.model.train()
         for _ in range(steps):
             self.optimizer.zero_grad()
 
-            # Step 4: SPA loss — pull encoder features toward source class prototypes
+            # Step 4 (cont): CASA loss — class-asymmetric prototype anchoring
             buf_logits, buf_features = self.model(buf_ppi, buf_fs, return_repr=True)
             buf_pseudo = buf_logits.detach().argmax(dim=1)
             if self.proto_loss is not None:
-                spa_loss = self.proto_loss.compute_loss(buf_features, buf_pseudo)
+                spa_loss = self.proto_loss.compute_loss(
+                    buf_features, buf_pseudo, class_drift_scores=class_drift_scores
+                )
             else:
                 spa_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
 
@@ -230,6 +245,9 @@ class TTAEngine:
 
         info["spa_loss"] = spa_loss.item()
         info["fisher_loss"] = fisher_loss.item()
+        if class_drift_scores is not None:
+            info["max_class_drift"] = class_drift_scores.max().item()
+            info["mean_class_drift"] = class_drift_scores.mean().item()
         info["adapted"] = True
 
         # Step 6 (continued): Stochastic restoration
