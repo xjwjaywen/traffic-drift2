@@ -44,5 +44,6 @@ tta:
   drift_lr_gamma: 3.0
   spa_temperature: 0.07   # InfoNCE temperature
   casa_weight_tau: 1.0    # class drift weight sharpness
+  proto_drift_threshold: 0.05  # global prototype drift gate
 
 output_dir: outputs/eval_tls22

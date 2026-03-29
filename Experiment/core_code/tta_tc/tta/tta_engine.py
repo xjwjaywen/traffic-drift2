@@ -221,6 +221,18 @@ class TTAEngine:
                     teacher_features, buf_teacher_pseudo
                 )
 
+            # Global prototype drift gate: skip adaptation if overall
+            # feature drift is too small (avoids harming near-source periods)
+            global_drift = class_drift_scores.mean().item()
+            info["global_proto_drift"] = global_drift
+            proto_drift_threshold = self.cfg.get("proto_drift_threshold", 0.05)
+            if global_drift < proto_drift_threshold:
+                with torch.no_grad():
+                    logits = self.model(ppi, flow_stats)
+                info["adapted"] = False
+                info["skipped_reason"] = "proto_no_drift"
+                return logits, info
+
         # Perform adaptation steps
         self.model.train()
         for _ in range(steps):
