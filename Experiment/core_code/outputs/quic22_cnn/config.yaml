@@ -3,7 +3,7 @@ data:
   data_dir: ./data
   dataset: quic22
   num_workers: 4
-  size: XS
+  size: S
   test_period: W-2022-45
   train_period: W-2022-44
   val_ratio: 0.2
