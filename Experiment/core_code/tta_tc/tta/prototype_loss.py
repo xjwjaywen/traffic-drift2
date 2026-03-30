@@ -48,9 +48,10 @@ class PrototypeLoss:
         return self
 
     def compute_loss(self, features: torch.Tensor, pseudo_labels: torch.Tensor,
-                     class_drift_scores: torch.Tensor = None) -> torch.Tensor:
+                     class_drift_scores: torch.Tensor = None,
+                     confidence_threshold: float = 0.0) -> torch.Tensor:
         """
-        Compute CASA loss.
+        Compute CASA loss with confidence-filtered pseudo-labels.
 
         Args:
             features: (B, hidden_dim) encoder output features
@@ -58,6 +59,8 @@ class PrototypeLoss:
             class_drift_scores: (C,) per-class drift scores. If provided,
                                 applies asymmetric weighting. If None,
                                 falls back to uniform SPA loss.
+            confidence_threshold: minimum cosine similarity to predicted
+                                  prototype to be included (0.0 = no filter)
         Returns:
             scalar loss
         """
@@ -65,14 +68,25 @@ class PrototypeLoss:
             return torch.tensor(0.0, requires_grad=True, device=features.device)
 
         f = F.normalize(features, dim=1)                         # (B, hidden_dim)
-        sim = torch.matmul(f, self.prototypes.T) / self.temperature  # (B, C)
+
+        # Confidence filter: discard samples whose features are far from
+        # their predicted prototype (unreliable pseudo-labels)
+        if confidence_threshold > 0.0:
+            with torch.no_grad():
+                proto_y = self.prototypes[pseudo_labels]         # (B, hidden_dim)
+                cos_sim = (f * proto_y).sum(dim=1)               # (B,)
+                confident_mask = cos_sim > confidence_threshold
+            if confident_mask.sum() < 2:
+                return torch.tensor(0.0, requires_grad=True, device=features.device)
+            f = f[confident_mask]
+            pseudo_labels = pseudo_labels[confident_mask]
+
+        sim = torch.matmul(f, self.prototypes.T) / self.temperature  # (B', C)
 
         if class_drift_scores is not None:
-            # Per-sample weight = drift score of its predicted class
-            # softmax over classes so weights sum to num_classes (unbiased mean)
             weights = F.softmax(class_drift_scores / self.weight_tau, dim=0) * self.num_classes
-            sample_weights = weights[pseudo_labels]              # (B,)
-            per_sample_loss = F.cross_entropy(sim, pseudo_labels, reduction='none')  # (B,)
+            sample_weights = weights[pseudo_labels]              # (B',)
+            per_sample_loss = F.cross_entropy(sim, pseudo_labels, reduction='none')
             loss = (per_sample_loss * sample_weights).mean()
         else:
             loss = F.cross_entropy(sim, pseudo_labels)

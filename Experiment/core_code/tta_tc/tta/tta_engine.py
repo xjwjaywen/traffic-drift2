@@ -243,7 +243,9 @@ class TTAEngine:
             buf_pseudo = buf_logits.detach().argmax(dim=1)
             if self.proto_loss is not None:
                 spa_loss = self.proto_loss.compute_loss(
-                    buf_features, buf_pseudo, class_drift_scores=class_drift_scores
+                    buf_features, buf_pseudo,
+                    class_drift_scores=class_drift_scores,
+                    confidence_threshold=self.cfg.get("confidence_threshold", 0.3),
                 )
             else:
                 spa_loss = torch.tensor(0.0, device=self.device, requires_grad=True)

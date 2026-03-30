@@ -28,7 +28,7 @@ methods:
   - tta_tc
 
 tta:
-  adapt_lr: 0.0001
+  adapt_lr: 0.00001
   adapt_mode: encoder
   adapt_batch_size: 64
   ema_momentum: 0.999
@@ -45,5 +45,6 @@ tta:
   spa_temperature: 0.07   # InfoNCE temperature
   casa_weight_tau: 1.0    # class drift weight sharpness
   proto_drift_threshold: 0.05  # global prototype drift gate
+  confidence_threshold: 0.3    # discard noisy pseudo-labels
 
 output_dir: outputs/eval_tls22
