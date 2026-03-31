@@ -3,7 +3,7 @@ data:
   data_dir: ./data/tls22
   dataset: tls22
   num_workers: 4
-  size: XS
+  size: S
   test_period: M-2022-5
   train_period: M-2022-3
   val_ratio: 0.2
