@@ -1,298 +1,155 @@
 """
-TTA-TC: Test-Time Adaptation Engine.
+TTA-TC: Test-Time Adaptation Engine (v3 — Inference-Time Prototype Interpolation).
 
-Implements the 7-step class-aware selective adaptation pipeline.
+No gradient updates. Adapts at inference by blending:
+  - Static classifier output (frozen source model)
+  - Prototype-based output (cosine similarity to running class prototypes)
+
+Blending coefficient α_c is per-class, proportional to drift magnitude:
+  - Stable classes (low drift) → α ≈ 0 → output ≈ Static (safe)
+  - Drifted classes (high drift) → α → α_max → trust prototype classifier
+
+Safety guarantee: when drift = 0, α = 0, output = Static exactly.
 """
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import copy
 import math
-from .drift_detector import DriftDetector
-from .pbrs_buffer import PBRSBuffer
-from .anti_forgetting import FisherRegularizer, StochasticRestorer
-from .prototype_loss import PrototypeLoss
 
 
 class TTAEngine:
     """
-    Full TTA-TC adaptation engine.
+    Class-Asymmetric Inference-Time Adaptation (CASA-Inf).
 
-    7-step pipeline per batch:
-        1. OOD filtering (energy score)
-        2. Entropy filtering (SAR-style)
-        3. PBRS buffering
-        4. Source Prototype Anchoring (SPA) loss
-        5. Selective update (drift-aware LR)
-        6. Anti-forgetting (Fisher + stochastic restore)
-        7. EMA teacher update
+    Pipeline per batch (all inference, no backward pass):
+        1. Forward pass through frozen model → static logits + features
+        2. Entropy filter: select high-confidence samples for prototype update
+        3. EMA update of running class prototypes
+        4. Compute per-class drift score: cosine distance(running, source)
+        5. Per-class α: drift_score → blending weight
+        6. Blend: final = (1-α) × static_probs + α × proto_probs
     """
 
     def __init__(self, model, cfg: dict, prototypes: torch.Tensor = None):
         """
         Args:
-            model: TTATCModel instance (source-trained)
+            model: TTATCModel instance (source-trained, will be frozen)
             cfg: configuration dict
-            prototypes: (C, hidden_dim) source class prototypes for SPA loss.
-                        If None, falls back to a no-op loss.
+            prototypes: (C, hidden_dim) source class prototypes
         """
         self.cfg = cfg
         self.device = next(model.parameters()).device
-        num_classes = cfg["num_classes"]
+        self.num_classes = cfg["num_classes"]
 
-        # Source model (frozen copy for reference)
-        self.source_model = copy.deepcopy(model)
-        self.source_model.eval()
-        for p in self.source_model.parameters():
-            p.requires_grad_(False)
-
-        # Adaptation model
+        # Freeze the entire model — no parameter updates
         self.model = model
         self.model.eval()
-
-        # Freeze classification head
-        for p in self.model.cls_head.parameters():
+        for p in self.model.parameters():
             p.requires_grad_(False)
 
-        # EMA teacher
-        self.teacher = copy.deepcopy(model)
-        self.teacher.eval()
-        for p in self.teacher.parameters():
-            p.requires_grad_(False)
-        self.ema_momentum = cfg.get("ema_momentum", 0.999)
-
-        # CASA: Class-Asymmetric Selective Adaptation loss
+        # Source prototypes (frozen reference)
         if prototypes is not None:
-            self.proto_loss = PrototypeLoss(
-                prototypes=prototypes,
-                temperature=cfg.get("spa_temperature", 0.07),
-                weight_tau=cfg.get("casa_weight_tau", 1.0),
-            ).to(self.device)
+            self.source_protos = F.normalize(prototypes.to(self.device), dim=1)
+            # Running prototypes (EMA updated from test features)
+            self.running_protos = self.source_protos.clone()
         else:
-            self.proto_loss = None
+            self.source_protos = None
+            self.running_protos = None
 
-        # Drift detector
-        self.drift_detector = DriftDetector(
-            num_classes=num_classes,
-            entropy_threshold=cfg.get("entropy_threshold", 0.5),
-            abrupt_threshold=cfg.get("abrupt_threshold", 1.0),
-        )
+        # Hyperparameters
+        self.proto_momentum = cfg.get("proto_momentum", 0.99)
+        self.proto_temperature = cfg.get("spa_temperature", 0.1)
+        self.alpha_scale = cfg.get("alpha_scale", 5.0)
+        self.alpha_max = cfg.get("alpha_max", 0.5)
+        self.drift_threshold = cfg.get("proto_drift_threshold", 0.02)
 
-        # PBRS buffer
-        buffer_size = cfg.get("buffer_size", num_classes * 10)
-        self.buffer = PBRSBuffer(buffer_size, num_classes)
-
-        # Anti-forgetting
-        self.fisher_reg = FisherRegularizer(model, cfg.get("fisher_alpha", 2000.0))
-        self.stochastic_restorer = StochasticRestorer(model, cfg.get("restore_prob", 0.01))
-
-        # Optimizer for adaptation
-        adapt_mode = cfg.get("adapt_mode", "encoder")
-        adapt_params = self.model.get_adaptation_params(adapt_mode)
-        self.optimizer = torch.optim.Adam(
-            adapt_params,
-            lr=cfg.get("adapt_lr", 1e-4),
-            weight_decay=0,
-        )
-
-        # Thresholds
-        self.energy_threshold = cfg.get("energy_threshold", -5.0)
-        self.entropy_threshold_ratio = cfg.get("entropy_filter_ratio", 0.4)
-        self.max_entropy = self.entropy_threshold_ratio * math.log(num_classes)
-
-        # Drift-aware LR multiplier
-        self.drift_lr_gamma = cfg.get("drift_lr_gamma", 3.0)
-        self.adapt_steps = cfg.get("adapt_steps", 1)
-        self.abrupt_adapt_steps = cfg.get("abrupt_adapt_steps", 10)
+        # Entropy filter for prototype update quality
+        self.entropy_filter_ratio = cfg.get("entropy_filter_ratio", 0.4)
+        self.max_entropy = self.entropy_filter_ratio * math.log(max(self.num_classes, 2))
 
         # Counters
         self.step_count = 0
 
     def set_fisher(self, dataloader):
-        """Pre-compute Fisher information from source data using SPA loss."""
-        proto_loss = self.proto_loss  # capture for closure
+        """No-op. Fisher regularization is not used in inference-time adaptation."""
+        pass
 
-        def _loss_fn(model, ppi, flow_stats):
-            if proto_loss is None:
-                return torch.tensor(0.0, device=ppi.device, requires_grad=True), {}
-            logits, features = model(ppi, flow_stats, return_repr=True)
-            pseudo_labels = logits.detach().argmax(dim=1)
-            loss = proto_loss.compute_loss(features, pseudo_labels)
-            return loss, {}
-
-        self.fisher_reg.compute_fisher(self.source_model, dataloader, _loss_fn)
-
-    def set_baseline_entropy(self, baseline: "np.ndarray"):
-        """Set drift detector baseline from training data."""
-        self.drift_detector.set_baseline(baseline)
+    def set_baseline_entropy(self, baseline):
+        """No-op. Entropy baseline not needed for prototype-based adaptation."""
+        pass
 
     @torch.no_grad()
-    def _filter_ood(self, logits: torch.Tensor) -> torch.Tensor:
-        """Step 1: OOD filtering via energy score."""
-        energy = -torch.logsumexp(logits, dim=1)
-        return energy < self.energy_threshold
-
-    @torch.no_grad()
-    def _filter_entropy(self, logits: torch.Tensor) -> torch.Tensor:
-        """Step 2: Entropy filtering (SAR-style)."""
-        probs = F.softmax(logits, dim=1)
-        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=1)
-        return entropy < self.max_entropy
-
     def adapt_batch(self, ppi: torch.Tensor, flow_stats: torch.Tensor = None):
         """
-        Perform one TTA step on a batch.
+        Inference-time adaptation via class-conditional prototype interpolation.
 
         Args:
-            ppi: (B, 3, 30)
+            ppi: (B, 3, 30) packet payload input
             flow_stats: (B, D) or None
         Returns:
-            logits: (B, C) adapted classification logits
+            logits: (B, C) adapted classification output (log-probs)
             info: dict with adaptation stats
         """
-        self.model.eval()
         info = {}
 
-        # Get initial predictions from teacher
-        with torch.no_grad():
-            teacher_logits = self.teacher(ppi, flow_stats)
-            preds = teacher_logits.argmax(dim=1)
-
-        # Step 1: OOD filtering
-        ood_mask = self._filter_ood(teacher_logits)
-        # Step 2: Entropy filtering
-        ent_mask = self._filter_entropy(teacher_logits)
-        valid_mask = ood_mask & ent_mask
-
+        # Step 1: Forward pass through frozen model
+        logits, features = self.model(ppi, flow_stats, return_repr=True)
         info["total_samples"] = ppi.size(0)
-        info["valid_samples"] = valid_mask.sum().item()
 
-        if valid_mask.sum() < 2:
-            # Not enough valid samples, skip adaptation
-            logits = self.model(ppi, flow_stats)
+        # If no prototypes, return static predictions
+        if self.source_protos is None:
             info["adapted"] = False
             return logits, info
 
-        # Step 3: Add to PBRS buffer
-        self.buffer.add(
-            ppi[valid_mask],
-            flow_stats[valid_mask] if flow_stats is not None else None,
-            preds[valid_mask]
-        )
+        f = F.normalize(features, dim=1)                       # (B, hidden_dim)
+        pseudo_labels = logits.argmax(dim=1)                   # (B,)
 
-        # Sample from buffer
-        buf_ppi, buf_fs, buf_weights = self.buffer.sample(
-            self.cfg.get("adapt_batch_size", 64), self.device
-        )
+        # Step 2: Entropy filter — only update prototypes with confident samples
+        probs = F.softmax(logits, dim=1)
+        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=1)
+        confident_mask = entropy < self.max_entropy
 
-        if buf_ppi is None:
-            logits = self.model(ppi, flow_stats)
-            info["adapted"] = False
-            return logits, info
+        # Step 3: EMA update of running prototypes (confident samples only)
+        if confident_mask.sum() > 0:
+            conf_features = f[confident_mask]
+            conf_labels = pseudo_labels[confident_mask]
+            m = self.proto_momentum
+            for c in range(self.num_classes):
+                mask_c = conf_labels == c
+                if mask_c.sum() > 0:
+                    class_mean = F.normalize(conf_features[mask_c].mean(dim=0), dim=0)
+                    self.running_protos[c] = F.normalize(
+                        m * self.running_protos[c] + (1 - m) * class_mean, dim=0
+                    )
 
-        # Step 4+5: Drift detection and selective adaptation
-        drifted_classes, abrupt_classes = self.drift_detector.update(teacher_logits)
-        info["drifted_classes"] = len(drifted_classes)
-        info["abrupt_classes"] = len(abrupt_classes)
+        # Step 4: Per-class drift score (cosine distance: running vs source)
+        drift_scores = 1.0 - (self.running_protos * self.source_protos).sum(dim=1)  # (C,)
 
-        # Drift gate: skip adaptation if no class shows significant drift
-        min_drifted = self.cfg.get("min_drifted_classes", 1)
-        if len(drifted_classes) < min_drifted and len(abrupt_classes) == 0:
-            with torch.no_grad():
-                logits = self.model(ppi, flow_stats)
-            info["adapted"] = False
-            info["skipped_reason"] = "no_drift"
-            return logits, info
+        # Step 5: Per-class blending coefficient α
+        # α_c = clamp(scale * max(drift_c - threshold, 0), 0, alpha_max)
+        alpha = (self.alpha_scale * (drift_scores - self.drift_threshold).clamp(min=0)).clamp(max=self.alpha_max)
 
-        # Determine adaptation intensity
-        steps = self.adapt_steps
-        if abrupt_classes:
-            steps = self.abrupt_adapt_steps
+        # Step 6: Blend static probs with prototype-based probs
+        proto_logits = torch.matmul(f, self.running_protos.T) / self.proto_temperature
+        proto_probs = F.softmax(proto_logits, dim=1)           # (B, C)
+        static_probs = probs                                   # (B, C), already computed
 
-        # Step 4: Compute per-class drift scores for CASA weighting
-        # Use teacher features (no gradient needed) to measure how far each
-        # class has drifted from its source prototype.
-        class_drift_scores = None
-        if self.proto_loss is not None:
-            with torch.no_grad():
-                _, teacher_features = self.teacher(buf_ppi, buf_fs, return_repr=True)
-                buf_teacher_pseudo = self.teacher(buf_ppi, buf_fs).argmax(dim=1)
-                class_drift_scores = self.proto_loss.per_class_drift_scores(
-                    teacher_features, buf_teacher_pseudo
-                )
+        sample_alpha = alpha[pseudo_labels].unsqueeze(1)       # (B, 1)
+        final_probs = (1 - sample_alpha) * static_probs + sample_alpha * proto_probs
+        final_logits = torch.log(final_probs + 1e-8)
 
-            # Global prototype drift gate: skip adaptation if overall
-            # feature drift is too small (avoids harming near-source periods)
-            global_drift = class_drift_scores.mean().item()
-            info["global_proto_drift"] = global_drift
-            proto_drift_threshold = self.cfg.get("proto_drift_threshold", 0.05)
-            if global_drift < proto_drift_threshold:
-                with torch.no_grad():
-                    logits = self.model(ppi, flow_stats)
-                info["adapted"] = False
-                info["skipped_reason"] = "proto_no_drift"
-                return logits, info
-
-        # Perform adaptation steps
-        self.model.train()
-        for _ in range(steps):
-            self.optimizer.zero_grad()
-
-            # Step 4 (cont): CASA loss — class-asymmetric prototype anchoring
-            buf_logits, buf_features = self.model(buf_ppi, buf_fs, return_repr=True)
-            buf_pseudo = buf_logits.detach().argmax(dim=1)
-            if self.proto_loss is not None:
-                spa_loss = self.proto_loss.compute_loss(
-                    buf_features, buf_pseudo,
-                    class_drift_scores=class_drift_scores,
-                    confidence_threshold=self.cfg.get("confidence_threshold", 0.3),
-                )
-            else:
-                spa_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
-
-            # Step 6: Fisher regularization
-            fisher_loss = self.fisher_reg.penalty(self.model)
-            total_loss = spa_loss + fisher_loss
-
-            total_loss.backward()
-            self.optimizer.step()
-
-        info["spa_loss"] = spa_loss.item()
-        info["fisher_loss"] = fisher_loss.item()
-        if class_drift_scores is not None:
-            info["max_class_drift"] = class_drift_scores.max().item()
-            info["mean_class_drift"] = class_drift_scores.mean().item()
+        # Stats
         info["adapted"] = True
-
-        # Step 6 (continued): Stochastic restoration
-        self.stochastic_restorer.restore(self.model)
-
-        # Step 7: EMA teacher update
-        self._update_teacher()
-
-        self.model.eval()
+        info["mean_drift"] = drift_scores.mean().item()
+        info["max_drift"] = drift_scores.max().item()
+        info["mean_alpha"] = alpha.mean().item()
+        info["confident_samples"] = confident_mask.sum().item()
         self.step_count += 1
 
-        # Final prediction with adapted model
-        with torch.no_grad():
-            logits = self.model(ppi, flow_stats)
-
-        return logits, info
-
-    @torch.no_grad()
-    def _update_teacher(self):
-        """EMA update of teacher model."""
-        m = self.ema_momentum
-        for t_param, s_param in zip(self.teacher.parameters(), self.model.parameters()):
-            t_param.data.mul_(m).add_(s_param.data, alpha=1 - m)
+        return final_logits, info
 
     def reset(self):
-        """Reset model to source weights."""
-        self.model.load_state_dict(self.source_model.state_dict())
-        self.teacher.load_state_dict(self.source_model.state_dict())
-        self.buffer = PBRSBuffer(self.buffer.buffer_size, self.cfg["num_classes"])
-        self.drift_detector = DriftDetector(
-            self.cfg["num_classes"],
-            self.cfg.get("entropy_threshold", 0.5),
-        )
+        """Reset running prototypes to source prototypes."""
+        if self.source_protos is not None:
+            self.running_protos = self.source_protos.clone()
         self.step_count = 0

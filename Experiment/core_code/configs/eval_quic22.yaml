@@ -25,6 +25,7 @@ methods:
   - tta_tc
 
 tta:
+  # Baseline TTA params (used by Tent/EATA/CoTTA/SAR/NOTE)
   adapt_lr: 0.00001
   adapt_mode: encoder
   adapt_batch_size: 64
@@ -39,9 +40,11 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  spa_temperature: 0.07   # InfoNCE temperature (lower = sharper contrast)
-  casa_weight_tau: 1.0    # class drift weight sharpness (higher = more focus on drifted classes)
-  proto_drift_threshold: 0.05  # global prototype drift gate (skip if mean drift < threshold)
-  confidence_threshold: 0.3    # discard samples with cosine sim < threshold (filter noisy pseudo-labels)
+  # CASA-Inf params (inference-time prototype interpolation)
+  spa_temperature: 0.1          # prototype similarity temperature
+  proto_momentum: 0.99          # EMA momentum for running prototype updates
+  alpha_scale: 5.0              # drift-to-alpha scaling factor
+  alpha_max: 0.5                # max blending weight (0.5 = at most half prototype)
+  proto_drift_threshold: 0.02   # drift below this -> alpha=0 (pure static)
 
 output_dir: outputs/eval_quic22

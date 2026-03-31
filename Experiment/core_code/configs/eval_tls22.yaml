@@ -28,6 +28,7 @@ methods:
   - tta_tc
 
 tta:
+  # Baseline TTA params
   adapt_lr: 0.00001
   adapt_mode: encoder
   adapt_batch_size: 64
@@ -42,9 +43,11 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  spa_temperature: 0.07   # InfoNCE temperature
-  casa_weight_tau: 1.0    # class drift weight sharpness
-  proto_drift_threshold: 0.05  # global prototype drift gate
-  confidence_threshold: 0.3    # discard noisy pseudo-labels
+  # CASA-Inf params
+  spa_temperature: 0.1
+  proto_momentum: 0.99
+  alpha_scale: 5.0
+  alpha_max: 0.5
+  proto_drift_threshold: 0.02
 
 output_dir: outputs/eval_tls22
