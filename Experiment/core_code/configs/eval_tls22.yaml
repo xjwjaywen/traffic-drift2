@@ -46,11 +46,10 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  # CASA-Inf params
+  # OT-TTA params
   spa_temperature: 0.1
-  proto_momentum: 0.99
-  alpha_scale: 5.0
-  alpha_max: 0.5
-  proto_drift_threshold: 0.02
+  ot_epsilon: 0.1
+  ot_max_iter: 50
+  transport_weight: 0.5
 
 output_dir: outputs/eval_tls22

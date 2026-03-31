@@ -1,15 +1,25 @@
 """
-TTA-TC: Test-Time Adaptation Engine (v3 — Inference-Time Prototype Interpolation).
+TTA-TC: Test-Time Adaptation Engine (v4 — Optimal Transport).
 
-No gradient updates. Adapts at inference by blending:
-  - Static classifier output (frozen source model)
-  - Prototype-based output (cosine similarity to running class prototypes)
+Adapts at inference by transporting test features toward source class
+prototypes via Sinkhorn optimal transport. No gradient updates.
 
-Blending coefficient α_c is per-class, proportional to drift magnitude:
-  - Stable classes (low drift) → α ≈ 0 → output ≈ Static (safe)
-  - Drifted classes (high drift) → α → α_max → trust prototype classifier
+Mathematical formulation:
+    Given source prototypes P = {p_1, ..., p_K} and test features Z = {z_1, ..., z_n},
+    solve the entropy-regularized OT problem:
 
-Safety guarantee: when drift = 0, α = 0, output = Static exactly.
+        min_γ  Σ_{k,i} γ_{ki} · c(p_k, z_i)  +  ε · H(γ)
+
+    where c is cosine distance, ε is the regularization strength, and H is entropy.
+    The Sinkhorn algorithm solves this via alternating row/column normalization.
+
+    Transported features:  ẑ_i = Σ_k  (γ*_{ki} / Σ_{k'} γ*_{k'i}) · p_k
+    Classification:        ŷ_i = argmax cosine_sim(ẑ_i, P)
+
+Key properties:
+    - Inference-only: no parameter updates, no backward pass
+    - Class-asymmetric: stable classes get near-identity transport
+    - Safety: with high ε, transport → uniform → falls back to static logits
 """
 import torch
 import torch.nn.functional as F
@@ -17,139 +27,146 @@ import copy
 import math
 
 
+def sinkhorn_transport(cost: torch.Tensor, epsilon: float = 0.1,
+                       max_iter: int = 50) -> torch.Tensor:
+    """
+    Sinkhorn algorithm for entropy-regularized optimal transport.
+
+    Args:
+        cost: (K, B) cost matrix between K prototypes and B test samples
+        epsilon: regularization strength (lower = sharper transport)
+        max_iter: number of Sinkhorn iterations
+    Returns:
+        gamma: (K, B) optimal transport coupling matrix (rows sum to 1/K, cols sum to 1/B)
+    """
+    K, B = cost.shape
+    # Log-domain Sinkhorn for numerical stability
+    log_K = -cost / epsilon                             # (K, B)
+    log_mu = torch.full((K,), -math.log(K), device=cost.device)     # uniform source
+    log_nu = torch.full((B,), -math.log(B), device=cost.device)     # uniform target
+
+    log_u = torch.zeros(K, device=cost.device)
+    log_v = torch.zeros(B, device=cost.device)
+
+    for _ in range(max_iter):
+        # Row normalization
+        log_u = log_mu - torch.logsumexp(log_K + log_v.unsqueeze(0), dim=1)
+        # Column normalization
+        log_v = log_nu - torch.logsumexp(log_K + log_u.unsqueeze(1), dim=0)
+
+    gamma = torch.exp(log_K + log_u.unsqueeze(1) + log_v.unsqueeze(0))
+    return gamma
+
+
 class TTAEngine:
     """
-    Class-Asymmetric Inference-Time Adaptation (CASA-Inf).
+    Optimal Transport Test-Time Adaptation (OT-TTA).
 
     Pipeline per batch (all inference, no backward pass):
         1. Forward pass through frozen model → static logits + features
-        2. Entropy filter: select high-confidence samples for prototype update
-        3. EMA update of running class prototypes
-        4. Compute per-class drift score: cosine distance(running, source)
-        5. Per-class α: drift_score → blending weight
-        6. Blend: final = (1-α) × static_probs + α × proto_probs
+        2. Compute cosine cost matrix between features and source prototypes
+        3. Solve Sinkhorn OT → coupling matrix γ*
+        4. Transport features: ẑ_i = weighted average of prototypes via γ*
+        5. Blend: interpolate between original and transported features
+        6. Classify via cosine similarity to source prototypes
     """
 
     def __init__(self, model, cfg: dict, prototypes: torch.Tensor = None):
-        """
-        Args:
-            model: TTATCModel instance (source-trained, will be frozen)
-            cfg: configuration dict
-            prototypes: (C, hidden_dim) source class prototypes
-        """
         self.cfg = cfg
         self.device = next(model.parameters()).device
         self.num_classes = cfg["num_classes"]
 
-        # Freeze the entire model — no parameter updates
+        # Freeze the entire model
         self.model = model
         self.model.eval()
         for p in self.model.parameters():
             p.requires_grad_(False)
 
-        # Source prototypes (frozen reference)
+        # Source prototypes (frozen)
         if prototypes is not None:
-            self.source_protos = F.normalize(prototypes.to(self.device), dim=1)
-            # Running prototypes (EMA updated from test features)
-            self.running_protos = self.source_protos.clone()
+            self.prototypes = F.normalize(prototypes.to(self.device), dim=1)  # (K, D)
         else:
-            self.source_protos = None
-            self.running_protos = None
+            self.prototypes = None
 
-        # Hyperparameters
-        self.proto_momentum = cfg.get("proto_momentum", 0.99)
+        # OT hyperparameters
+        self.ot_epsilon = cfg.get("ot_epsilon", 0.1)
+        self.ot_max_iter = cfg.get("ot_max_iter", 50)
+        self.transport_weight = cfg.get("transport_weight", 0.5)
         self.proto_temperature = cfg.get("spa_temperature", 0.1)
-        self.alpha_scale = cfg.get("alpha_scale", 5.0)
-        self.alpha_max = cfg.get("alpha_max", 0.5)
-        self.drift_threshold = cfg.get("proto_drift_threshold", 0.02)
-
-        # Entropy filter for prototype update quality
-        self.entropy_filter_ratio = cfg.get("entropy_filter_ratio", 0.4)
-        self.max_entropy = self.entropy_filter_ratio * math.log(max(self.num_classes, 2))
 
         # Counters
         self.step_count = 0
 
     def set_fisher(self, dataloader):
-        """No-op. Fisher regularization is not used in inference-time adaptation."""
+        """No-op."""
         pass
 
     def set_baseline_entropy(self, baseline):
-        """No-op. Entropy baseline not needed for prototype-based adaptation."""
+        """No-op."""
         pass
 
     @torch.no_grad()
     def adapt_batch(self, ppi: torch.Tensor, flow_stats: torch.Tensor = None):
         """
-        Inference-time adaptation via class-conditional prototype interpolation.
+        OT-based test-time adaptation.
 
         Args:
-            ppi: (B, 3, 30) packet payload input
+            ppi: (B, 3, 30)
             flow_stats: (B, D) or None
         Returns:
-            logits: (B, C) adapted classification output (log-probs)
+            logits: (B, C) adapted classification output
             info: dict with adaptation stats
         """
         info = {}
 
-        # Step 1: Forward pass through frozen model
+        # Step 1: Forward pass
         logits, features = self.model(ppi, flow_stats, return_repr=True)
         info["total_samples"] = ppi.size(0)
 
-        # If no prototypes, return static predictions
-        if self.source_protos is None:
+        if self.prototypes is None:
             info["adapted"] = False
             return logits, info
 
-        f = F.normalize(features, dim=1)                       # (B, hidden_dim)
-        pseudo_labels = logits.argmax(dim=1)                   # (B,)
+        f = F.normalize(features, dim=1)                        # (B, D)
+        K = self.prototypes.size(0)
+        B = f.size(0)
 
-        # Step 2: Entropy filter — only update prototypes with confident samples
-        probs = F.softmax(logits, dim=1)
-        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=1)
-        confident_mask = entropy < self.max_entropy
+        # Step 2: Cosine cost matrix (1 - similarity)
+        sim = torch.matmul(self.prototypes, f.T)                # (K, B)
+        cost = 1.0 - sim                                        # (K, B) cosine distance
 
-        # Step 3: EMA update of running prototypes (confident samples only)
-        if confident_mask.sum() > 0:
-            conf_features = f[confident_mask]
-            conf_labels = pseudo_labels[confident_mask]
-            m = self.proto_momentum
-            for c in range(self.num_classes):
-                mask_c = conf_labels == c
-                if mask_c.sum() > 0:
-                    class_mean = F.normalize(conf_features[mask_c].mean(dim=0), dim=0)
-                    self.running_protos[c] = F.normalize(
-                        m * self.running_protos[c] + (1 - m) * class_mean, dim=0
-                    )
+        # Step 3: Sinkhorn OT
+        gamma = sinkhorn_transport(cost, self.ot_epsilon, self.ot_max_iter)  # (K, B)
 
-        # Step 4: Per-class drift score (cosine distance: running vs source)
-        drift_scores = 1.0 - (self.running_protos * self.source_protos).sum(dim=1)  # (C,)
+        # Step 4: Transport features — barycentric mapping
+        # For each test sample i, transported feature = weighted sum of prototypes
+        col_sum = gamma.sum(dim=0, keepdim=True).clamp(min=1e-8)  # (1, B)
+        weights = gamma / col_sum                                  # (K, B) normalized per column
+        transported = torch.matmul(weights.T, self.prototypes)     # (B, D)
+        transported = F.normalize(transported, dim=1)
 
-        # Step 5: Per-class blending coefficient α
-        # α_c = clamp(scale * max(drift_c - threshold, 0), 0, alpha_max)
-        alpha = (self.alpha_scale * (drift_scores - self.drift_threshold).clamp(min=0)).clamp(max=self.alpha_max)
+        # Step 5: Blend original and transported features
+        # transport_weight controls how much we trust OT vs original
+        w = self.transport_weight
+        blended = F.normalize((1 - w) * f + w * transported, dim=1)  # (B, D)
 
-        # Step 6: Blend static probs with prototype-based probs
-        proto_logits = torch.matmul(f, self.running_protos.T) / self.proto_temperature
-        proto_probs = F.softmax(proto_logits, dim=1)           # (B, C)
-        static_probs = probs                                   # (B, C), already computed
+        # Step 6: Classify via cosine similarity to prototypes
+        adapted_logits = torch.matmul(blended, self.prototypes.T) / self.proto_temperature
 
-        sample_alpha = alpha[pseudo_labels].unsqueeze(1)       # (B, 1)
-        final_probs = (1 - sample_alpha) * static_probs + sample_alpha * proto_probs
+        # Blend with static logits for safety
+        static_probs = F.softmax(logits, dim=1)
+        ot_probs = F.softmax(adapted_logits, dim=1)
+        final_probs = (1 - w) * static_probs + w * ot_probs
         final_logits = torch.log(final_probs + 1e-8)
 
         # Stats
         info["adapted"] = True
-        info["mean_drift"] = drift_scores.mean().item()
-        info["max_drift"] = drift_scores.max().item()
-        info["mean_alpha"] = alpha.mean().item()
-        info["confident_samples"] = confident_mask.sum().item()
+        info["mean_transport_cost"] = cost.mean().item()
+        info["mean_coupling_entropy"] = -(gamma * (gamma + 1e-8).log()).sum().item() / B
         self.step_count += 1
 
         return final_logits, info
 
     def reset(self):
-        """Reset running prototypes to source prototypes."""
-        if self.source_protos is not None:
-            self.running_protos = self.source_protos.clone()
+        """Reset state."""
         self.step_count = 0

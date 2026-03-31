@@ -40,11 +40,10 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  # CASA-Inf params (inference-time prototype interpolation)
-  spa_temperature: 0.1          # prototype similarity temperature
-  proto_momentum: 0.99          # EMA momentum for running prototype updates
-  alpha_scale: 5.0              # drift-to-alpha scaling factor
-  alpha_max: 0.5                # max blending weight (0.5 = at most half prototype)
-  proto_drift_threshold: 0.02   # drift below this -> alpha=0 (pure static)
+  # OT-TTA params (optimal transport adaptation)
+  spa_temperature: 0.1         # prototype similarity temperature for classification
+  ot_epsilon: 0.1              # Sinkhorn regularization (lower = sharper transport)
+  ot_max_iter: 50              # Sinkhorn iterations
+  transport_weight: 0.5        # blend weight: 0=pure static, 1=pure OT
 
 output_dir: outputs/eval_quic22
