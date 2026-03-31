@@ -113,6 +113,12 @@ def run_single_period_eval(model_path, eval_cfg, device):
         prototypes = torch.load(proto_path, map_location=device, weights_only=True)
         print(f"Loaded class prototypes: {prototypes.shape}")
 
+    position_stats = None
+    pos_stats_path = os.path.join(ckpt_dir, "position_stats.pt")
+    if os.path.exists(pos_stats_path):
+        position_stats = torch.load(pos_stats_path, map_location=device, weights_only=True)
+        print(f"Loaded position stats: mean/std for {position_stats['mean'].shape[0]} positions")
+
     # Methods to evaluate
     methods_to_eval = eval_cfg.get("methods", ["bn_adapt", "tent", "eata", "cotta", "sar", "note", "tta_tc"])
     adapt_cfg = {
@@ -159,9 +165,8 @@ def run_single_period_eval(model_path, eval_cfg, device):
                 "num_classes": num_classes,
                 **eval_cfg.get("tta", {}),
             }
-            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes)
-            if baseline_entropy is not None:
-                engine.set_baseline_entropy(baseline_entropy)
+            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
+                               position_stats=position_stats)
             labels, preds, t = evaluate_tta_method(engine, test_loader, device, "TTA-TC")
             m = compute_metrics(labels, preds)
             results["tta_tc"] = {
@@ -201,6 +206,12 @@ def run_sequential_eval(model_path, eval_cfg, device):
         prototypes = torch.load(proto_path, map_location=device, weights_only=True)
         print(f"Loaded class prototypes: {prototypes.shape}")
 
+    position_stats = None
+    pos_stats_path = os.path.join(train_dir, "position_stats.pt")
+    if os.path.exists(pos_stats_path):
+        position_stats = torch.load(pos_stats_path, map_location=device, weights_only=True)
+        print(f"Loaded position stats: mean/std for {position_stats['mean'].shape[0]} positions")
+
     # Methods
     methods_to_eval = eval_cfg.get("methods", ["static", "tent", "eata", "tta_tc"])
     all_results = {}
@@ -221,9 +232,8 @@ def run_sequential_eval(model_path, eval_cfg, device):
         elif method_key == "tta_tc":
             tta_model = copy.deepcopy(model).to(device)
             tta_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
-            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes)
-            if baseline_entropy is not None:
-                engine.set_baseline_entropy(baseline_entropy)
+            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
+                               position_stats=position_stats)
 
             # Continual: do NOT reset between periods
             for period_name, test_loader in loaders:

@@ -1,29 +1,24 @@
 """
-TTA-TC: Test-Time Adaptation Engine (v4 — Optimal Transport).
+TTA-TC: Test-Time Adaptation Engine (v5 — Position-Aware Drift Masking + OT).
 
-Adapts at inference by transporting test features toward source class
-prototypes via Sinkhorn optimal transport. No gradient updates.
+Two-stage inference-time adaptation:
+  1. Drift Detection: compare per-position packet size statistics against
+     source baseline; positions with z-score > threshold are flagged.
+  2. Input Masking: zero out drifted positions in PPI before encoding.
+     The CNN was trained with MPFP (15% random position masking), so it
+     can handle partial inputs gracefully.
+  3. OT Classification: Sinkhorn optimal transport maps the (cleaned)
+     features toward source prototypes for improved classification.
 
-Mathematical formulation:
-    Given source prototypes P = {p_1, ..., p_K} and test features Z = {z_1, ..., z_n},
-    solve the entropy-regularized OT problem:
+No gradient updates. No parameter changes. Pure inference-time.
 
-        min_γ  Σ_{k,i} γ_{ki} · c(p_k, z_i)  +  ε · H(γ)
-
-    where c is cosine distance, ε is the regularization strength, and H is entropy.
-    The Sinkhorn algorithm solves this via alternating row/column normalization.
-
-    Transported features:  ẑ_i = Σ_k  (γ*_{ki} / Σ_{k'} γ*_{k'i}) · p_k
-    Classification:        ŷ_i = argmax cosine_sim(ẑ_i, P)
-
-Key properties:
-    - Inference-only: no parameter updates, no backward pass
-    - Class-asymmetric: stable classes get near-identity transport
-    - Safety: with high ε, transport → uniform → falls back to static logits
+Motivation: Luxemburk & Hynek (TMA 2023) showed that certificate rotation
+at packet position ~5 causes 13.48% accuracy drop. Removing first 8 packets
+reduces drop to 3.15%. This engine automates that process: detect WHICH
+positions drifted, mask ONLY those, preserve information from stable positions.
 """
 import torch
 import torch.nn.functional as F
-import copy
 import math
 
 
@@ -34,44 +29,40 @@ def sinkhorn_transport(cost: torch.Tensor, epsilon: float = 0.1,
 
     Args:
         cost: (K, B) cost matrix between K prototypes and B test samples
-        epsilon: regularization strength (lower = sharper transport)
-        max_iter: number of Sinkhorn iterations
+        epsilon: regularization strength
+        max_iter: Sinkhorn iterations
     Returns:
-        gamma: (K, B) optimal transport coupling matrix (rows sum to 1/K, cols sum to 1/B)
+        gamma: (K, B) optimal transport coupling
     """
     K, B = cost.shape
-    # Log-domain Sinkhorn for numerical stability
-    log_K = -cost / epsilon                             # (K, B)
-    log_mu = torch.full((K,), -math.log(K), device=cost.device)     # uniform source
-    log_nu = torch.full((B,), -math.log(B), device=cost.device)     # uniform target
+    log_K = -cost / epsilon
+    log_mu = torch.full((K,), -math.log(K), device=cost.device)
+    log_nu = torch.full((B,), -math.log(B), device=cost.device)
 
     log_u = torch.zeros(K, device=cost.device)
     log_v = torch.zeros(B, device=cost.device)
 
     for _ in range(max_iter):
-        # Row normalization
         log_u = log_mu - torch.logsumexp(log_K + log_v.unsqueeze(0), dim=1)
-        # Column normalization
         log_v = log_nu - torch.logsumexp(log_K + log_u.unsqueeze(1), dim=0)
 
-    gamma = torch.exp(log_K + log_u.unsqueeze(1) + log_v.unsqueeze(0))
-    return gamma
+    return torch.exp(log_K + log_u.unsqueeze(1) + log_v.unsqueeze(0))
 
 
 class TTAEngine:
     """
-    Optimal Transport Test-Time Adaptation (OT-TTA).
+    Position-Aware Drift Masking + OT Classification.
 
     Pipeline per batch (all inference, no backward pass):
-        1. Forward pass through frozen model → static logits + features
-        2. Compute cosine cost matrix between features and source prototypes
-        3. Solve Sinkhorn OT → coupling matrix γ*
-        4. Transport features: ẑ_i = weighted average of prototypes via γ*
-        5. Blend: interpolate between original and transported features
-        6. Classify via cosine similarity to source prototypes
+        1. Per-position z-score drift detection on packet sizes
+        2. Mask drifted positions in PPI input
+        3. Forward pass through frozen model with cleaned input
+        4. OT-based feature transport toward source prototypes
+        5. Blend static and OT-adapted predictions
     """
 
-    def __init__(self, model, cfg: dict, prototypes: torch.Tensor = None):
+    def __init__(self, model, cfg: dict, prototypes: torch.Tensor = None,
+                 position_stats: dict = None):
         self.cfg = cfg
         self.device = next(model.parameters()).device
         self.num_classes = cfg["num_classes"]
@@ -84,17 +75,25 @@ class TTAEngine:
 
         # Source prototypes (frozen)
         if prototypes is not None:
-            self.prototypes = F.normalize(prototypes.to(self.device), dim=1)  # (K, D)
+            self.prototypes = F.normalize(prototypes.to(self.device), dim=1)
         else:
             self.prototypes = None
 
-        # OT hyperparameters
+        # Per-position packet size statistics from source domain
+        if position_stats is not None:
+            self.pos_mean = position_stats["mean"].to(self.device)  # (30,)
+            self.pos_std = position_stats["std"].to(self.device)    # (30,)
+        else:
+            self.pos_mean = None
+            self.pos_std = None
+
+        # Hyperparameters
+        self.drift_z_threshold = cfg.get("drift_z_threshold", 2.0)
         self.ot_epsilon = cfg.get("ot_epsilon", 0.1)
         self.ot_max_iter = cfg.get("ot_max_iter", 50)
         self.transport_weight = cfg.get("transport_weight", 0.5)
         self.proto_temperature = cfg.get("spa_temperature", 0.1)
 
-        # Counters
         self.step_count = 0
 
     def set_fisher(self, dataloader):
@@ -106,9 +105,40 @@ class TTAEngine:
         pass
 
     @torch.no_grad()
+    def _detect_drifted_positions(self, ppi: torch.Tensor) -> torch.Tensor:
+        """
+        Detect which packet positions have drifted via z-score test.
+
+        Args:
+            ppi: (B, 3, 30) input tensor
+        Returns:
+            drift_mask: (30,) boolean tensor, True = position drifted
+        """
+        if self.pos_mean is None:
+            return torch.zeros(30, dtype=torch.bool, device=self.device)
+
+        # Batch-level mean of packet sizes at each position
+        batch_mean = ppi[:, 0, :].mean(dim=0)  # (30,)
+
+        # Z-score against source distribution
+        z_scores = (batch_mean - self.pos_mean) / (self.pos_std + 1e-8)
+
+        return z_scores.abs() > self.drift_z_threshold
+
+    @torch.no_grad()
+    def _mask_drifted_positions(self, ppi: torch.Tensor,
+                                drift_mask: torch.Tensor) -> torch.Tensor:
+        """Zero out all channels at drifted positions."""
+        if drift_mask.sum() == 0:
+            return ppi
+        masked_ppi = ppi.clone()
+        masked_ppi[:, :, drift_mask] = 0.0
+        return masked_ppi
+
+    @torch.no_grad()
     def adapt_batch(self, ppi: torch.Tensor, flow_stats: torch.Tensor = None):
         """
-        OT-based test-time adaptation.
+        Position-aware drift masking + OT classification.
 
         Args:
             ppi: (B, 3, 30)
@@ -118,51 +148,51 @@ class TTAEngine:
             info: dict with adaptation stats
         """
         info = {}
-
-        # Step 1: Forward pass
-        logits, features = self.model(ppi, flow_stats, return_repr=True)
         info["total_samples"] = ppi.size(0)
 
+        # Step 1: Detect drifted positions
+        drift_mask = self._detect_drifted_positions(ppi)
+        num_drifted = drift_mask.sum().item()
+        info["drifted_positions"] = num_drifted
+        info["drifted_indices"] = drift_mask.nonzero(as_tuple=True)[0].tolist()
+
+        # Step 2: Mask drifted positions
+        clean_ppi = self._mask_drifted_positions(ppi, drift_mask)
+
+        # Step 3: Forward pass with cleaned input
+        logits, features = self.model(clean_ppi, flow_stats, return_repr=True)
+
+        # If no prototypes, return cleaned logits directly
         if self.prototypes is None:
-            info["adapted"] = False
+            info["adapted"] = num_drifted > 0
             return logits, info
 
-        f = F.normalize(features, dim=1)                        # (B, D)
+        # Step 4: OT-based classification on cleaned features
+        f = F.normalize(features, dim=1)
         K = self.prototypes.size(0)
-        B = f.size(0)
 
-        # Step 2: Cosine cost matrix (1 - similarity)
-        sim = torch.matmul(self.prototypes, f.T)                # (K, B)
-        cost = 1.0 - sim                                        # (K, B) cosine distance
+        sim = torch.matmul(self.prototypes, f.T)           # (K, B)
+        cost = 1.0 - sim                                    # cosine distance
 
-        # Step 3: Sinkhorn OT
-        gamma = sinkhorn_transport(cost, self.ot_epsilon, self.ot_max_iter)  # (K, B)
+        gamma = sinkhorn_transport(cost, self.ot_epsilon, self.ot_max_iter)
 
-        # Step 4: Transport features — barycentric mapping
-        # For each test sample i, transported feature = weighted sum of prototypes
-        col_sum = gamma.sum(dim=0, keepdim=True).clamp(min=1e-8)  # (1, B)
-        weights = gamma / col_sum                                  # (K, B) normalized per column
-        transported = torch.matmul(weights.T, self.prototypes)     # (B, D)
-        transported = F.normalize(transported, dim=1)
+        col_sum = gamma.sum(dim=0, keepdim=True).clamp(min=1e-8)
+        weights = gamma / col_sum
+        transported = F.normalize(torch.matmul(weights.T, self.prototypes), dim=1)
 
-        # Step 5: Blend original and transported features
-        # transport_weight controls how much we trust OT vs original
+        # Blend original and transported features
         w = self.transport_weight
-        blended = F.normalize((1 - w) * f + w * transported, dim=1)  # (B, D)
+        blended = F.normalize((1 - w) * f + w * transported, dim=1)
+        ot_logits = torch.matmul(blended, self.prototypes.T) / self.proto_temperature
 
-        # Step 6: Classify via cosine similarity to prototypes
-        adapted_logits = torch.matmul(blended, self.prototypes.T) / self.proto_temperature
-
-        # Blend with static logits for safety
+        # Step 5: Blend static and OT predictions
         static_probs = F.softmax(logits, dim=1)
-        ot_probs = F.softmax(adapted_logits, dim=1)
+        ot_probs = F.softmax(ot_logits, dim=1)
         final_probs = (1 - w) * static_probs + w * ot_probs
         final_logits = torch.log(final_probs + 1e-8)
 
-        # Stats
         info["adapted"] = True
         info["mean_transport_cost"] = cost.mean().item()
-        info["mean_coupling_entropy"] = -(gamma * (gamma + 1e-8).log()).sum().item() / B
         self.step_count += 1
 
         return final_logits, info

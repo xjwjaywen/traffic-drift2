@@ -40,9 +40,10 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  # OT-TTA params (optimal transport adaptation)
-  spa_temperature: 0.1         # prototype similarity temperature for classification
-  ot_epsilon: 0.1              # Sinkhorn regularization (lower = sharper transport)
+  # Position-Aware Drift Masking + OT params
+  drift_z_threshold: 2.0       # z-score threshold for flagging drifted positions
+  spa_temperature: 0.1         # prototype similarity temperature
+  ot_epsilon: 0.1              # Sinkhorn regularization
   ot_max_iter: 50              # Sinkhorn iterations
   transport_weight: 0.5        # blend weight: 0=pure static, 1=pure OT
 

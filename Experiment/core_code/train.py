@@ -261,6 +261,21 @@ def main():
     torch.save(class_prototypes.cpu(), os.path.join(output_dir, "class_prototypes.pt"))
     print(f"Class prototypes saved: shape {list(class_prototypes.shape)}")
 
+    # Compute per-position packet size statistics for drift detection
+    # PPI shape: (B, 3, 30) — channel 0 = packet sizes
+    all_sizes = []
+    with torch.no_grad():
+        for batch in val_loader:
+            ppi = batch["ppi"]  # keep on CPU to avoid OOM
+            all_sizes.append(ppi[:, 0, :])  # (B, 30) packet sizes
+    all_sizes = torch.cat(all_sizes, dim=0)  # (N, 30)
+    position_stats = {
+        "mean": all_sizes.mean(dim=0),   # (30,)
+        "std": all_sizes.std(dim=0),     # (30,)
+    }
+    torch.save(position_stats, os.path.join(output_dir, "position_stats.pt"))
+    print(f"Position stats saved: {all_sizes.shape[0]} samples, 30 positions")
+
     # Save results
     results = {
         "best_epoch": best_epoch,

@@ -46,7 +46,8 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  # OT-TTA params
+  # Position-Aware Drift Masking + OT params
+  drift_z_threshold: 2.0
   spa_temperature: 0.1
   ot_epsilon: 0.1
   ot_max_iter: 50
