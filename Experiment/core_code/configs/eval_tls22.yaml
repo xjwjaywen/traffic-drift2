@@ -25,6 +25,9 @@ methods:
   - bn_adapt
   - tent
   - eata
+  - cotta
+  - sar
+  - note
   - tta_tc
 
 tta:
