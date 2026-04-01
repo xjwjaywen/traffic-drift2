@@ -1,21 +1,21 @@
 """
-TTA-TC: Test-Time Adaptation Engine (v5 — Position-Aware Drift Masking + OT).
+TTA-TC: Test-Time Adaptation Engine (v6 — Position-Aware Drift Correction + OT).
 
 Two-stage inference-time adaptation:
   1. Drift Detection: compare per-position packet size statistics against
      source baseline; positions with z-score > threshold are flagged.
-  2. Input Masking: zero out drifted positions in PPI before encoding.
-     The CNN was trained with MPFP (15% random position masking), so it
-     can handle partial inputs gracefully.
-  3. OT Classification: Sinkhorn optimal transport maps the (cleaned)
+  2. Input Correction: re-normalize drifted positions to match the source
+     distribution (standardize with test stats, rescale with source stats).
+     Non-drifted positions are left untouched, preserving all information.
+  3. OT Classification: Sinkhorn optimal transport maps the (corrected)
      features toward source prototypes for improved classification.
 
 No gradient updates. No parameter changes. Pure inference-time.
 
 Motivation: Luxemburk & Hynek (TMA 2023) showed that certificate rotation
-at packet position ~5 causes 13.48% accuracy drop. Removing first 8 packets
-reduces drop to 3.15%. This engine automates that process: detect WHICH
-positions drifted, mask ONLY those, preserve information from stable positions.
+at packet position ~5 causes 13.48% accuracy drop. Rather than discarding
+drifted positions (v5 masking), v6 corrects them: the relative structure
+within each class is preserved, only the distributional shift is removed.
 """
 import torch
 import torch.nn.functional as F
@@ -51,12 +51,12 @@ def sinkhorn_transport(cost: torch.Tensor, epsilon: float = 0.1,
 
 class TTAEngine:
     """
-    Position-Aware Drift Masking + OT Classification.
+    Position-Aware Drift Correction + OT Classification.
 
     Pipeline per batch (all inference, no backward pass):
         1. Per-position z-score drift detection on packet sizes
-        2. Mask drifted positions in PPI input
-        3. Forward pass through frozen model with cleaned input
+        2. Correct drifted positions via distribution re-normalization
+        3. Forward pass through frozen model with corrected input
         4. OT-based feature transport toward source prototypes
         5. Blend static and OT-adapted predictions
     """
@@ -126,14 +126,34 @@ class TTAEngine:
         return z_scores.abs() > self.drift_z_threshold
 
     @torch.no_grad()
-    def _mask_drifted_positions(self, ppi: torch.Tensor,
-                                drift_mask: torch.Tensor) -> torch.Tensor:
-        """Zero out all channels at drifted positions."""
+    def _correct_drifted_positions(self, ppi: torch.Tensor,
+                                   drift_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Re-normalize drifted positions to match source distribution.
+
+        For each drifted position p (packet size channel only):
+            x_corrected = (x - μ_test) / σ_test * σ_source + μ_source
+
+        Direction (channel 1) and IPT (channel 2) are left unchanged —
+        drift is primarily in packet sizes due to certificate rotation.
+        """
         if drift_mask.sum() == 0:
             return ppi
-        masked_ppi = ppi.clone()
-        masked_ppi[:, :, drift_mask] = 0.0
-        return masked_ppi
+        corrected = ppi.clone()
+
+        # Compute test-batch statistics at drifted positions (packet size only)
+        test_sizes = ppi[:, 0, :]  # (B, 30)
+        test_mean = test_sizes.mean(dim=0)  # (30,)
+        test_std = test_sizes.std(dim=0).clamp(min=1e-8)  # (30,)
+
+        # Correct: standardize with test stats, rescale with source stats
+        corrected[:, 0, drift_mask] = (
+            (test_sizes[:, drift_mask] - test_mean[drift_mask])
+            / test_std[drift_mask]
+            * self.pos_std[drift_mask]
+            + self.pos_mean[drift_mask]
+        )
+        return corrected
 
     @torch.no_grad()
     def adapt_batch(self, ppi: torch.Tensor, flow_stats: torch.Tensor = None):
@@ -156,11 +176,11 @@ class TTAEngine:
         info["drifted_positions"] = num_drifted
         info["drifted_indices"] = drift_mask.nonzero(as_tuple=True)[0].tolist()
 
-        # Step 2: Mask drifted positions
-        clean_ppi = self._mask_drifted_positions(ppi, drift_mask)
+        # Step 2: Correct drifted positions (re-normalize to source distribution)
+        corrected_ppi = self._correct_drifted_positions(ppi, drift_mask)
 
-        # Step 3: Forward pass with cleaned input
-        logits, features = self.model(clean_ppi, flow_stats, return_repr=True)
+        # Step 3: Forward pass with corrected input
+        logits, features = self.model(corrected_ppi, flow_stats, return_repr=True)
 
         # If no prototypes, return cleaned logits directly
         if self.prototypes is None:
