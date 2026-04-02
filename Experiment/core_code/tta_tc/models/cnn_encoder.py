@@ -28,6 +28,13 @@ class CNNEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.flow_stats_dim = flow_stats_dim
 
+        # Input-level instance normalization (RevIN-style)
+        # Removes per-sample, per-channel mean/variance to absorb
+        # distributional drift at the input level.
+        self.input_norm = nn.InstanceNorm1d(
+            ppi_channels, affine=True, track_running_stats=False
+        )
+
         # PPI branch
         self.ppi_conv = nn.Sequential(
             nn.Conv1d(ppi_channels, 64, kernel_size=3, padding=1),
@@ -80,6 +87,7 @@ class CNNEncoder(nn.Module):
         Returns:
             (B, hidden_dim) representation
         """
+        ppi = self.input_norm(ppi)  # per-sample, per-channel normalization
         h = self.ppi_conv(ppi).squeeze(-1)  # (B, 256)
 
         if self.flow_fc is not None and flow_stats is not None:
