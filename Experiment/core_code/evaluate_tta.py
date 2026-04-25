@@ -56,8 +56,13 @@ def evaluate_static(model, test_loader, device):
     return np.array(all_labels), np.array(all_preds)
 
 
-def evaluate_tta_method(method, test_loader, device, method_name="TTA"):
-    """Evaluate a TTA method on test data."""
+def evaluate_tta_method(method, test_loader, device, method_name="TTA",
+                        pass_labels=False):
+    """Evaluate a TTA method on test data.
+
+    If pass_labels=True, ground-truth labels are passed to adapt_batch
+    (for active-learning methods that query an oracle).
+    """
     all_preds = []
     all_labels = []
     total_time = 0
@@ -70,7 +75,10 @@ def evaluate_tta_method(method, test_loader, device, method_name="TTA"):
             flow_stats = flow_stats.to(device)
 
         t0 = time.time()
-        logits, info = method.adapt_batch(ppi, flow_stats)
+        if pass_labels:
+            logits, info = method.adapt_batch(ppi, flow_stats, labels=labels)
+        else:
+            logits, info = method.adapt_batch(ppi, flow_stats)
         total_time += time.time() - t0
 
         all_preds.extend(logits.argmax(dim=1).cpu().numpy())
@@ -235,11 +243,16 @@ def run_sequential_eval(model_path, eval_cfg, device):
             engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
                                position_stats=position_stats)
 
-            # Continual: do NOT reset between periods
+            # Active learning: reset label budget at each period
             for period_name, test_loader in loaders:
-                labels, preds, t = evaluate_tta_method(engine, test_loader, device, f"TTA-TC@{period_name}")
+                engine.reset_period()
+                labels, preds, t = evaluate_tta_method(
+                    engine, test_loader, device, f"TTA-TC@{period_name}",
+                    pass_labels=True
+                )
                 m = tracker.add_period(period_name, labels, preds)
-                print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}, Time={t:.1f}s")
+                print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, "
+                      f"ARR={m['arr']:.4f}, Labels used={engine.labels_used}, Time={t:.1f}s")
             del tta_model
 
         else:

@@ -46,11 +46,9 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  # Position-Aware Drift Masking + OT params
-  drift_z_threshold: 2.0
-  spa_temperature: 0.1
-  ot_epsilon: 0.1
-  ot_max_iter: 50
-  transport_weight: 0.5
+  # Active prototype adaptation params
+  label_budget_per_period: 50    # human labels per test period
+  proto_ema: 0.8                  # higher = trust new label more
+  spa_temperature: 0.1            # prototype similarity temperature
 
 output_dir: outputs/eval_tls22
