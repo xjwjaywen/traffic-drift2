@@ -8,7 +8,7 @@ data:
   train_period: "M-2022-3"   # cesnet-datazoo uses single period; train on latest
   test_period: "M-2022-5"
   batch_size: 1024
-  num_workers: 4
+  num_workers: 16
   val_ratio: 0.2
 
 model:

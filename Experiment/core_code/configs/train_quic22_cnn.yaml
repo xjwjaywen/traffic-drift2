@@ -8,7 +8,7 @@ data:
   train_period: "W-2022-44"
   test_period: "W-2022-45"
   batch_size: 1024
-  num_workers: 4
+  num_workers: 16
   val_ratio: 0.2
 
 model:
