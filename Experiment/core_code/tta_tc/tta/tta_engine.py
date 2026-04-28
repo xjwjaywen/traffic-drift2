@@ -1,36 +1,31 @@
 """
-TTA-TC: Test-Time Adaptation Engine (v8 — Active Prototype Adaptation).
+TTA-TC: Test-Time Adaptation Engine (v9 — Period-Level Prototype Anchoring).
 
-Combines two ideas:
-  1. Frozen source model with prototype-based classification.
-  2. Streaming active learning: each batch, select top-k highest-entropy
-     samples, query their labels (oracle/human), and update the
-     corresponding class prototypes online.
+Two-pass design per test period:
+  Pass 1: Forward all batches through frozen model, collect features.
+  Sample: Randomly select `label_budget_per_period` samples and query
+          oracle for ground-truth labels.
+  Build:  Construct period-specific prototypes by averaging features per
+          labeled class. Blend with source prototypes for stability on
+          classes with few or no labels.
+  Pass 2: Predict using a blend of static logits and period-prototype
+          cosine logits.
 
-Why this works where pure unsupervised TTA fails:
-  - Encrypted traffic drift is at the INPUT level (cert rotation, app
-    behavior change), not the feature level.
-  - No amount of post-hoc feature manipulation can recover what the
-    encoder failed to extract correctly.
-  - A small label budget (~k samples per period) is enough to anchor
-    prototypes to the drifted distribution, recovering most of the gap.
-
-No gradient updates. Pure inference + prototype EMA update.
+Why this works where v8 failed:
+  - v8 selected high-entropy (ambiguous) samples for prototype updates,
+    pulling prototypes toward decision boundaries and degrading accuracy.
+  - v9 uses random sampling: each labeled sample is a fair representative
+    of its class distribution, preserving prototype quality.
+  - Two-pass ensures all samples benefit from updated prototypes, not
+    just those late in the stream.
 """
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 
 class TTAEngine:
-    """
-    Active prototype-based TTA.
-
-    Per batch:
-        1. Forward through frozen encoder
-        2. Predict via cosine similarity to (possibly updated) prototypes
-        3. If label budget remains, select top-k uncertain samples
-        4. Query their labels, EMA-update the corresponding prototypes
-    """
+    """Period-level prototype anchoring with active labels."""
 
     def __init__(self, model, cfg: dict, prototypes: torch.Tensor = None,
                  position_stats: dict = None):
@@ -44,22 +39,19 @@ class TTAEngine:
         for p in self.model.parameters():
             p.requires_grad_(False)
 
-        # Source prototypes (will be updated online when labels are queried)
         if prototypes is None:
-            raise ValueError("TTA-TC v8 requires class prototypes")
-        self.prototypes = F.normalize(prototypes.to(self.device).clone(), dim=1)
-        self.proto_dim = self.prototypes.size(1)
+            raise ValueError("TTA-TC v9 requires class prototypes")
+        self.source_prototypes = F.normalize(
+            prototypes.to(self.device).clone(), dim=1
+        )
 
-        # Active learning hyperparameters
+        # Hyperparameters
         self.label_budget_per_period = cfg.get("label_budget_per_period", 500)
-        self.proto_ema = cfg.get("proto_ema", 0.5)
+        self.proto_blend = cfg.get("proto_blend", 0.5)  # weight on source proto
+        self.tta_blend = cfg.get("tta_blend", 0.5)      # weight on proto logits
         self.proto_temperature = cfg.get("spa_temperature", 0.1)
-        self.labels_per_batch = cfg.get("labels_per_batch", 5)
 
-        # Per-period state
-        self.budget_remaining = self.label_budget_per_period
         self.labels_used = 0
-        self.step_count = 0
 
     def set_fisher(self, dataloader):
         pass
@@ -67,89 +59,81 @@ class TTAEngine:
     def set_baseline_entropy(self, baseline):
         pass
 
-    @torch.no_grad()
-    def _proto_logits(self, features):
-        f = F.normalize(features, dim=1)
-        sim = torch.matmul(f, self.prototypes.T)
-        return sim / self.proto_temperature
-
-    @torch.no_grad()
-    def _entropy(self, logits):
-        probs = F.softmax(logits, dim=1)
-        log_probs = F.log_softmax(logits, dim=1)
-        return -(probs * log_probs).sum(dim=1)
-
-    @torch.no_grad()
-    def _update_prototypes(self, features, labels):
-        """EMA update: new_proto = ema * old_proto + (1 - ema) * sample_features."""
-        f = F.normalize(features, dim=1)
-        for c in labels.unique():
-            mask = labels == c
-            if mask.sum() == 0:
-                continue
-            class_mean = f[mask].mean(dim=0)
-            class_mean = F.normalize(class_mean, dim=0)
-            self.prototypes[c] = (
-                self.proto_ema * self.prototypes[c]
-                + (1 - self.proto_ema) * class_mean
-            )
-            self.prototypes[c] = F.normalize(self.prototypes[c], dim=0)
-
-    @torch.no_grad()
-    def adapt_batch(self, ppi: torch.Tensor, flow_stats: torch.Tensor = None,
-                    labels: torch.Tensor = None):
-        """
-        Run inference, then optionally use a few labeled samples to update prototypes.
-
-        Args:
-            ppi: (B, 3, 30)
-            flow_stats: (B, D) or None
-            labels: (B,) ground-truth labels (used as oracle for active learning)
-        Returns:
-            logits: (B, C) classification output (combined static + prototype)
-            info: dict with adaptation stats
-        """
-        info = {"total_samples": ppi.size(0)}
-
-        # Forward through frozen model
-        static_logits, features = self.model(ppi, flow_stats, return_repr=True)
-        proto_logits = self._proto_logits(features)
-
-        # Combine: average of static and prototype predictions
-        combined_logits = 0.5 * static_logits + 0.5 * proto_logits
-
-        # Active learning: query labels for top-k uncertain samples
-        # Spread budget across batches: at most `labels_per_batch` per call
-        info["labels_queried"] = 0
-        if labels is not None and self.budget_remaining > 0:
-            entropy = self._entropy(combined_logits)
-            k = min(self.budget_remaining, self.labels_per_batch, ppi.size(0))
-            # Select top-k highest entropy
-            _, top_idx = torch.topk(entropy, k)
-            queried_features = features[top_idx]
-            queried_labels = labels.to(self.device)[top_idx]
-
-            self._update_prototypes(queried_features, queried_labels)
-
-            self.budget_remaining -= k
-            self.labels_used += k
-            info["labels_queried"] = k
-
-            # Recompute prototype logits with updated prototypes for THIS batch
-            proto_logits = self._proto_logits(features)
-            combined_logits = 0.5 * static_logits + 0.5 * proto_logits
-
-        info["budget_remaining"] = self.budget_remaining
-        info["adapted"] = True
-        self.step_count += 1
-        return combined_logits, info
-
     def reset_period(self):
-        """Reset budget for new test period."""
-        self.budget_remaining = self.label_budget_per_period
+        self.labels_used = 0
 
     def reset(self):
-        """Full reset (only used for fresh evaluation)."""
-        self.budget_remaining = self.label_budget_per_period
         self.labels_used = 0
-        self.step_count = 0
+
+    @torch.no_grad()
+    def adapt_period(self, test_loader, period_name: str = ""):
+        """
+        Two-pass period-level adaptation.
+
+        Returns:
+            labels: np.ndarray (N,) ground-truth labels
+            preds:  np.ndarray (N,) predicted labels
+        """
+        # ===== Pass 1: collect features, static logits, labels =====
+        all_features = []
+        all_labels = []
+        all_static_logits = []
+
+        for batch in tqdm(test_loader, desc=f"TTA-TC@{period_name} pass1"):
+            ppi = batch["ppi"].to(self.device)
+            labels = batch["label"]
+            flow_stats = batch.get("flow_stats")
+            if flow_stats is not None:
+                flow_stats = flow_stats.to(self.device)
+
+            logits, features = self.model(ppi, flow_stats, return_repr=True)
+            all_features.append(features)
+            all_labels.append(labels)
+            all_static_logits.append(logits)
+
+        all_features = torch.cat(all_features, dim=0)         # (N, D)
+        all_labels = torch.cat(all_labels, dim=0)             # (N,)
+        all_static_logits = torch.cat(all_static_logits, dim=0)  # (N, C)
+
+        N = all_features.size(0)
+
+        # ===== Sample label budget uniformly at random =====
+        budget = min(self.label_budget_per_period, N)
+        idx = torch.randperm(N, device=self.device)[:budget]
+        queried_labels = all_labels.to(self.device)[idx]
+        queried_features = all_features[idx]
+        self.labels_used = budget
+
+        # ===== Build period prototypes by per-class averaging =====
+        period_prototypes = self.source_prototypes.clone()
+        f_norm = F.normalize(queried_features, dim=1)
+
+        for c in queried_labels.unique():
+            mask = queried_labels == c
+            class_mean = f_norm[mask].mean(dim=0)
+            class_mean = F.normalize(class_mean, dim=0)
+            # Blend source prototype with new period mean
+            blended = (
+                self.proto_blend * self.source_prototypes[c]
+                + (1 - self.proto_blend) * class_mean
+            )
+            period_prototypes[c] = F.normalize(blended, dim=0)
+
+        # ===== Pass 2: predict with updated prototypes =====
+        f_all = F.normalize(all_features, dim=1)
+        proto_logits = torch.matmul(f_all, period_prototypes.T) / self.proto_temperature
+
+        # Blend static logits and prototype logits via softmax averaging
+        static_probs = F.softmax(all_static_logits, dim=1)
+        proto_probs = F.softmax(proto_logits, dim=1)
+        w = self.tta_blend
+        final_probs = (1 - w) * static_probs + w * proto_probs
+        preds = final_probs.argmax(dim=1)
+
+        return all_labels.cpu().numpy(), preds.cpu().numpy()
+
+    @torch.no_grad()
+    def adapt_batch(self, ppi, flow_stats=None, labels=None):
+        """Streaming interface kept for compatibility — falls back to static."""
+        logits = self.model(ppi, flow_stats)
+        return logits, {"adapted": False, "method": "fallback"}

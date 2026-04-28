@@ -243,13 +243,12 @@ def run_sequential_eval(model_path, eval_cfg, device):
             engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
                                position_stats=position_stats)
 
-            # Active learning: reset label budget at each period
+            # v9: two-pass period-level adaptation with random label sampling
             for period_name, test_loader in loaders:
                 engine.reset_period()
-                labels, preds, t = evaluate_tta_method(
-                    engine, test_loader, device, f"TTA-TC@{period_name}",
-                    pass_labels=True
-                )
+                t0 = time.time()
+                labels, preds = engine.adapt_period(test_loader, period_name)
+                t = time.time() - t0
                 m = tracker.add_period(period_name, labels, preds)
                 print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, "
                       f"ARR={m['arr']:.4f}, Labels used={engine.labels_used}, Time={t:.1f}s")

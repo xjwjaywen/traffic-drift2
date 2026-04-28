@@ -46,10 +46,10 @@ tta:
   min_drifted_classes: 3
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
-  # Active prototype adaptation params
-  label_budget_per_period: 500   # human labels per test period
-  labels_per_batch: 5             # max labels per batch (spreads budget)
-  proto_ema: 0.5                  # lower = more aggressive prototype update
+  # v9: Period-level prototype anchoring (random sampling, two-pass)
+  label_budget_per_period: 500    # random labels per test period
+  proto_blend: 0.5                # weight on source proto vs new period mean
+  tta_blend: 0.5                  # weight on prototype logits vs static
   spa_temperature: 0.1            # prototype similarity temperature
 
 output_dir: outputs/eval_tls22
