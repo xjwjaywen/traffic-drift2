@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 from tta_tc.models import TTATCModel
 from tta_tc.tta import TTAEngine
-from tta_tc.baselines import Tent, EATA, CoTTA, SAR, NOTE, BNAdapt
+from tta_tc.baselines import Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC
 from tta_tc.data.cesnet_loader import build_dataloaders, build_sequential_test_loaders
 from tta_tc.utils.config import load_config
 from tta_tc.utils.metrics import MetricsTracker
@@ -146,6 +146,7 @@ def run_single_period_eval(model_path, eval_cfg, device):
         "cotta": ("B6: CoTTA", CoTTA),
         "sar": ("B7: SAR", SAR),
         "note": ("B8: NOTE", NOTE),
+        "mvfc": ("B9: MVFC", MVFC),
     }
 
     for method_key in methods_to_eval:
@@ -256,10 +257,10 @@ def run_sequential_eval(model_path, eval_cfg, device):
 
         else:
             # General TTA baselines
-            from tta_tc.baselines import Tent, EATA, CoTTA, SAR, NOTE, BNAdapt
+            from tta_tc.baselines import Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC
             method_map = {
                 "bn_adapt": BNAdapt, "tent": Tent, "eata": EATA,
-                "cotta": CoTTA, "sar": SAR, "note": NOTE,
+                "cotta": CoTTA, "sar": SAR, "note": NOTE, "mvfc": MVFC,
             }
             if method_key in method_map:
                 MethodClass = method_map[method_key]

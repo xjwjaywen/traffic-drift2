@@ -22,6 +22,7 @@ methods:
   - cotta
   - sar
   - note
+  - mvfc
   - tta_tc
 
 tta:
@@ -42,8 +43,15 @@ tta:
   drift_lr_gamma: 3.0
   # v9: Period-level prototype anchoring (random sampling, two-pass)
   label_budget_per_period: 500   # random labels per test period
-  proto_blend: 0.5               # weight on source proto vs new period mean
-  tta_blend: 0.5                 # weight on prototype logits vs static
+  proto_blend: 0.2               # weight on source proto vs new period mean
+  tta_blend: 0.8                 # weight on prototype logits vs static
   spa_temperature: 0.1           # prototype similarity temperature
+  # MVFC: Multi-View Flow Consistency (pure unsupervised)
+  mvfc_num_views: 2              # # of augmented views per batch
+  mvfc_mask_prob: 0.10           # P(mask each packet position)
+  mvfc_size_noise: 0.05          # rel. Gaussian noise std on packet size
+  mvfc_ipt_noise: 0.10           # rel. Gaussian noise std on IPT
+  mvfc_dir_dropout: 0.05         # P(drop direction at each position)
+  mvfc_weight: 1.0               # consistency loss weight
 
 output_dir: outputs/eval_quic22
