@@ -23,6 +23,8 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from .samplers import get_sampler
+
 
 class TTAEngine:
     """Period-level prototype anchoring with active labels."""
@@ -50,6 +52,11 @@ class TTAEngine:
         self.proto_blend = cfg.get("proto_blend", 0.5)  # weight on source proto
         self.tta_blend = cfg.get("tta_blend", 0.5)      # weight on proto logits
         self.proto_temperature = cfg.get("spa_temperature", 0.1)
+
+        # Active sampling strategy (M1 sweep)
+        self.sampler_name = cfg.get("sampler", "random")
+        self.sampler = get_sampler(self.sampler_name)
+        self.seed = cfg.get("seed", None)
 
         self.labels_used = 0
 
@@ -97,12 +104,24 @@ class TTAEngine:
 
         N = all_features.size(0)
 
-        # ===== Sample label budget uniformly at random =====
+        # ===== Sample label budget using configured strategy =====
         budget = min(self.label_budget_per_period, N)
-        idx = torch.randperm(N, device=self.device)[:budget]
+        gen = None
+        if self.seed is not None:
+            gen = torch.Generator(device=self.device)
+            gen.manual_seed(int(self.seed))
+        pred_classes = all_static_logits.argmax(dim=1)
+        idx = self.sampler(
+            features=all_features,
+            static_logits=all_static_logits,
+            pred_classes=pred_classes,
+            budget=budget,
+            num_classes=self.num_classes,
+            generator=gen,
+        )
         queried_labels = all_labels.to(self.device)[idx]
         queried_features = all_features[idx]
-        self.labels_used = budget
+        self.labels_used = idx.size(0)
 
         # ===== Build period prototypes by per-class averaging =====
         period_prototypes = self.source_prototypes.clone()

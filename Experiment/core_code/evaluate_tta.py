@@ -18,7 +18,9 @@ from tqdm import tqdm
 
 from tta_tc.models import TTATCModel
 from tta_tc.tta import TTAEngine
-from tta_tc.baselines import Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC
+from tta_tc.baselines import (
+    Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC, KNNLabeled, FineTuneHead,
+)
 from tta_tc.data.cesnet_loader import build_dataloaders, build_sequential_test_loaders
 from tta_tc.utils.config import load_config
 from tta_tc.utils.metrics import MetricsTracker
@@ -238,13 +240,17 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 m = tracker.add_period(period_name, labels, preds)
                 print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
 
-        elif method_key == "tta_tc":
+        elif method_key in ("tta_tc", "knn_labeled", "ft_head"):
             tta_model = copy.deepcopy(model).to(device)
             tta_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
-            engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
-                               position_stats=position_stats)
+            if method_key == "tta_tc":
+                engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
+                                   position_stats=position_stats)
+            elif method_key == "knn_labeled":
+                engine = KNNLabeled(tta_model, tta_cfg)
+            else:
+                engine = FineTuneHead(tta_model, tta_cfg)
 
-            # v9: two-pass period-level adaptation with random label sampling
             for period_name, test_loader in loaders:
                 engine.reset_period()
                 t0 = time.time()
@@ -289,11 +295,30 @@ def main():
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--mode", type=str, choices=["single", "sequential"], default="single")
+    parser.add_argument("--methods", type=str, default=None,
+                        help="Comma-separated method override (e.g., 'tta_tc,knn_labeled,ft_head')")
+    parser.add_argument("--sampler", type=str, default=None,
+                        choices=["random", "entropy", "margin", "coreset", "class_balanced"],
+                        help="Active sampling strategy override")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Random seed for sampling and torch")
+    parser.add_argument("--output-suffix", type=str, default="",
+                        help="Suffix appended to results filename")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     output_dir = args.output_dir or cfg.get("output_dir", "outputs/eval")
     os.makedirs(output_dir, exist_ok=True)
+
+    # Apply CLI overrides
+    if args.methods:
+        cfg["methods"] = [m.strip() for m in args.methods.split(",")]
+    if args.sampler:
+        cfg.setdefault("tta", {})["sampler"] = args.sampler
+    if args.seed is not None:
+        cfg.setdefault("tta", {})["seed"] = args.seed
+        torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
 
     # Device
     if torch.cuda.is_available():
@@ -310,9 +335,16 @@ def main():
         results = run_sequential_eval(args.checkpoint, cfg, device)
 
     # Save results
-    results_path = os.path.join(output_dir, f"results_{args.mode}.json")
+    suffix = f"_{args.output_suffix}" if args.output_suffix else ""
+    results_path = os.path.join(output_dir, f"results_{args.mode}{suffix}.json")
+    payload = {
+        "results": results,
+        "sampler": cfg.get("tta", {}).get("sampler", "random"),
+        "seed": cfg.get("tta", {}).get("seed"),
+        "methods": cfg.get("methods"),
+    }
     with open(results_path, "w") as f:
-        json.dump(results, f, indent=2)
+        json.dump(payload, f, indent=2)
     print(f"\nResults saved to {results_path}")
 
     # Print summary table
