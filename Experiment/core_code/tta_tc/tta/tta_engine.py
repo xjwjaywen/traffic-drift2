@@ -125,7 +125,7 @@ class TTAEngine:
             # Select top-k highest entropy
             _, top_idx = torch.topk(entropy, k)
             queried_features = features[top_idx]
-            queried_labels = labels[top_idx].to(self.device)
+            queried_labels = labels.to(self.device)[top_idx]
 
             self._update_prototypes(queried_features, queried_labels)
 
