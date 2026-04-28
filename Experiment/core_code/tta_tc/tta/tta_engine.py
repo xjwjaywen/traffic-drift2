@@ -119,16 +119,19 @@ class TTAEngine:
             )
             period_prototypes[c] = F.normalize(blended, dim=0)
 
-        # ===== Pass 2: predict with updated prototypes =====
-        f_all = F.normalize(all_features, dim=1)
-        proto_logits = torch.matmul(f_all, period_prototypes.T) / self.proto_temperature
-
-        # Blend static logits and prototype logits via softmax averaging
-        static_probs = F.softmax(all_static_logits, dim=1)
-        proto_probs = F.softmax(proto_logits, dim=1)
+        # ===== Pass 2: predict with updated prototypes (chunked to avoid OOM) =====
         w = self.tta_blend
-        final_probs = (1 - w) * static_probs + w * proto_probs
-        preds = final_probs.argmax(dim=1)
+        chunk_size = 8192
+        all_preds = []
+        for start in range(0, N, chunk_size):
+            end = min(start + chunk_size, N)
+            f_chunk = F.normalize(all_features[start:end], dim=1)
+            proto_logits = torch.matmul(f_chunk, period_prototypes.T) / self.proto_temperature
+            static_probs = F.softmax(all_static_logits[start:end], dim=1)
+            proto_probs = F.softmax(proto_logits, dim=1)
+            final_probs = (1 - w) * static_probs + w * proto_probs
+            all_preds.append(final_probs.argmax(dim=1))
+        preds = torch.cat(all_preds, dim=0)
 
         return all_labels.cpu().numpy(), preds.cpu().numpy()
 
