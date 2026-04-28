@@ -47,8 +47,9 @@ tta:
   abrupt_adapt_steps: 10
   drift_lr_gamma: 3.0
   # Active prototype adaptation params
-  label_budget_per_period: 50    # human labels per test period
-  proto_ema: 0.8                  # higher = trust new label more
+  label_budget_per_period: 500   # human labels per test period
+  labels_per_batch: 5             # max labels per batch (spreads budget)
+  proto_ema: 0.5                  # lower = more aggressive prototype update
   spa_temperature: 0.1            # prototype similarity temperature
 
 output_dir: outputs/eval_tls22

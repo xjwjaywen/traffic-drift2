@@ -51,9 +51,10 @@ class TTAEngine:
         self.proto_dim = self.prototypes.size(1)
 
         # Active learning hyperparameters
-        self.label_budget_per_period = cfg.get("label_budget_per_period", 50)
-        self.proto_ema = cfg.get("proto_ema", 0.8)  # higher = trust new label more
+        self.label_budget_per_period = cfg.get("label_budget_per_period", 500)
+        self.proto_ema = cfg.get("proto_ema", 0.5)
         self.proto_temperature = cfg.get("spa_temperature", 0.1)
+        self.labels_per_batch = cfg.get("labels_per_batch", 5)
 
         # Per-period state
         self.budget_remaining = self.label_budget_per_period
@@ -118,10 +119,11 @@ class TTAEngine:
         combined_logits = 0.5 * static_logits + 0.5 * proto_logits
 
         # Active learning: query labels for top-k uncertain samples
+        # Spread budget across batches: at most `labels_per_batch` per call
         info["labels_queried"] = 0
         if labels is not None and self.budget_remaining > 0:
             entropy = self._entropy(combined_logits)
-            k = min(self.budget_remaining, ppi.size(0))
+            k = min(self.budget_remaining, self.labels_per_batch, ppi.size(0))
             # Select top-k highest entropy
             _, top_idx = torch.topk(entropy, k)
             queried_features = features[top_idx]
