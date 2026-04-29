@@ -12,7 +12,7 @@ set -e
 DATASETS=("quic22" "tls22")
 SEEDS=(0 1 2)
 TIER3_SAMPLERS=("random" "entropy" "margin" "coreset" "class_balanced")
-TIER2_METHODS=("knn_labeled" "ft_head")
+TIER2_METHODS=("knn_labeled" "ft_head" "supervised_norm")
 
 OUT_ROOT="outputs/al_sweep"
 mkdir -p "$OUT_ROOT"

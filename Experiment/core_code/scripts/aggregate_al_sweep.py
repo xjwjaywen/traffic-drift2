@@ -36,7 +36,7 @@ def load_runs(dataset: str):
         # suffix = "<method>_<sampler>_seed<N>"
         # method may be one of {tta_tc, knn_labeled, ft_head}; rest is sampler+seed
         method = None
-        for m in ("tta_tc", "knn_labeled", "ft_head"):
+        for m in ("tta_tc", "knn_labeled", "ft_head", "supervised_norm"):
             if suffix.startswith(m + "_"):
                 method = m
                 break
@@ -79,7 +79,7 @@ def print_table(dataset, agg):
     print(f"{'='*72}")
     print(f"{'Method':<14} {'Sampler':<18} {'AURC mean':>10} {'± std':>10} {'n':>5}")
     print("-" * 72)
-    method_order = ["tta_tc", "knn_labeled", "ft_head"]
+    method_order = ["tta_tc", "knn_labeled", "ft_head", "supervised_norm"]
     sampler_order = ["random", "entropy", "margin", "coreset", "class_balanced"]
     sorted_keys = sorted(
         agg.keys(),

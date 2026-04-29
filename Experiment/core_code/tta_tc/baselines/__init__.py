@@ -5,4 +5,4 @@ from .sar import SAR
 from .note import NOTE
 from .bn_adapt import BNAdapt
 from .mvfc import MVFC
-from .labeled_baselines import KNNLabeled, FineTuneHead
+from .labeled_baselines import KNNLabeled, FineTuneHead, SupervisedNormAdapt

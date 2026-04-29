@@ -43,8 +43,9 @@ class _PeriodLabeledBase:
         self.labels_used = 0
 
     @torch.no_grad()
-    def _collect(self, test_loader, period_name):
+    def _collect(self, test_loader, period_name, keep_inputs=False):
         feats, labels, logits = [], [], []
+        ppis, flow_stats_list = [], []
         for batch in tqdm(test_loader, desc=f"{self.__class__.__name__}@{period_name} pass1"):
             ppi = batch["ppi"].to(self.device)
             lbl = batch["label"]
@@ -55,11 +56,23 @@ class _PeriodLabeledBase:
             feats.append(fr)
             labels.append(lbl)
             logits.append(lg)
-        return (
+            if keep_inputs:
+                ppis.append(ppi)
+                flow_stats_list.append(fs if fs is not None else None)
+        result = (
             torch.cat(feats, dim=0),
             torch.cat(labels, dim=0),
             torch.cat(logits, dim=0),
         )
+        if keep_inputs:
+            ppis = torch.cat(ppis, dim=0)
+            fs_concat = (
+                torch.cat([f for f in flow_stats_list if f is not None], dim=0)
+                if any(f is not None for f in flow_stats_list)
+                else None
+            )
+            return result + (ppis, fs_concat)
+        return result
 
     def _sample_idx(self, features, static_logits):
         N = features.size(0)
@@ -175,6 +188,83 @@ class FineTuneHead(_PeriodLabeledBase):
             for start in range(0, N, chunk_size):
                 end = min(start + chunk_size, N)
                 logits = head(feats[start:end])
+                all_preds.append(logits.argmax(dim=1))
+        preds = torch.cat(all_preds, dim=0)
+        return labels.cpu().numpy(), preds.cpu().numpy()
+
+
+class SupervisedNormAdapt(_PeriodLabeledBase):
+    """
+    Fine-tune ONLY normalization-layer parameters (GroupNorm γ/β) on the queried
+    labels. The rationale: if drift mainly distorts feature distributions
+    (diffuse drift), then re-calibrating normalization is more targeted than
+    re-fitting the classifier head.
+
+    This fills the missing cell in the experiment matrix:
+        Tent (unsupervised norm adapt) failed.
+        ft_head (supervised head adapt) succeeded on focal drift.
+        SupervisedNormAdapt (supervised norm adapt) — never tested.
+    """
+
+    def __init__(self, model, cfg: dict):
+        super().__init__(model, cfg)
+        self.lr = cfg.get("snorm_lr", 1e-3)
+        self.epochs = cfg.get("snorm_epochs", 30)
+        self.batch_size = cfg.get("snorm_batch_size", 64)
+        self.weight_decay = cfg.get("snorm_wd", 1e-4)
+
+    def adapt_period(self, test_loader, period_name: str = ""):
+        # Pass 1 collects features + raw inputs (need raw PPI for re-forward)
+        with torch.no_grad():
+            feats, labels, static_logits, ppis, flow_stats = self._collect(
+                test_loader, period_name, keep_inputs=True
+            )
+
+        N = feats.size(0)
+        idx = self._sample_idx(feats, static_logits)
+        train_ppi = ppis[idx]
+        train_labels = labels.to(self.device)[idx]
+        train_fs = flow_stats[idx] if flow_stats is not None else None
+
+        # Fresh model copy — don't pollute base model across periods
+        adapted_model = copy.deepcopy(self.model).to(self.device)
+
+        # Freeze everything, then unfreeze ONLY normalization params
+        for p in adapted_model.parameters():
+            p.requires_grad_(False)
+        norm_params = adapted_model.encoder.get_norm_params()
+        for p in norm_params:
+            p.requires_grad_(True)
+
+        opt = torch.optim.Adam(norm_params, lr=self.lr,
+                                weight_decay=self.weight_decay)
+        crit = nn.CrossEntropyLoss()
+
+        adapted_model.train()
+        n_train = train_ppi.size(0)
+        for _ in range(self.epochs):
+            perm = torch.randperm(n_train, device=self.device)
+            for s in range(0, n_train, self.batch_size):
+                b = perm[s : s + self.batch_size]
+                bp = train_ppi[b]
+                bl = train_labels[b]
+                bf = train_fs[b] if train_fs is not None else None
+                logits = adapted_model(bp, bf)
+                loss = crit(logits, bl)
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+
+        adapted_model.eval()
+        # Re-forward all data through adapted model (chunked)
+        all_preds = []
+        chunk_size = 4096
+        with torch.no_grad():
+            for start in range(0, N, chunk_size):
+                end = min(start + chunk_size, N)
+                bp = ppis[start:end]
+                bf = flow_stats[start:end] if flow_stats is not None else None
+                logits = adapted_model(bp, bf)
                 all_preds.append(logits.argmax(dim=1))
         preds = torch.cat(all_preds, dim=0)
         return labels.cpu().numpy(), preds.cpu().numpy()

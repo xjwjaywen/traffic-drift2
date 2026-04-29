@@ -19,7 +19,8 @@ from tqdm import tqdm
 from tta_tc.models import TTATCModel
 from tta_tc.tta import TTAEngine
 from tta_tc.baselines import (
-    Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC, KNNLabeled, FineTuneHead,
+    Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC,
+    KNNLabeled, FineTuneHead, SupervisedNormAdapt,
 )
 from tta_tc.data.cesnet_loader import build_dataloaders, build_sequential_test_loaders
 from tta_tc.utils.config import load_config
@@ -240,7 +241,7 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 m = tracker.add_period(period_name, labels, preds)
                 print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
 
-        elif method_key in ("tta_tc", "knn_labeled", "ft_head"):
+        elif method_key in ("tta_tc", "knn_labeled", "ft_head", "supervised_norm"):
             tta_model = copy.deepcopy(model).to(device)
             tta_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
             if method_key == "tta_tc":
@@ -248,8 +249,10 @@ def run_sequential_eval(model_path, eval_cfg, device):
                                    position_stats=position_stats)
             elif method_key == "knn_labeled":
                 engine = KNNLabeled(tta_model, tta_cfg)
-            else:
+            elif method_key == "ft_head":
                 engine = FineTuneHead(tta_model, tta_cfg)
+            else:
+                engine = SupervisedNormAdapt(tta_model, tta_cfg)
 
             for period_name, test_loader in loaders:
                 engine.reset_period()
