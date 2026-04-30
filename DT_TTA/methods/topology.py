@@ -30,7 +30,8 @@ def collect_groupnorm_input_stats(model, loader, device, max_batches=None):
     handles = []
 
     def _make_hook(name):
-        def hook(module, inputs, _output):
+        def hook(module, inputs):
+            # forward_pre_hook signature: (module, inputs)
             x = inputs[0]              # (B, C, L) for Conv1d-style GN
             if x.dim() == 3:
                 # average over spatial dim -> (B, C)
@@ -50,6 +51,7 @@ def collect_groupnorm_input_stats(model, loader, device, max_batches=None):
                 buf["sum"] += s
                 buf["sumsq"] += ss
             buf["n"] += xv.size(0)
+            return None  # don't modify inputs
         return hook
 
     # Register hooks on every GroupNorm in the encoder
