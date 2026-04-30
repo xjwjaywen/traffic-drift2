@@ -181,6 +181,12 @@ class FineTuneHead(_PeriodLabeledBase):
                 opt.step()
 
         head.eval()
+        # Stash adapted head onto a fresh model copy for downstream consumers
+        # (e.g., CA-TTA Phase 1 certifies the adapted model after this method).
+        adapted_model = copy.deepcopy(self.model).to(self.device)
+        adapted_model.cls_head.load_state_dict(head.state_dict())
+        adapted_model.eval()
+        self.last_adapted_model = adapted_model
         # Predict in chunks
         all_preds = []
         chunk_size = 8192
@@ -256,6 +262,7 @@ class SupervisedNormAdapt(_PeriodLabeledBase):
                 opt.step()
 
         adapted_model.eval()
+        self.last_adapted_model = adapted_model  # for downstream consumers
         # Re-forward all data through adapted model (chunked)
         all_preds = []
         chunk_size = 4096
