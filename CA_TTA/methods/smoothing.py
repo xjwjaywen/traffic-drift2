@@ -1,9 +1,14 @@
 """
 Cohen et al. (2019) randomized smoothing for 1D-CNN traffic classifier.
 
-This is the *vanilla* version — uniform Gaussian noise on all PPI features.
-Used in CA-TTA Phase 0 to test whether certified accuracy degrades over
-time on CESNET-TLS-Year22.
+Constraint-aware version: by default, noise is applied ONLY to continuous
+PPI channels (packet size, IPT). The discrete direction channel (binary
++/-1 values) is held fixed because adding Gaussian noise to it produces
+semantically meaningless network states.
+
+This matches CertTA's separation of additive (size, time) vs structural
+(direction / packet-presence) perturbations. The certified radius then
+applies to the L2-norm of perturbations in the (size, IPT) subspace.
 """
 import math
 import torch
@@ -15,20 +20,40 @@ from tqdm import tqdm
 
 class SmoothedClassifier:
     """
-    Wraps a base classifier f with Gaussian smoothing N(0, sigma^2 I).
+    Wraps a base classifier f with Gaussian smoothing N(0, sigma^2 I) on
+    selected input channels. Direction channel is held fixed by default.
 
-    Implements the CERTIFY procedure from Cohen, Rosenfeld, Kolter (ICML 2019):
-        - n0 noisy samples to predict the top class c_A
-        - n  noisy samples to compute a lower confidence bound on p_A
-        - certified radius r = sigma * Phi^{-1}(p_A_lower)
+    cfg-style args:
+      sigma                : noise std on smoothed channels
+      smooth_channels      : list of channel indices to add noise to
+                             (default [0, 2] = size + IPT)
     """
     ABSTAIN = -1
 
-    def __init__(self, base_model, num_classes: int, sigma: float):
+    def __init__(self, base_model, num_classes: int, sigma: float,
+                 smooth_channels=(0, 2)):
         self.base = base_model
         self.K = num_classes
         self.sigma = sigma
+        self.smooth_channels = tuple(smooth_channels)
         self.device = next(base_model.parameters()).device
+        # Effective dimensionality for cert radius interpretation
+        # — count number of (channel, position) cells we add noise to
+        # PPI shape: (3, 30); 30 positions per channel
+        self.smooth_dim = 30 * len(self.smooth_channels)
+
+    def _make_noise(self, x_rep: torch.Tensor) -> torch.Tensor:
+        """
+        Create noise tensor for x_rep (shape (k, 3, 30)). Zero on
+        non-smoothed channels.
+        """
+        noise = torch.randn_like(x_rep) * self.sigma
+        if len(self.smooth_channels) < x_rep.size(1):
+            mask = torch.zeros_like(x_rep)
+            for c in self.smooth_channels:
+                mask[:, c, :] = 1.0
+            noise = noise * mask
+        return noise
 
     @torch.no_grad()
     def _sample_under_noise(self, x: torch.Tensor, num: int,
@@ -39,11 +64,11 @@ class SmoothedClassifier:
         Returns counts: torch.LongTensor (K,).
         """
         counts = torch.zeros(self.K, dtype=torch.long, device=self.device)
-        x = x.unsqueeze(0)  # (1, 3, 30)
+        x = x.unsqueeze(0)
         for start in range(0, num, chunk):
             k = min(chunk, num - start)
             x_rep = x.repeat(k, 1, 1)
-            noise = torch.randn_like(x_rep) * self.sigma
+            noise = self._make_noise(x_rep)
             x_noisy = x_rep + noise
             if flow_stats is not None:
                 fs_rep = flow_stats.unsqueeze(0).repeat(k, 1)
@@ -55,20 +80,28 @@ class SmoothedClassifier:
         return counts
 
     @torch.no_grad()
+    def predict_clean(self, x: torch.Tensor,
+                      flow_stats: torch.Tensor = None) -> int:
+        """No-noise prediction (for clean accuracy)."""
+        x_in = x.unsqueeze(0)
+        fs_in = flow_stats.unsqueeze(0) if flow_stats is not None else None
+        logits = self.base(x_in, fs_in)
+        return int(logits.argmax(dim=1).item())
+
+    @torch.no_grad()
+    def predict_smoothed(self, x: torch.Tensor, num: int,
+                          flow_stats: torch.Tensor = None) -> int:
+        """Majority-vote prediction under noise (for smoothed accuracy)."""
+        counts = self._sample_under_noise(x, num, flow_stats)
+        return int(counts.argmax().item())
+
+    @torch.no_grad()
     def certify(self, x: torch.Tensor, n0: int, n: int, alpha: float,
                 flow_stats: torch.Tensor = None):
-        """
-        Cohen et al. CERTIFY for a single input.
-
-        Returns:
-            (predicted_class, certified_radius)
-            predicted_class is ABSTAIN (-1) if cannot certify with confidence.
-        """
-        # Step 1: select top class with n0 samples
+        """Cohen et al. CERTIFY for a single input."""
         counts0 = self._sample_under_noise(x, n0, flow_stats)
         c_A = counts0.argmax().item()
 
-        # Step 2: estimate lower confidence bound on p_A with n samples
         counts = self._sample_under_noise(x, n, flow_stats)
         n_A = counts[c_A].item()
         p_A_low = _binom_proportion_low(n_A, n, alpha)
@@ -80,16 +113,11 @@ class SmoothedClassifier:
 
 
 def _binom_proportion_low(success: int, total: int, alpha: float) -> float:
-    """
-    One-sided Clopper-Pearson lower confidence bound for the binomial proportion.
-    Cohen et al. uses statsmodels.proportion_confint(..., method='beta').
-    We use scipy.stats.binomtest.proportion_ci to avoid extra dep.
-    """
+    """One-sided Clopper-Pearson lower confidence bound."""
     if total == 0:
         return 0.0
     res = binomtest(success, total)
-    ci = res.proportion_ci(confidence_level=1.0 - 2 * alpha,  # one-sided
-                            method="exact")
+    ci = res.proportion_ci(confidence_level=1.0 - 2 * alpha, method="exact")
     return float(ci.low)
 
 
@@ -102,14 +130,24 @@ def certified_accuracy_at_radii(smoother: SmoothedClassifier,
                                   n: int = 500,
                                   alpha: float = 0.001,
                                   max_samples: int = None,
+                                  smoothed_acc_n: int = 100,
                                   desc: str = "certify"):
     """
-    Iterate the loader, call CERTIFY on each sample.
+    Iterate the loader, call CERTIFY on each sample. Also reports
+    clean accuracy and smoothed accuracy alongside certified accuracy.
+
     Returns:
-        dict {radius: certified_accuracy}
-        plus per-sample (true_label, pred_class, certified_radius) records.
+        dict with:
+          certified_accuracy : {radius: cert_acc}
+          clean_accuracy     : float (no noise)
+          smoothed_accuracy  : float (majority vote, no cert constraint)
+          abstain_rate       : float
+          n_total            : int
+          records            : list of (true_label, pred_class, radius, ...)
     """
     correct_at_r = {r: 0 for r in radii}
+    correct_clean = 0
+    correct_smoothed = 0
     total = 0
     abstain = 0
     records = []
@@ -122,16 +160,28 @@ def certified_accuracy_at_radii(smoother: SmoothedClassifier,
             x = ppi[i].to(device)
             y = labels[i].item()
             fs = flow_stats[i].to(device) if flow_stats is not None else None
+
+            # Clean (no noise)
+            clean_pred = smoother.predict_clean(x, fs)
+            if clean_pred == y:
+                correct_clean += 1
+
+            # Smoothed (majority vote)
+            sm_pred = smoother.predict_smoothed(x, smoothed_acc_n, fs)
+            if sm_pred == y:
+                correct_smoothed += 1
+
+            # Certified
             c_A, rad = smoother.certify(x, n0=n0, n=n, alpha=alpha,
                                           flow_stats=fs)
-            records.append((y, c_A, rad))
+            records.append((y, c_A, rad, clean_pred, sm_pred))
             total += 1
             if c_A == smoother.ABSTAIN:
                 abstain += 1
-                continue
-            for r in radii:
-                if c_A == y and rad >= r:
-                    correct_at_r[r] += 1
+            else:
+                for r in radii:
+                    if c_A == y and rad >= r:
+                        correct_at_r[r] += 1
             if max_samples is not None and total >= max_samples:
                 break
         if max_samples is not None and total >= max_samples:
@@ -139,7 +189,11 @@ def certified_accuracy_at_radii(smoother: SmoothedClassifier,
 
     cert_acc = {r: (correct_at_r[r] / total if total > 0 else 0.0)
                 for r in radii}
-    return {"certified_accuracy": cert_acc,
-            "abstain_rate": abstain / total if total > 0 else 0.0,
-            "n_total": total,
-            "records": records}
+    return {
+        "certified_accuracy": cert_acc,
+        "clean_accuracy": correct_clean / total if total > 0 else 0.0,
+        "smoothed_accuracy": correct_smoothed / total if total > 0 else 0.0,
+        "abstain_rate": abstain / total if total > 0 else 0.0,
+        "n_total": total,
+        "records": records,
+    }

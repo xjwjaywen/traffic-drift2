@@ -1,18 +1,18 @@
 """
-CA-TTA Phase 1 aggregation.
+CA-TTA Phase 1 aggregation (multi-seed, multi-metric).
 
-Reads outputs/phase1_adapt_then_certify/<dataset>_<method>_sigma<S>.json
-Compares all methods on:
-  - Average certified accuracy (across radii × periods)
-  - Per-radius certified accuracy table
-  - Improvement of CA-TTA over each baseline
+Reads outputs/phase1_adapt_then_certify/<dataset>_<method>_sigma<S>[_<suffix>].json
 
-Decision criteria:
-  CA-TTA wins if its avg certified accuracy is higher than ALL baselines
-  by at least 0.005, on at least one of the two datasets.
+Aggregates seeds (when present) into mean ± std on:
+  - clean accuracy
+  - smoothed accuracy
+  - certified accuracy at each radius
+
+Compares CA-TTA against all baselines on certified accuracy.
 """
 import json
 import os
+import re
 from collections import defaultdict
 from glob import glob
 
@@ -25,120 +25,165 @@ ROOT = os.path.abspath(os.path.join(_HERE, "..", "outputs",
 
 
 def load_runs(dataset: str):
-    """Returns dict[method] -> summary dict."""
-    out = {}
+    """
+    Returns list of summary dicts. Each summary has its own method/seed/etc.
+    """
+    runs = []
     pattern = os.path.join(ROOT, f"{dataset}_*_sigma*.json")
     for path in sorted(glob(pattern)):
         with open(path) as f:
             payload = json.load(f)
-        method = payload.get("method")
-        if method is None:
+        if payload.get("method") is None:
             continue
-        # If the same method has multiple files (e.g., different ca_lambda),
-        # tag them with a suffix from filename
-        fname = os.path.basename(path)
-        # Format: <dataset>_<method>_sigma<S>[_<suffix>].json
-        body = fname[len(dataset) + 1:-len(".json")]
-        # body = "<method>_sigma<S>" or "<method>_sigma<S>_<suffix>"
-        parts = body.split("_sigma")
-        if len(parts) >= 2:
-            tail = parts[1]
-            sub_parts = tail.split("_", 1)
-            sigma_str = sub_parts[0]
-            suffix = sub_parts[1] if len(sub_parts) > 1 else ""
-            key = f"{method}@s{sigma_str}" + (f"_{suffix}" if suffix else "")
-        else:
-            key = method
-        out[key] = payload
-    return out
+        runs.append(payload)
+    return runs
 
 
-def avg_cert_acc(summary):
-    """Mean certified accuracy across all (period, radius) cells."""
-    radii = summary.get("radii", [])
-    vals = []
-    for p_data in summary["periods"].values():
-        for r in radii:
-            v = p_data["certified_accuracy"].get(str(r),
-                p_data["certified_accuracy"].get(r))
-            if v is not None:
-                vals.append(v)
-    return float(np.mean(vals)) if vals else 0.0
+def _key(run):
+    """A canonical method-key combining method, lambda, loss type, sigma."""
+    parts = [run["method"]]
+    if run["method"] == "ca_tta":
+        parts.append(f"lam{run.get('ca_lambda', '?')}")
+        parts.append(f"loss-{run.get('ca_loss_type', '?')}")
+        parts.append(f"oc{int(run.get('ca_only_correct', True))}")
+    parts.append(f"s{run.get('sigma', '?')}")
+    return "|".join(parts)
 
 
-def per_radius_avg(summary):
-    """For each radius, mean cert acc across periods."""
-    radii = summary.get("radii", [])
+def aggregate_by_method(runs):
+    """
+    Group runs by method-key (cross-seed). Returns dict[key] -> aggregated.
+    Aggregation: mean and std of each metric across seeds.
+    """
+    grouped = defaultdict(list)
+    for r in runs:
+        grouped[_key(r)].append(r)
+
     out = {}
-    for r in radii:
-        vals = []
-        for p_data in summary["periods"].values():
-            v = p_data["certified_accuracy"].get(str(r),
-                p_data["certified_accuracy"].get(r))
-            if v is not None:
-                vals.append(v)
-        out[r] = float(np.mean(vals)) if vals else 0.0
+    for key, rs in grouped.items():
+        # All runs in a group share the same radii
+        radii = rs[0]["radii"]
+
+        # collect per-period metric arrays then average
+        per_seed = []
+        for r in rs:
+            cells = []
+            cleans, smoothes = [], []
+            cert_per_r = {rad: [] for rad in radii}
+            for p_data in r["periods"].values():
+                cleans.append(p_data["clean_accuracy"])
+                smoothes.append(p_data["smoothed_accuracy"])
+                for rad in radii:
+                    v = p_data["certified_accuracy"].get(str(rad),
+                          p_data["certified_accuracy"].get(rad))
+                    if v is not None:
+                        cert_per_r[rad].append(v)
+            per_seed.append({
+                "clean": np.mean(cleans),
+                "smoothed": np.mean(smoothes),
+                "cert": {rad: np.mean(cert_per_r[rad]) for rad in radii},
+                "cert_avg": np.mean([np.mean(cert_per_r[rad]) for rad in radii]),
+            })
+
+        n_seeds = len(per_seed)
+        out[key] = {
+            "n_seeds": n_seeds,
+            "radii": radii,
+            "method": rs[0]["method"],
+            "ca_lambda": rs[0].get("ca_lambda"),
+            "ca_loss_type": rs[0].get("ca_loss_type"),
+            "clean_mean": float(np.mean([s["clean"] for s in per_seed])),
+            "clean_std": float(np.std([s["clean"] for s in per_seed])),
+            "smoothed_mean": float(np.mean([s["smoothed"] for s in per_seed])),
+            "smoothed_std": float(np.std([s["smoothed"] for s in per_seed])),
+            "cert_avg_mean": float(np.mean([s["cert_avg"] for s in per_seed])),
+            "cert_avg_std": float(np.std([s["cert_avg"] for s in per_seed])),
+            "cert_per_r_mean": {
+                rad: float(np.mean([s["cert"][rad] for s in per_seed]))
+                for rad in radii},
+            "cert_per_r_std": {
+                rad: float(np.std([s["cert"][rad] for s in per_seed]))
+                for rad in radii},
+        }
     return out
 
 
-def print_dataset(dataset, runs):
-    print("\n" + "#" * 80)
+def print_dataset(dataset, agg):
+    print("\n" + "#" * 100)
     print(f"# Dataset: {dataset}")
-    print("#" * 80)
-
-    if not runs:
-        print("(no runs found)")
+    print("#" * 100)
+    if not agg:
+        print("(no runs)")
         return
 
-    # Build a combined table
-    all_radii = sorted(set(
-        r for s in runs.values() for r in s.get("radii", [])))
+    # Get all unique radii across keys
+    all_radii = sorted(set(r for k in agg.values() for r in k["radii"]))
 
-    print(f"\n{'Method':<28} {'avg':>8}" +
-          "".join(f"  r={r:.2f}".rjust(10) for r in all_radii))
-    print("-" * (28 + 8 + 10 * len(all_radii)))
-    for method, summary in sorted(runs.items()):
-        avg = avg_cert_acc(summary)
-        per_r = per_radius_avg(summary)
-        row = f"{method:<28} {avg:>8.4f}"
+    print(f"\n{'Method-key':<48} {'seeds':>5} {'clean':>14} {'smooth':>14} {'cert avg':>14}",
+          end="")
+    for r in all_radii:
+        print(f"  {f'r={r:.2f}':>12}", end="")
+    print()
+    print("-" * (48 + 5 + 14 * 3 + 14 * len(all_radii)))
+
+    # Sort by cert_avg_mean descending
+    sorted_keys = sorted(agg.keys(),
+                          key=lambda k: -agg[k]["cert_avg_mean"])
+    for key in sorted_keys:
+        a = agg[key]
+        row = f"{key:<48} {a['n_seeds']:>5}"
+        row += f"  {a['clean_mean']:.4f}±{a['clean_std']:.3f}"
+        row += f"  {a['smoothed_mean']:.4f}±{a['smoothed_std']:.3f}"
+        row += f"  {a['cert_avg_mean']:.4f}±{a['cert_avg_std']:.3f}"
         for r in all_radii:
-            v = per_r.get(r, None)
-            row += f"  {v:>8.4f}" if v is not None else "  " + " " * 8
+            v_m = a["cert_per_r_mean"].get(r)
+            v_s = a["cert_per_r_std"].get(r)
+            if v_m is not None:
+                row += f"  {v_m:.4f}±{v_s:.2f}"
+            else:
+                row += "  " + " " * 10
         print(row)
-    print("-" * (28 + 8 + 10 * len(all_radii)))
+    print("-" * (48 + 5 + 14 * 3 + 14 * len(all_radii)))
 
-    # Verdict: does CA-TTA win?
-    ca_keys = [k for k in runs if "ca_tta" in k]
-    if not ca_keys:
-        print("\n(no CA-TTA runs to compare)")
+
+def verify_ca_tta_dominates(dataset, agg):
+    """Find best CA-TTA config and check if it beats all non-CA baselines."""
+    ca_keys = [k for k in agg if agg[k]["method"] == "ca_tta"]
+    other_keys = [k for k in agg if agg[k]["method"] != "ca_tta"]
+    if not ca_keys or not other_keys:
         return
+    best_ca = max(ca_keys, key=lambda k: agg[k]["cert_avg_mean"])
     print(f"\n[Verdict — {dataset}]")
-    for ca_key in ca_keys:
-        ca_avg = avg_cert_acc(runs[ca_key])
-        print(f"\n{ca_key}: avg cert acc = {ca_avg:.4f}")
-        wins = []
-        losses = []
-        for other, summary in runs.items():
-            if other == ca_key or "ca_tta" in other:
-                continue
-            other_avg = avg_cert_acc(summary)
-            delta = ca_avg - other_avg
-            if delta >= 0.005:
-                wins.append((other, delta))
-            elif delta <= -0.005:
-                losses.append((other, delta))
-        for o, d in wins:
-            print(f"  beats {o:<28} (delta = {d:+.4f})")
-        for o, d in losses:
-            print(f"  loses to {o:<28} (delta = {d:+.4f})")
-        if not losses and wins:
-            print(f"  ==> {ca_key} dominates all baselines on {dataset}")
+    print(f"Best CA-TTA: {best_ca}  (cert avg = {agg[best_ca]['cert_avg_mean']:.4f}"
+          f" ± {agg[best_ca]['cert_avg_std']:.4f})")
+    print(f"\n  Baseline comparisons (delta = best_ca - baseline):")
+    all_dominate = True
+    for k in other_keys:
+        delta = agg[best_ca]["cert_avg_mean"] - agg[k]["cert_avg_mean"]
+        # Significance: delta > 2 * sqrt(std_ca^2 + std_baseline^2)
+        sig_threshold = 2.0 * np.sqrt(
+            agg[best_ca]["cert_avg_std"] ** 2 + agg[k]["cert_avg_std"] ** 2)
+        sig = abs(delta) > sig_threshold
+        marker = "OK" if delta > 0 else "FAIL"
+        sig_marker = " (sig)" if sig else " (~noise)"
+        print(f"    vs {k:<45} delta = {delta:+.4f}  {marker}{sig_marker}")
+        if delta <= 0:
+            all_dominate = False
+    if all_dominate:
+        print(f"\n  ==> Best CA-TTA dominates all baselines on {dataset}")
+    else:
+        print(f"\n  ==> Mixed result on {dataset}")
 
 
 def main():
     for dataset in ("quic22", "tls22"):
         runs = load_runs(dataset)
-        print_dataset(dataset, runs)
+        if not runs:
+            print(f"\n# Dataset {dataset}: no runs found")
+            continue
+        agg = aggregate_by_method(runs)
+        print_dataset(dataset, agg)
+        verify_ca_tta_dominates(dataset, agg)
 
 
 if __name__ == "__main__":

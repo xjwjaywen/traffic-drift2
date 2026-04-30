@@ -17,6 +17,7 @@ import copy
 import json
 import os
 import sys
+import time
 import torch
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -92,6 +93,17 @@ def main():
     parser.add_argument("--ca-sigma", type=float, default=None,
                         help="CA-TTA training noise sigma; defaults to --sigma")
     parser.add_argument("--ca-n-noise", type=int, default=8)
+    parser.add_argument("--ca-loss-type", choices=["macer", "stability", "none"],
+                        default="macer")
+    parser.add_argument("--ca-only-correct", action="store_true", default=True)
+    parser.add_argument("--ca-no-only-correct", dest="ca_only_correct",
+                        action="store_false")
+    # Constraint-aware smoothing flag (default: skip direction channel)
+    parser.add_argument("--smooth-channels", type=int, nargs="+", default=[0, 2],
+                        help="Channels to add Gaussian noise to (0=size, "
+                             "1=direction, 2=IPT). Default skips direction.")
+    parser.add_argument("--smoothed-acc-n", type=int, default=100,
+                        help="# noise samples for smoothed-accuracy reporting")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--output-suffix", default="")
     args = parser.parse_args()
@@ -108,6 +120,9 @@ def main():
     cfg["tta"]["ca_lambda"] = args.ca_lambda
     cfg["tta"]["ca_sigma"] = args.ca_sigma if args.ca_sigma is not None else args.sigma
     cfg["tta"]["ca_n_noise"] = args.ca_n_noise
+    cfg["tta"]["ca_loss_type"] = args.ca_loss_type
+    cfg["tta"]["ca_only_correct"] = args.ca_only_correct
+    cfg["tta"]["ca_smooth_channels"] = list(args.smooth_channels)
     cfg["tta"]["seed"] = args.seed
     # Active sampler default: random (we are not sweeping samplers here)
     cfg["tta"].setdefault("sampler", "random")
@@ -137,6 +152,9 @@ def main():
                "ca_lambda": args.ca_lambda,
                "ca_sigma": cfg["tta"]["ca_sigma"],
                "ca_n_noise": args.ca_n_noise,
+               "ca_loss_type": args.ca_loss_type,
+               "ca_only_correct": args.ca_only_correct,
+               "smooth_channels": list(args.smooth_channels),
                "periods": {}}
 
     for period_name, loader in loaders:
@@ -147,28 +165,41 @@ def main():
         # Cache batches because we need to iterate twice (adapt + certify)
         cached = list(loader)
 
+        t_adapt_start = time.time()
         adapted = adapt_with_method(args.method, base_model, iter(cached),
                                      device, num_classes, cfg)
         adapted.eval()
+        t_adapt = time.time() - t_adapt_start
 
         smoother = SmoothedClassifier(adapted, num_classes=num_classes,
-                                       sigma=args.sigma)
+                                       sigma=args.sigma,
+                                       smooth_channels=args.smooth_channels)
+        t_cert_start = time.time()
         result = certified_accuracy_at_radii(
             smoother, iter(cached), device,
             radii=args.radii, n0=args.n0, n=args.n, alpha=args.alpha,
             max_samples=args.max_samples_per_period,
+            smoothed_acc_n=args.smoothed_acc_n,
             desc=f"{args.method}+certify@{period_name}",
         )
+        t_cert = time.time() - t_cert_start
 
         cert_acc = result["certified_accuracy"]
+        print(f"  clean acc:    {result['clean_accuracy']:.4f}")
+        print(f"  smoothed acc: {result['smoothed_accuracy']:.4f}")
         print(f"  abstain rate: {result['abstain_rate']:.4f}")
         for r in args.radii:
             print(f"  certified acc @ r={r:.2f}: {cert_acc[r]:.4f}")
+        print(f"  time: adapt={t_adapt:.1f}s, certify={t_cert:.1f}s")
 
         summary["periods"][period_name] = {
             "certified_accuracy": cert_acc,
+            "clean_accuracy": result["clean_accuracy"],
+            "smoothed_accuracy": result["smoothed_accuracy"],
             "abstain_rate": result["abstain_rate"],
             "n_total": result["n_total"],
+            "adapt_time_s": t_adapt,
+            "certify_time_s": t_cert,
         }
 
     suffix = f"_{args.output_suffix}" if args.output_suffix else ""
@@ -179,20 +210,22 @@ def main():
         json.dump(summary, f, indent=2)
     print(f"\nSaved: {out_path}")
 
-    print("\n" + "=" * 80)
-    print(f"{args.method} + cert acc — {dataset} (sigma={args.sigma})")
-    print("=" * 80)
-    header = f"{'Period':<14}" + "".join(f"  r={r:.2f}".rjust(10) for r in args.radii)
+    print("\n" + "=" * 90)
+    print(f"{args.method} | sigma={args.sigma} | seed={args.seed} | dataset={dataset}")
+    print("=" * 90)
+    header = f"{'Period':<14}{'clean':>8}{'smooth':>8}"
+    header += "".join(f"  r={r:.2f}".rjust(10) for r in args.radii)
     header += "  abstain"
     print(header)
-    print("-" * 80)
+    print("-" * 90)
     for period_name, p_data in summary["periods"].items():
-        row = f"{period_name:<14}"
+        row = f"{period_name:<14}{p_data['clean_accuracy']:>8.4f}"
+        row += f"{p_data['smoothed_accuracy']:>8.4f}"
         for r in args.radii:
             row += f"  {p_data['certified_accuracy'][r]:>8.4f}"
         row += f"  {p_data['abstain_rate']:>8.4f}"
         print(row)
-    print("=" * 80)
+    print("=" * 90)
 
 
 if __name__ == "__main__":

@@ -82,6 +82,11 @@ class CertAwareNormAdapt(_PeriodLabeledBase):
         self.batch_size = cfg.get("ca_batch_size", 64)
         self.weight_decay = cfg.get("ca_wd", 1e-4)
         self.only_correct = cfg.get("ca_only_correct", True)
+        # Cert loss form: "macer" (default), "stability", "none"
+        self.loss_type = cfg.get("ca_loss_type", "macer")
+        # Channels to perturb during training (matches eval-side smoothing)
+        # Default: skip discrete direction channel (channel 1)
+        self.smooth_channels = tuple(cfg.get("ca_smooth_channels", (0, 2)))
 
     def _build_optimizer(self, model):
         # Freeze all, then unfreeze norm parameters
@@ -98,13 +103,22 @@ class CertAwareNormAdapt(_PeriodLabeledBase):
         return torch.optim.Adam(norm_params, lr=self.lr,
                                 weight_decay=self.weight_decay)
 
+    def _make_train_noise(self, ppi_rep: torch.Tensor) -> torch.Tensor:
+        """Build noise tensor honouring smooth_channels."""
+        noise = torch.randn_like(ppi_rep) * self.sigma
+        if len(self.smooth_channels) < ppi_rep.size(1):
+            mask = torch.zeros_like(ppi_rep)
+            for c in self.smooth_channels:
+                mask[:, c, :] = 1.0
+            noise = noise * mask
+        return noise
+
     def _train_step(self, model, ppi, labels, flow_stats, opt):
         """One training step: joint CE + cert loss."""
         B = ppi.size(0)
-        # Replicate input N times along a new leading axis -> (N*B, 3, 30)
         ppi_rep = ppi.unsqueeze(0).repeat(self.n_noise, 1, 1, 1).reshape(
             self.n_noise * B, *ppi.shape[1:])
-        noise = torch.randn_like(ppi_rep) * self.sigma
+        noise = self._make_train_noise(ppi_rep)
         ppi_noisy = ppi_rep + noise
 
         if flow_stats is not None:
@@ -117,32 +131,32 @@ class CertAwareNormAdapt(_PeriodLabeledBase):
         log_probs = F.log_softmax(logits, dim=1)
         probs = log_probs.exp()
 
-        # Soft p_A averaged over N noise samples per input
-        # Reshape to (N, B, K) and average over N
         probs_reshaped = probs.view(self.n_noise, B, -1)
         soft_probs = probs_reshaped.mean(dim=0)       # (B, K)
-
-        # Standard CE on smoothed probabilities (Cohen-style: train on
-        # noisy inputs, predict via averaged probs). Use log of soft probs
-        # for numerical stability.
         soft_log = (soft_probs + 1e-8).log()
         ce = F.nll_loss(soft_log, labels)
 
-        # MACER-style cert margin loss
-        # soft_p_A on the true class
-        p_A = soft_probs.gather(1, labels.unsqueeze(1)).squeeze(1)  # (B,)
-
-        if self.only_correct:
-            # Only penalise samples where the smoothed top-class is correct
-            # AND p_A > 0.5 (otherwise cert radius is undefined)
-            top_class = soft_probs.argmax(dim=1)
-            mask = (top_class == labels) & (p_A > 0.5)
-            if mask.any():
-                cert_term = -inv_norm_cdf(p_A[mask]).mean()
+        # Cert margin loss — different formulations
+        if self.loss_type == "none" or self.lambda_cert == 0.0:
+            cert_term = torch.tensor(0.0, device=ppi.device)
+        elif self.loss_type == "stability":
+            # Stability training: KL between clean prediction and avg noisy
+            with torch.no_grad():
+                clean_logits = model(ppi, flow_stats)
+                clean_probs = F.softmax(clean_logits, dim=1)
+            cert_term = F.kl_div(soft_log, clean_probs, reduction="batchmean")
+        else:  # "macer" (default)
+            p_A = soft_probs.gather(1, labels.unsqueeze(1)).squeeze(1)
+            if self.only_correct:
+                top_class = soft_probs.argmax(dim=1)
+                mask = (top_class == labels) & (p_A > 0.5)
+                if mask.any():
+                    cert_term = -inv_norm_cdf(p_A[mask]).mean()
+                else:
+                    cert_term = torch.tensor(0.0, device=ppi.device)
             else:
-                cert_term = torch.tensor(0.0, device=ppi.device)
-        else:
-            cert_term = -inv_norm_cdf(p_A).mean()
+                # Clamp p_A away from 0/1 to avoid +/- inf
+                cert_term = -inv_norm_cdf(p_A.clamp(min=1e-3, max=1.0 - 1e-3)).mean()
 
         total = ce + self.lambda_cert * cert_term
         opt.zero_grad()
