@@ -65,24 +65,29 @@ def aggregate_by_method(runs):
         radii = rs[0]["radii"]
 
         # collect per-period metric arrays then average
+        # (Phase 1 first-round JSON files lack clean/smoothed acc — fall
+        # back to NaN so we can still aggregate cert acc.)
         per_seed = []
         for r in rs:
             cells = []
             cleans, smoothes = [], []
             cert_per_r = {rad: [] for rad in radii}
             for p_data in r["periods"].values():
-                cleans.append(p_data["clean_accuracy"])
-                smoothes.append(p_data["smoothed_accuracy"])
+                cleans.append(p_data.get("clean_accuracy", float("nan")))
+                smoothes.append(p_data.get("smoothed_accuracy", float("nan")))
                 for rad in radii:
                     v = p_data["certified_accuracy"].get(str(rad),
                           p_data["certified_accuracy"].get(rad))
                     if v is not None:
                         cert_per_r[rad].append(v)
             per_seed.append({
-                "clean": np.mean(cleans),
-                "smoothed": np.mean(smoothes),
-                "cert": {rad: np.mean(cert_per_r[rad]) for rad in radii},
-                "cert_avg": np.mean([np.mean(cert_per_r[rad]) for rad in radii]),
+                "clean": float(np.nanmean(cleans)) if cleans else float("nan"),
+                "smoothed": float(np.nanmean(smoothes)) if smoothes else float("nan"),
+                "cert": {rad: (np.mean(cert_per_r[rad]) if cert_per_r[rad] else float("nan"))
+                         for rad in radii},
+                "cert_avg": float(np.mean([np.mean(cert_per_r[rad])
+                                            for rad in radii
+                                            if cert_per_r[rad]])) if any(cert_per_r.values()) else float("nan"),
             })
 
         n_seeds = len(per_seed)
@@ -129,16 +134,23 @@ def print_dataset(dataset, agg):
     # Sort by cert_avg_mean descending
     sorted_keys = sorted(agg.keys(),
                           key=lambda k: -agg[k]["cert_avg_mean"])
+    def _fmt(v, std=None, w=6, p=4):
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return " " * (w + 6)
+        if std is None or (isinstance(std, float) and np.isnan(std)):
+            return f"{v:.{p}f}      "
+        return f"{v:.{p}f}±{std:.3f}"
+
     for key in sorted_keys:
         a = agg[key]
         row = f"{key:<48} {a['n_seeds']:>5}"
-        row += f"  {a['clean_mean']:.4f}±{a['clean_std']:.3f}"
-        row += f"  {a['smoothed_mean']:.4f}±{a['smoothed_std']:.3f}"
-        row += f"  {a['cert_avg_mean']:.4f}±{a['cert_avg_std']:.3f}"
+        row += f"  {_fmt(a['clean_mean'], a['clean_std'])}"
+        row += f"  {_fmt(a['smoothed_mean'], a['smoothed_std'])}"
+        row += f"  {_fmt(a['cert_avg_mean'], a['cert_avg_std'])}"
         for r in all_radii:
             v_m = a["cert_per_r_mean"].get(r)
             v_s = a["cert_per_r_std"].get(r)
-            if v_m is not None:
+            if v_m is not None and not (isinstance(v_m, float) and np.isnan(v_m)):
                 row += f"  {v_m:.4f}±{v_s:.2f}"
             else:
                 row += "  " + " " * 10
