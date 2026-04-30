@@ -261,12 +261,14 @@ def run_sequential_eval(model_path, eval_cfg, device):
                                                   "..", "..", "DT_TTA"))
                 from methods.strategies import (
                     SelectiveNormAdapt, FocalStrategy, DiffuseStrategy)
-                src_stats_path = eval_cfg.get("dt_source_stats")
+                src_stats_path = (eval_cfg.get("tta", {}).get("dt_source_stats")
+                                  or eval_cfg.get("dt_source_stats")
+                                  or os.environ.get("DT_SOURCE_STATS"))
                 if src_stats_path is None or not os.path.exists(src_stats_path):
                     raise RuntimeError(
                         f"DT-TTA method {method_key} requires source stats. "
-                        f"Pass via cfg.tta.dt_source_stats or set "
-                        f"DT_SOURCE_STATS env var.")
+                        f"Pass via --dt-source-stats CLI flag or "
+                        f"DT_SOURCE_STATS env var. Got: {src_stats_path!r}")
                 raw = torch.load(src_stats_path, map_location="cpu",
                                  weights_only=False)
                 source_stats = {n: {"mean": v["mean"].numpy(),
