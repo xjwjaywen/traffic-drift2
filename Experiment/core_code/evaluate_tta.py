@@ -241,7 +241,8 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 m = tracker.add_period(period_name, labels, preds)
                 print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
 
-        elif method_key in ("tta_tc", "knn_labeled", "ft_head", "supervised_norm"):
+        elif method_key in ("tta_tc", "knn_labeled", "ft_head", "supervised_norm",
+                             "selective_norm", "focal_strategy", "diffuse_strategy"):
             tta_model = copy.deepcopy(model).to(device)
             tta_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
             if method_key == "tta_tc":
@@ -251,8 +252,31 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 engine = KNNLabeled(tta_model, tta_cfg)
             elif method_key == "ft_head":
                 engine = FineTuneHead(tta_model, tta_cfg)
-            else:
+            elif method_key == "supervised_norm":
                 engine = SupervisedNormAdapt(tta_model, tta_cfg)
+            else:
+                # DT-TTA methods need source_stats
+                import sys as _sys
+                _sys.path.insert(0, os.path.join(os.path.dirname(__file__),
+                                                  "..", "..", "DT_TTA"))
+                from methods.strategies import (
+                    SelectiveNormAdapt, FocalStrategy, DiffuseStrategy)
+                src_stats_path = eval_cfg.get("dt_source_stats")
+                if src_stats_path is None or not os.path.exists(src_stats_path):
+                    raise RuntimeError(
+                        f"DT-TTA method {method_key} requires source stats. "
+                        f"Pass via cfg.tta.dt_source_stats or set "
+                        f"DT_SOURCE_STATS env var.")
+                raw = torch.load(src_stats_path, map_location="cpu",
+                                 weights_only=False)
+                source_stats = {n: {"mean": v["mean"].numpy(),
+                                     "var": v["var"].numpy(),
+                                     "n": int(v["n"])}
+                                for n, v in raw.items()}
+                cls = {"selective_norm": SelectiveNormAdapt,
+                       "focal_strategy": FocalStrategy,
+                       "diffuse_strategy": DiffuseStrategy}[method_key]
+                engine = cls(tta_model, tta_cfg, source_stats=source_stats)
 
             for period_name, test_loader in loaders:
                 engine.reset_period()
@@ -305,6 +329,8 @@ def main():
                         help="Active sampling strategy override")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed for sampling and torch")
+    parser.add_argument("--dt-source-stats", type=str, default=None,
+                        help="Path to source GroupNorm stats .pt for DT-TTA methods")
     parser.add_argument("--output-suffix", type=str, default="",
                         help="Suffix appended to results filename")
     args = parser.parse_args()
@@ -322,6 +348,8 @@ def main():
         cfg.setdefault("tta", {})["seed"] = args.seed
         torch.manual_seed(args.seed)
         np.random.seed(args.seed)
+    if args.dt_source_stats:
+        cfg.setdefault("tta", {})["dt_source_stats"] = args.dt_source_stats
 
     # Device
     if torch.cuda.is_available():
