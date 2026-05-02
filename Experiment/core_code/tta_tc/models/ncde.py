@@ -14,15 +14,22 @@ else:
 class CDEFunc(nn.Module):
     """Vector field f(t, z) mapping hidden states to CDE dynamics."""
 
-    def __init__(self, hidden_dim: int, input_channels: int):
+    def __init__(
+        self,
+        hidden_dim: int,
+        input_channels: int,
+        vector_field_hidden_dim: int = None,
+        vector_field_layers: int = 2,
+    ):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.input_channels = input_channels
-        self.net = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Tanh(),
-            nn.Linear(hidden_dim, hidden_dim * input_channels),
-        )
+        width = vector_field_hidden_dim or hidden_dim
+        layers = [nn.Linear(hidden_dim, width), nn.Tanh()]
+        for _ in range(max(vector_field_layers - 1, 0)):
+            layers.extend([nn.Linear(width, width), nn.Tanh()])
+        layers.append(nn.Linear(width, hidden_dim * input_channels))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, t, z):
         out = self.net(z)
@@ -47,6 +54,9 @@ class NeuralCDEClassifier(nn.Module):
         solver: str = "rk4",
         solver_step_size: float = 1.0,
         normalize_input: bool = False,
+        add_time_channel: bool = False,
+        vector_field_hidden_dim: int = None,
+        vector_field_layers: int = 2,
     ):
         super().__init__()
         if torchcde is None:
@@ -64,12 +74,19 @@ class NeuralCDEClassifier(nn.Module):
         self.solver = solver
         self.solver_step_size = solver_step_size
         self.normalize_input = normalize_input
+        self.add_time_channel = add_time_channel
+        self.control_channels = input_channels + int(add_time_channel)
 
         self.register_buffer("input_mean", torch.zeros(1, 1, input_channels))
         self.register_buffer("input_std", torch.ones(1, 1, input_channels))
 
-        self.initial = nn.Linear(input_channels, hidden_dim)
-        self.func = CDEFunc(hidden_dim=hidden_dim, input_channels=input_channels)
+        self.initial = nn.Linear(self.control_channels, hidden_dim)
+        self.func = CDEFunc(
+            hidden_dim=hidden_dim,
+            input_channels=self.control_channels,
+            vector_field_hidden_dim=vector_field_hidden_dim,
+            vector_field_layers=vector_field_layers,
+        )
         self.classifier = nn.Linear(hidden_dim, num_classes)
 
     def set_input_stats(self, mean: torch.Tensor, std: torch.Tensor):
@@ -96,6 +113,10 @@ class NeuralCDEClassifier(nn.Module):
         path = ppi.transpose(1, 2).contiguous()  # (B, T, 3)
         if self.normalize_input:
             path = (path - self.input_mean) / self.input_std
+        if self.add_time_channel:
+            time = torch.linspace(0, 1, path.size(1), device=path.device, dtype=path.dtype)
+            time = time.view(1, -1, 1).expand(path.size(0), -1, -1)
+            path = torch.cat([time, path], dim=-1)
 
         coeffs = torchcde.linear_interpolation_coeffs(path)
         control = torchcde.LinearInterpolation(coeffs)
