@@ -57,6 +57,7 @@ pip install \
     seaborn \
     tqdm \
     tensorboard \
+    torchcde \
     pyyaml \
     rich \
     jsonlines
