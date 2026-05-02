@@ -1,6 +1,6 @@
-# H0 feasibility check: NCDE baseline on CESNET-QUIC22 W-44.
+# Short H0 sanity run before launching the full W-44 experiment.
 # Run from Experiment/core_code:
-#   CUDA_VISIBLE_DEVICES=0 python train_h0_ncde.py --config configs/h0_quic22_ncde.yaml
+#   CUDA_VISIBLE_DEVICES=0 CONFIG=configs/h0_quic22_ncde_smoke.yaml bash scripts/run_h0_ncde.sh
 
 seed: 42
 device: cuda
@@ -25,15 +25,15 @@ model:
   normalize_input: true
 
 normalization:
-  max_batches: 1024
+  max_batches: 256
 
 training:
-  epochs: 50
+  epochs: 3
   lr: 0.001
   weight_decay: 0.0001
   grad_clip: 1.0
-  max_train_batches:
-  max_val_batches:
+  max_train_batches: 1000
+  max_val_batches: 100
 
 comparison:
   cnn_results_path: outputs/quic22_cnn/train_results.json
@@ -42,4 +42,4 @@ comparison:
   pass_within: 0.03
   stop_if_lower_than: 0.05
 
-output_dir: outputs/h0_quic22_ncde
+output_dir: outputs/h0_quic22_ncde_smoke

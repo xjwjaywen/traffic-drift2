@@ -39,7 +39,7 @@ def choose_device(requested=None):
     return torch.device("cpu")
 
 
-def train_epoch(model, dataloader, optimizer, device, epoch, grad_clip=None):
+def train_epoch(model, dataloader, optimizer, device, epoch, grad_clip=None, max_batches=None):
     model.train()
     total_loss = 0.0
     all_preds = []
@@ -47,7 +47,9 @@ def train_epoch(model, dataloader, optimizer, device, epoch, grad_clip=None):
     num_batches = 0
 
     pbar = tqdm(dataloader, desc=f"H0 NCDE epoch {epoch}")
-    for batch in pbar:
+    for batch_idx, batch in enumerate(pbar):
+        if max_batches is not None and batch_idx >= max_batches:
+            break
         ppi = batch["ppi"].to(device)
         labels = batch["label"].to(device)
 
@@ -71,14 +73,16 @@ def train_epoch(model, dataloader, optimizer, device, epoch, grad_clip=None):
 
 
 @torch.no_grad()
-def evaluate(model, dataloader, device, desc="eval"):
+def evaluate(model, dataloader, device, desc="eval", max_batches=None):
     model.eval()
     total_loss = 0.0
     all_preds = []
     all_labels = []
     num_batches = 0
 
-    for batch in tqdm(dataloader, desc=desc):
+    for batch_idx, batch in enumerate(tqdm(dataloader, desc=desc)):
+        if max_batches is not None and batch_idx >= max_batches:
+            break
         ppi = batch["ppi"].to(device)
         labels = batch["label"].to(device)
         logits = model(ppi)
@@ -92,6 +96,28 @@ def evaluate(model, dataloader, device, desc="eval"):
     metrics = compute_metrics(all_labels, all_preds)
     metrics["loss"] = total_loss / max(num_batches, 1)
     return metrics
+
+
+@torch.no_grad()
+def estimate_ppi_channel_stats(dataloader, device, max_batches=None):
+    """Estimate channel-wise mean/std over PPI tensors shaped (B, 3, T)."""
+    total = torch.zeros(3, device=device)
+    total_sq = torch.zeros(3, device=device)
+    count = 0
+
+    for batch_idx, batch in enumerate(tqdm(dataloader, desc="Estimating PPI stats")):
+        if max_batches is not None and batch_idx >= max_batches:
+            break
+        ppi = batch["ppi"].to(device)
+        flat = ppi.transpose(1, 2).reshape(-1, ppi.size(1))
+        total += flat.sum(dim=0)
+        total_sq += (flat * flat).sum(dim=0)
+        count += flat.size(0)
+
+    mean = total / max(count, 1)
+    var = (total_sq / max(count, 1)) - mean * mean
+    std = var.clamp_min(1e-12).sqrt()
+    return mean, std
 
 
 def load_cnn_reference(comparison_cfg):
@@ -145,6 +171,8 @@ def main():
     parser.add_argument("--output-dir", default=None, help="Override output directory")
     parser.add_argument("--device", default=None, help="Device override, e.g. cuda:0")
     parser.add_argument("--seed", type=int, default=None, help="Override random seed")
+    parser.add_argument("--max-train-batches", type=int, default=None, help="Debug override for train batches per epoch")
+    parser.add_argument("--max-val-batches", type=int, default=None, help="Debug override for validation batches")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -175,8 +203,20 @@ def main():
         interpolation=model_cfg.get("interpolation", "linear"),
         solver=model_cfg.get("solver", "rk4"),
         solver_step_size=model_cfg.get("solver_step_size", 1.0),
+        normalize_input=model_cfg.get("normalize_input", False),
     ).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+
+    norm_cfg = cfg.get("normalization", {})
+    if model_cfg.get("normalize_input", False):
+        mean, std = estimate_ppi_channel_stats(
+            train_loader,
+            device=device,
+            max_batches=norm_cfg.get("max_batches"),
+        )
+        model.set_input_stats(mean, std)
+        print(f"PPI channel mean: {[round(x, 6) for x in mean.detach().cpu().tolist()]}")
+        print(f"PPI channel std : {[round(x, 6) for x in std.detach().cpu().tolist()]}")
 
     train_cfg = cfg.get("training", {})
     optimizer = torch.optim.AdamW(
@@ -192,10 +232,24 @@ def main():
     best_epoch = 0
     history = []
     start_time = time.perf_counter()
+    max_train_batches = (
+        args.max_train_batches
+        if args.max_train_batches is not None
+        else train_cfg.get("max_train_batches")
+    )
+    max_val_batches = (
+        args.max_val_batches
+        if args.max_val_batches is not None
+        else train_cfg.get("max_val_batches")
+    )
 
     for epoch in range(1, epochs + 1):
-        train_metrics = train_epoch(model, train_loader, optimizer, device, epoch, grad_clip)
-        val_metrics = evaluate(model, val_loader, device, desc=f"H0 NCDE val {epoch}")
+        train_metrics = train_epoch(
+            model, train_loader, optimizer, device, epoch, grad_clip, max_train_batches
+        )
+        val_metrics = evaluate(
+            model, val_loader, device, desc=f"H0 NCDE val {epoch}", max_batches=max_val_batches
+        )
         scheduler.step()
 
         row = {
