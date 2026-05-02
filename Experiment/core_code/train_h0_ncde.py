@@ -204,6 +204,9 @@ def main():
         solver=model_cfg.get("solver", "rk4"),
         solver_step_size=model_cfg.get("solver_step_size", 1.0),
         normalize_input=model_cfg.get("normalize_input", False),
+        add_time_channel=model_cfg.get("add_time_channel", False),
+        vector_field_hidden_dim=model_cfg.get("vector_field_hidden_dim"),
+        vector_field_layers=model_cfg.get("vector_field_layers", 2),
     ).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
