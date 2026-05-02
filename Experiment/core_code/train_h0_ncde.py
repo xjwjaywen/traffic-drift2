@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from tta_tc.data.cesnet_loader import build_dataloaders
-from tta_tc.models.ncde import NeuralCDEClassifier
+from tta_tc.models.ncde import NeuralCDEClassifier, preprocess_ppi_path
 from tta_tc.utils.config import load_config
 from tta_tc.utils.metrics import compute_metrics
 
@@ -99,7 +99,7 @@ def evaluate(model, dataloader, device, desc="eval", max_batches=None):
 
 
 @torch.no_grad()
-def estimate_ppi_channel_stats(dataloader, device, max_batches=None):
+def estimate_ppi_channel_stats(dataloader, device, max_batches=None, preprocess="none"):
     """Estimate channel-wise mean/std over PPI tensors shaped (B, 3, T)."""
     total = torch.zeros(3, device=device)
     total_sq = torch.zeros(3, device=device)
@@ -110,6 +110,7 @@ def estimate_ppi_channel_stats(dataloader, device, max_batches=None):
             break
         ppi = batch["ppi"].to(device)
         flat = ppi.transpose(1, 2).reshape(-1, ppi.size(1))
+        flat = preprocess_ppi_path(flat, preprocess)
         total += flat.sum(dim=0)
         total_sq += (flat * flat).sum(dim=0)
         count += flat.size(0)
@@ -204,6 +205,7 @@ def main():
         solver=model_cfg.get("solver", "rk4"),
         solver_step_size=model_cfg.get("solver_step_size", 1.0),
         normalize_input=model_cfg.get("normalize_input", False),
+        preprocess=model_cfg.get("preprocess", "none"),
         add_time_channel=model_cfg.get("add_time_channel", False),
         vector_field_hidden_dim=model_cfg.get("vector_field_hidden_dim"),
         vector_field_layers=model_cfg.get("vector_field_layers", 2),
@@ -216,6 +218,7 @@ def main():
             train_loader,
             device=device,
             max_batches=norm_cfg.get("max_batches"),
+            preprocess=model_cfg.get("preprocess", "none"),
         )
         model.set_input_stats(mean, std)
         print(f"PPI channel mean: {[round(x, 6) for x in mean.detach().cpu().tolist()]}")

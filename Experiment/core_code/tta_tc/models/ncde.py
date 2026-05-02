@@ -11,6 +11,23 @@ else:
     _TORCHCDE_IMPORT_ERROR = None
 
 
+def preprocess_ppi_path(path: torch.Tensor, mode: str = "none") -> torch.Tensor:
+    """
+    Apply traffic-specific channel transforms to paths shaped (..., 3).
+
+    Channel order is size, direction, IAT. The log transform keeps signs for
+    robustness because some CESNET PPI variants encode packet direction in size.
+    """
+    if mode in {None, "none"}:
+        return path
+    if mode == "log1p_size_iat":
+        out = path.clone()
+        out[..., 0] = torch.sign(out[..., 0]) * torch.log1p(torch.abs(out[..., 0]))
+        out[..., 2] = torch.sign(out[..., 2]) * torch.log1p(torch.abs(out[..., 2]))
+        return out
+    raise ValueError(f"Unknown PPI preprocessing mode: {mode}")
+
+
 class CDEFunc(nn.Module):
     """Vector field f(t, z) mapping hidden states to CDE dynamics."""
 
@@ -54,6 +71,7 @@ class NeuralCDEClassifier(nn.Module):
         solver: str = "rk4",
         solver_step_size: float = 1.0,
         normalize_input: bool = False,
+        preprocess: str = "none",
         add_time_channel: bool = False,
         vector_field_hidden_dim: int = None,
         vector_field_layers: int = 2,
@@ -74,6 +92,7 @@ class NeuralCDEClassifier(nn.Module):
         self.solver = solver
         self.solver_step_size = solver_step_size
         self.normalize_input = normalize_input
+        self.preprocess = preprocess
         self.add_time_channel = add_time_channel
         self.control_channels = input_channels + int(add_time_channel)
 
@@ -111,6 +130,7 @@ class NeuralCDEClassifier(nn.Module):
             )
 
         path = ppi.transpose(1, 2).contiguous()  # (B, T, 3)
+        path = preprocess_ppi_path(path, self.preprocess)
         if self.normalize_input:
             path = (path - self.input_mean) / self.input_std
         if self.add_time_channel:
