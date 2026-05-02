@@ -7,4 +7,6 @@
 
 set -e
 
-python train_h0_ncde.py --config configs/h0_quic22_ncde.yaml
+CONFIG="${CONFIG:-configs/h0_quic22_ncde.yaml}"
+
+python train_h0_ncde.py --config "${CONFIG}" "$@"

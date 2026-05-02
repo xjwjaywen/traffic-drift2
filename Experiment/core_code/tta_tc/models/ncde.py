@@ -46,6 +46,7 @@ class NeuralCDEClassifier(nn.Module):
         interpolation: str = "linear",
         solver: str = "rk4",
         solver_step_size: float = 1.0,
+        normalize_input: bool = False,
     ):
         super().__init__()
         if torchcde is None:
@@ -62,10 +63,21 @@ class NeuralCDEClassifier(nn.Module):
         self.interpolation = interpolation
         self.solver = solver
         self.solver_step_size = solver_step_size
+        self.normalize_input = normalize_input
+
+        self.register_buffer("input_mean", torch.zeros(1, 1, input_channels))
+        self.register_buffer("input_std", torch.ones(1, 1, input_channels))
 
         self.initial = nn.Linear(input_channels, hidden_dim)
         self.func = CDEFunc(hidden_dim=hidden_dim, input_channels=input_channels)
         self.classifier = nn.Linear(hidden_dim, num_classes)
+
+    def set_input_stats(self, mean: torch.Tensor, std: torch.Tensor):
+        """Set channel-wise input normalization statistics."""
+        mean = mean.detach().view(1, 1, self.input_channels)
+        std = std.detach().view(1, 1, self.input_channels).clamp_min(1e-6)
+        self.input_mean.copy_(mean.to(self.input_mean.device))
+        self.input_std.copy_(std.to(self.input_std.device))
 
     def forward(self, ppi: torch.Tensor):
         """
@@ -82,6 +94,9 @@ class NeuralCDEClassifier(nn.Module):
             )
 
         path = ppi.transpose(1, 2).contiguous()  # (B, T, 3)
+        if self.normalize_input:
+            path = (path - self.input_mean) / self.input_std
+
         coeffs = torchcde.linear_interpolation_coeffs(path)
         control = torchcde.LinearInterpolation(coeffs)
 
