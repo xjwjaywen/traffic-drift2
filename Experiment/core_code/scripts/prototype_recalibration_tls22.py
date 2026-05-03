@@ -133,34 +133,51 @@ def prototype_scores(features, prototypes, valid_mask, invalid_value=0.0):
     return scores
 
 
-def subset_metrics(labels, preds, classes):
-    """Compute accuracy/F1 on samples whose true label is in classes."""
+def subset_accuracy(labels, preds, classes):
+    """Compute accuracy on samples whose true label is in classes."""
     classes = set(classes)
     mask = np.array([int(y) in classes for y in labels], dtype=bool)
     if mask.sum() == 0:
-        return {"accuracy": None, "macro_f1": None, "support": 0}
-    metrics = compute_metrics(labels[mask], preds[mask])
+        return {"accuracy": None, "support": 0}
     return {
-        "accuracy": metrics["accuracy"],
-        "macro_f1": metrics["macro_f1"],
+        "accuracy": float((labels[mask] == preds[mask]).mean()),
         "support": int(mask.sum()),
     }
+
+
+def group_macro_f1_from_report(report, classes):
+    """Average global per-class F1 over a class group."""
+    values = []
+    support = 0
+    for c in classes:
+        item = report.get(str(c), {})
+        values.append(float(item.get("f1-score", 0.0)))
+        support += int(item.get("support", 0))
+    if not values:
+        return None, 0
+    return float(np.mean(values)), support
 
 
 def summarize_predictions(labels, preds, bad_classes, stable_classes):
     """Return overall/bad/stable metric summary."""
     overall = compute_metrics(labels, preds)
-    bad = subset_metrics(labels, preds, bad_classes)
-    stable = subset_metrics(labels, preds, stable_classes)
+    bad = subset_accuracy(labels, preds, bad_classes)
+    stable = subset_accuracy(labels, preds, stable_classes)
+    bad_macro_f1, bad_support = group_macro_f1_from_report(
+        overall["classification_report"], bad_classes
+    )
+    stable_macro_f1, stable_support = group_macro_f1_from_report(
+        overall["classification_report"], stable_classes
+    )
     return {
         "overall_accuracy": overall["accuracy"],
         "overall_macro_f1": overall["macro_f1"],
         "bad_accuracy": bad["accuracy"],
-        "bad_macro_f1": bad["macro_f1"],
-        "bad_support": bad["support"],
+        "bad_macro_f1": bad_macro_f1,
+        "bad_support": bad_support,
         "stable_accuracy": stable["accuracy"],
-        "stable_macro_f1": stable["macro_f1"],
-        "stable_support": stable["support"],
+        "stable_macro_f1": stable_macro_f1,
+        "stable_support": stable_support,
     }
 
 
