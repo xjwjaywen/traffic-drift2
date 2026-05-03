@@ -55,6 +55,10 @@ def parse_bool(value):
     raise argparse.ArgumentTypeError(f"Invalid boolean: {value}")
 
 
+def period_slug(period):
+    return period.lower().replace("m-2022-", "m").replace("-", "_")
+
+
 def prototype_cosine(features, prototypes, valid_mask=None):
     feat_n = F.normalize(features, dim=1)
     proto_n = F.normalize(prototypes, dim=1)
@@ -205,6 +209,51 @@ def write_update_stats(path, accepted_by_class, proto_support, labels):
     )
 
 
+def pair_confusion_rate(labels, preds, true_class, pred_class):
+    mask = labels == true_class
+    support = int(mask.sum())
+    if support == 0:
+        return 0, 0.0, 0
+    count = int((preds[mask] == pred_class).sum())
+    return count, count / support, support
+
+
+def write_pair_summary(path, labels, static_preds, caps_preds, static_confusion_rows):
+    """Compare CAPS against static on static top bad-class confusion pairs."""
+    rows = []
+    seen = set()
+    for row in static_confusion_rows:
+        c = int(row["true_class"])
+        j = int(row["pred_class"])
+        key = (c, j)
+        if key in seen:
+            continue
+        seen.add(key)
+        s_count, s_rate, support = pair_confusion_rate(labels, static_preds, c, j)
+        c_count, c_rate, _ = pair_confusion_rate(labels, caps_preds, c, j)
+        rows.append({
+            "true_class": c,
+            "pred_class": j,
+            "rank_for_bad_class": int(row["rank_for_bad_class"]),
+            "support": support,
+            "static_count": s_count,
+            "static_rate": s_rate,
+            "caps_count": c_count,
+            "caps_rate": c_rate,
+            "delta_count": c_count - s_count,
+            "delta_rate": c_rate - s_rate,
+        })
+    proto.write_csv(
+        path,
+        rows,
+        [
+            "true_class", "pred_class", "rank_for_bad_class", "support",
+            "static_count", "static_rate", "caps_count", "caps_rate",
+            "delta_count", "delta_rate",
+        ],
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="CAPS target-adaptive prototype MVP for TLS-Year22."
@@ -281,6 +330,7 @@ def main():
     features = target["features"]
     logits = target["logits"]
     labels = target["labels"]
+    slug = period_slug(args.target_period)
     static_preds = logits.argmax(dim=1).numpy()
     static_metrics = proto.summarize_predictions(
         labels, static_preds, bad_classes, stable_classes
@@ -403,7 +453,7 @@ def main():
             "delta_recall": b["recall"] - s["recall"],
         })
     proto.write_csv(
-        os.path.join(args.output_dir, "per_class_metrics_m12.csv"),
+        os.path.join(args.output_dir, f"per_class_metrics_{slug}.csv"),
         per_rows,
         [
             "class", "group", "reference_support", "target_support",
@@ -430,13 +480,20 @@ def main():
         row["tau_conf"] = best["tau_conf"]
         row["momentum"] = best["momentum"]
     proto.write_csv(
-        os.path.join(args.output_dir, "bad_confusion_before_after_m12.csv"),
+        os.path.join(args.output_dir, f"bad_confusion_before_after_{slug}.csv"),
         before_conf + after_conf,
         [
             "method", "alpha", "tau_conf", "momentum",
             "true_class", "pred_class", "rank_for_bad_class",
             "confusion_count", "confusion_rate", "support",
         ],
+    )
+    write_pair_summary(
+        os.path.join(args.output_dir, f"pair_summary_{slug}.csv"),
+        labels,
+        static_preds,
+        best["preds"],
+        before_conf,
     )
 
     write_update_stats(
