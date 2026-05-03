@@ -32,6 +32,7 @@ from collections import defaultdict
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 # Allow running as: python scripts/caps_target_prototype_tls22.py
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -220,6 +221,12 @@ def main():
     parser.add_argument("--tau-entropy", type=float, default=None)
     parser.add_argument("--require-proto-agreement", type=parse_bool, default=True)
     parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument(
+        "--grid-device",
+        choices=["auto", "cpu"],
+        default="auto",
+        help="Device for the parameter grid after feature extraction.",
+    )
     parser.add_argument("--bad-classes", default=None)
     parser.add_argument("--stable-classes", default=None)
     parser.add_argument("--min-prototype-support", type=int, default=1)
@@ -299,49 +306,68 @@ def main():
         "stats": None,
     }
 
-    for alpha in alphas:
-        for tau_conf in tau_confs:
-            for momentum in momentums:
-                preds, stats = run_caps_online(
-                    features,
-                    logits,
-                    labels,
-                    source_prototypes,
-                    valid_mask,
-                    batch_size,
-                    alpha,
-                    tau_conf,
-                    args.tau_margin,
-                    args.tau_entropy,
-                    momentum,
-                    args.require_proto_agreement,
-                )
-                metrics = proto.summarize_predictions(
-                    labels, preds, bad_classes, stable_classes
-                )
-                summary_rows.append({
-                    "method": "caps_target_proto",
-                    "alpha": alpha,
-                    "tau_conf": tau_conf,
-                    "momentum": momentum,
-                    "accepted_rate": stats["accepted_rate"],
-                    "num_updated_classes": stats["num_updated_classes"],
-                    **metrics,
-                })
+    grid_device = torch.device("cpu") if args.grid_device == "cpu" else device
+    print(f"Running CAPS parameter grid on: {grid_device}")
+    features_grid = features.to(grid_device)
+    logits_grid = logits.to(grid_device)
+    source_prototypes_grid = source_prototypes.to(grid_device)
+    valid_mask_grid = valid_mask.to(grid_device)
 
-                bad_f1 = metrics["bad_macro_f1"] or -1.0
-                stable_f1 = metrics["stable_macro_f1"] or -1.0
-                score = bad_f1 + 1e-3 * stable_f1
-                if score > best["score"]:
-                    best.update({
-                        "score": score,
-                        "alpha": alpha,
-                        "tau_conf": tau_conf,
-                        "momentum": momentum,
-                        "preds": preds,
-                        "metrics": metrics,
-                        "stats": stats,
-                    })
+    param_grid = [
+        (alpha, tau_conf, momentum)
+        for alpha in alphas
+        for tau_conf in tau_confs
+        for momentum in momentums
+    ]
+    pbar = tqdm(param_grid, desc="CAPS grid")
+    for alpha, tau_conf, momentum in pbar:
+        preds, stats = run_caps_online(
+            features_grid,
+            logits_grid,
+            labels,
+            source_prototypes_grid,
+            valid_mask_grid,
+            batch_size,
+            alpha,
+            tau_conf,
+            args.tau_margin,
+            args.tau_entropy,
+            momentum,
+            args.require_proto_agreement,
+        )
+        metrics = proto.summarize_predictions(
+            labels, preds, bad_classes, stable_classes
+        )
+        summary_rows.append({
+            "method": "caps_target_proto",
+            "alpha": alpha,
+            "tau_conf": tau_conf,
+            "momentum": momentum,
+            "accepted_rate": stats["accepted_rate"],
+            "num_updated_classes": stats["num_updated_classes"],
+            **metrics,
+        })
+        pbar.set_postfix({
+            "alpha": alpha,
+            "tau": tau_conf,
+            "m": momentum,
+            "bad_f1": f"{metrics['bad_macro_f1']:.4f}",
+            "accpt": f"{stats['accepted_rate']:.3f}",
+        })
+
+        bad_f1 = metrics["bad_macro_f1"] or -1.0
+        stable_f1 = metrics["stable_macro_f1"] or -1.0
+        score = bad_f1 + 1e-3 * stable_f1
+        if score > best["score"]:
+            best.update({
+                "score": score,
+                "alpha": alpha,
+                "tau_conf": tau_conf,
+                "momentum": momentum,
+                "preds": preds,
+                "metrics": metrics,
+                "stats": stats,
+            })
 
     summary_fields = [
         "method", "alpha", "tau_conf", "momentum",
