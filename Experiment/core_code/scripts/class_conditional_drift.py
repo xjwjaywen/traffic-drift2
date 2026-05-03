@@ -359,7 +359,14 @@ def w1_for_values(src, tgt):
     return float(stats.wasserstein_distance(src, tgt))
 
 
-def region_w1(source_ppi, target_ppi, region_spec, normalize=False, log_space=False):
+def region_w1(
+    source_ppi,
+    target_ppi,
+    region_spec,
+    normalize=False,
+    log_space=False,
+    min_std=0.0,
+):
     total = 0.0
     count = 0
     for channel_name, positions in region_spec:
@@ -374,7 +381,7 @@ def region_w1(source_ppi, target_ppi, region_spec, normalize=False, log_space=Fa
             if w1 is None:
                 continue
             if normalize:
-                denom = float(np.std(src) + 1e-8)
+                denom = max(float(np.std(src)), float(min_std)) + 1e-8
                 w1 = w1 / denom
             total += w1
             count += 1
@@ -424,6 +431,9 @@ def compute_class_input_drift(period_outputs, reference_period, per_class_ref, m
                 ),
                 "total_norm_w1": region_w1(
                     ref_class_ppi, tgt_class_ppi, all_regions, normalize=True
+                ),
+                "total_norm_w1_std_floor_1": region_w1(
+                    ref_class_ppi, tgt_class_ppi, all_regions, normalize=True, min_std=1.0
                 ),
                 "total_log_w1": region_w1(
                     ref_class_ppi, tgt_class_ppi, all_regions, log_space=True
