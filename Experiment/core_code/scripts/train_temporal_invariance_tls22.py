@@ -74,12 +74,20 @@ def write_csv(path, rows, fieldnames=None):
         writer.writerows(rows)
 
 
-def make_period_loaders(cfg, periods, split, batch_size=None):
+def make_period_loaders(cfg, periods, split, batch_size=None, label_anchor_period=None):
+    """Build per-period loaders under one stable label mapping.
+
+    For historical/future periods we keep ``train_period`` fixed to
+    ``label_anchor_period`` and vary only ``test_period``. DataZoo derives the
+    known-app label space from ``train_period``; changing it per month can
+    silently change class ids and make training look random.
+    """
     loaders = []
     class_counts = []
+    anchor = label_anchor_period or cfg["data"].get("train_period")
     for period in periods:
         data_cfg = dict(cfg["data"])
-        data_cfg["train_period"] = period
+        data_cfg["train_period"] = anchor if label_anchor_period else period
         data_cfg["test_period"] = period
         if batch_size is not None:
             data_cfg["batch_size"] = batch_size
@@ -362,6 +370,14 @@ def main():
     parser.add_argument("--max-steps-per-epoch", type=int, default=0)
     parser.add_argument("--lambda-temporal", type=float, default=0.1)
     parser.add_argument("--min-proto-samples", type=int, default=2)
+    parser.add_argument(
+        "--label-anchor-period",
+        default=None,
+        help=(
+            "Period used by DataZoo to define the known-app label mapping. "
+            "Defaults to data.train_period from the config."
+        ),
+    )
     parser.add_argument("--collapse-classes", default=None)
     parser.add_argument("--stable-classes", default=None)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
@@ -372,27 +388,41 @@ def main():
     cfg = load_config(args.config)
     train_periods = parse_periods(args.train_periods)
     test_periods = parse_periods(args.test_periods)
+    label_anchor_period = args.label_anchor_period or cfg["data"].get("train_period")
     collapse_classes = parse_class_list(args.collapse_classes, DEFAULT_COLLAPSE_CLASSES)
     stable_classes = parse_class_list(args.stable_classes, DEFAULT_STABLE_CLASSES)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     print(f"Method: {args.method}")
+    print(f"Label anchor period: {label_anchor_period}")
     print(f"Train periods: {' '.join(train_periods)}")
     print(f"Test periods: {' '.join(test_periods)}")
     print(f"Per-period batch size: {args.per_period_batch_size}")
 
     print("Building train loaders...")
     train_loaders, num_classes = make_period_loaders(
-        cfg, train_periods, "train", batch_size=args.per_period_batch_size
+        cfg,
+        train_periods,
+        "test",
+        batch_size=args.per_period_batch_size,
+        label_anchor_period=label_anchor_period,
     )
     print("Building validation loaders...")
     val_loaders, _ = make_period_loaders(
-        cfg, train_periods, "val", batch_size=args.per_period_batch_size
+        cfg,
+        [label_anchor_period],
+        "val",
+        batch_size=args.per_period_batch_size,
+        label_anchor_period=label_anchor_period,
     )
     print("Building test loaders...")
     test_loaders, _ = make_period_loaders(
-        cfg, test_periods, "test", batch_size=args.per_period_batch_size
+        cfg,
+        test_periods,
+        "test",
+        batch_size=args.per_period_batch_size,
+        label_anchor_period=label_anchor_period,
     )
 
     cfg["model"]["num_classes"] = num_classes
@@ -416,6 +446,7 @@ def main():
 
     run_cfg = {
         "method": args.method,
+        "label_anchor_period": label_anchor_period,
         "train_periods": train_periods,
         "test_periods": test_periods,
         "per_period_batch_size": args.per_period_batch_size,
