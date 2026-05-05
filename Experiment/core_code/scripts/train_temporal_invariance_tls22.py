@@ -76,7 +76,7 @@ def write_csv(path, rows, fieldnames=None):
 
 def make_period_loaders(cfg, periods, split, batch_size=None):
     loaders = []
-    num_classes = None
+    class_counts = []
     for period in periods:
         data_cfg = dict(cfg["data"])
         data_cfg["train_period"] = period
@@ -84,12 +84,18 @@ def make_period_loaders(cfg, periods, split, batch_size=None):
         if batch_size is not None:
             data_cfg["batch_size"] = batch_size
         train_loader, val_loader, test_loader, n_cls = build_dataloaders(data_cfg)
-        if num_classes is None:
-            num_classes = n_cls
-        elif n_cls != num_classes:
-            raise RuntimeError(f"Class count changed: {num_classes} vs {n_cls} for {period}")
+        class_counts.append(int(n_cls))
         selected = {"train": train_loader, "val": val_loader, "test": test_loader}[split]
         loaders.append((period, selected))
+    num_classes = max(class_counts)
+    if len(set(class_counts)) > 1:
+        pairs = ", ".join(
+            f"{period}:{count}" for period, count in zip(periods, class_counts)
+        )
+        print(
+            "WARNING: DataZoo returned different class counts across periods "
+            f"({pairs}); using max num_classes={num_classes}."
+        )
     return loaders, num_classes
 
 
