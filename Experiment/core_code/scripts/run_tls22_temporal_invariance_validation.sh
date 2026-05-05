@@ -5,7 +5,8 @@ set -euo pipefail
 # Runs training-time methods on the same historical periods:
 #   1. period-balanced pooled ERM
 #   2. batch class-balanced ERM
-#   3. pooled ERM + class-level temporal prototype invariance
+#   3. history-risk selective weighted ERM
+#   4. pooled ERM + class-level temporal prototype invariance
 #
 # Usage from Experiment/core_code/:
 #   bash scripts/run_tls22_temporal_invariance_validation.sh
@@ -25,6 +26,10 @@ PER_PERIOD_BATCH_SIZE="${PER_PERIOD_BATCH_SIZE:-256}"
 MAX_STEPS_PER_EPOCH="${MAX_STEPS_PER_EPOCH:-0}"
 LAMBDA_TEMPORAL="${LAMBDA_TEMPORAL:-0.1}"
 MIN_PROTO_SAMPLES="${MIN_PROTO_SAMPLES:-2}"
+RISK_WEIGHT="${RISK_WEIGHT:-3.0}"
+RISK_MIN_SUPPORT="${RISK_MIN_SUPPORT:-200}"
+RISK_RECALL_THRESHOLD="${RISK_RECALL_THRESHOLD:-0.2}"
+RISK_DROP_THRESHOLD="${RISK_DROP_THRESHOLD:-0.5}"
 
 COMMON_ARGS=(
   --config "${CONFIG}"
@@ -36,6 +41,10 @@ COMMON_ARGS=(
   --per-period-batch-size "${PER_PERIOD_BATCH_SIZE}"
   --max-steps-per-epoch "${MAX_STEPS_PER_EPOCH}"
   --min-proto-samples "${MIN_PROTO_SAMPLES}"
+  --risk-weight "${RISK_WEIGHT}"
+  --risk-min-support "${RISK_MIN_SUPPORT}"
+  --risk-recall-threshold "${RISK_RECALL_THRESHOLD}"
+  --risk-drop-threshold "${RISK_DROP_THRESHOLD}"
 )
 
 if [[ -n "${INIT_CHECKPOINT}" ]]; then
@@ -54,6 +63,12 @@ python scripts/train_temporal_invariance_tls22.py \
   --output-dir "${OUTPUT_ROOT}/class_balanced_erm" \
   "${COMMON_ARGS[@]}"
 
+echo "=== Training history-risk weighted ERM ==="
+python scripts/train_temporal_invariance_tls22.py \
+  --method risk_weighted_erm \
+  --output-dir "${OUTPUT_ROOT}/risk_weighted_erm" \
+  "${COMMON_ARGS[@]}"
+
 echo "=== Training temporal prototype invariance ==="
 python scripts/train_temporal_invariance_tls22.py \
   --method temporal_proto \
@@ -68,7 +83,7 @@ import os
 import sys
 
 root = sys.argv[1]
-for name in ("pooled_erm", "class_balanced_erm", "temporal_proto"):
+for name in ("pooled_erm", "class_balanced_erm", "risk_weighted_erm", "temporal_proto"):
     path = os.path.join(root, name, "summary.json")
     with open(path) as f:
         s = json.load(f)
