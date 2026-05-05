@@ -2,9 +2,10 @@
 set -euo pipefail
 
 # Minimal validation for temporal prototype invariance.
-# Runs two training-time methods on the same historical periods:
+# Runs training-time methods on the same historical periods:
 #   1. period-balanced pooled ERM
-#   2. pooled ERM + class-level temporal prototype invariance
+#   2. batch class-balanced ERM
+#   3. pooled ERM + class-level temporal prototype invariance
 #
 # Usage from Experiment/core_code/:
 #   bash scripts/run_tls22_temporal_invariance_validation.sh
@@ -47,6 +48,12 @@ python scripts/train_temporal_invariance_tls22.py \
   --output-dir "${OUTPUT_ROOT}/pooled_erm" \
   "${COMMON_ARGS[@]}"
 
+echo "=== Training class-balanced ERM baseline ==="
+python scripts/train_temporal_invariance_tls22.py \
+  --method class_balanced_erm \
+  --output-dir "${OUTPUT_ROOT}/class_balanced_erm" \
+  "${COMMON_ARGS[@]}"
+
 echo "=== Training temporal prototype invariance ==="
 python scripts/train_temporal_invariance_tls22.py \
   --method temporal_proto \
@@ -61,7 +68,7 @@ import os
 import sys
 
 root = sys.argv[1]
-for name in ("pooled_erm", "temporal_proto"):
+for name in ("pooled_erm", "class_balanced_erm", "temporal_proto"):
     path = os.path.join(root, name, "summary.json")
     with open(path) as f:
         s = json.load(f)
