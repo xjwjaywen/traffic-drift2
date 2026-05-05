@@ -358,10 +358,22 @@ def main():
 
     grid_device = torch.device("cpu") if args.grid_device == "cpu" else device
     print(f"Running CAPS parameter grid on: {grid_device}")
-    features_grid = features.to(grid_device)
-    logits_grid = logits.to(grid_device)
-    source_prototypes_grid = source_prototypes.to(grid_device)
-    valid_mask_grid = valid_mask.to(grid_device)
+    try:
+        features_grid = features.to(grid_device)
+        logits_grid = logits.to(grid_device)
+        source_prototypes_grid = source_prototypes.to(grid_device)
+        valid_mask_grid = valid_mask.to(grid_device)
+    except torch.OutOfMemoryError:
+        if grid_device.type == "cuda":
+            print("CUDA OOM while staging CAPS grid tensors; falling back to CPU grid.")
+            torch.cuda.empty_cache()
+            grid_device = torch.device("cpu")
+            features_grid = features
+            logits_grid = logits
+            source_prototypes_grid = source_prototypes
+            valid_mask_grid = valid_mask
+        else:
+            raise
 
     param_grid = [
         (alpha, tau_conf, momentum)
