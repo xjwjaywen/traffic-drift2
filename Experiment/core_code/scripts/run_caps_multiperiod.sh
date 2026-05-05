@@ -10,6 +10,7 @@ CHECKPOINT="${CHECKPOINT:-outputs/tls22_cnn/best_model.pt}"
 REFERENCE_PERIOD="${REFERENCE_PERIOD:-M-2022-4}"
 PERIODS="${PERIODS:-M-2022-7 M-2022-10 M-2022-12}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-outputs}"
+CAPS_EXTRA_ARGS="${CAPS_EXTRA_ARGS:-}"
 
 for period in ${PERIODS}; do
   out_dir="${OUTPUT_ROOT}/caps_target_prototype_tls22_${period}"
@@ -19,7 +20,8 @@ for period in ${PERIODS}; do
     --checkpoint "${CHECKPOINT}" \
     --reference-period "${REFERENCE_PERIOD}" \
     --target-period "${period}" \
-    --output-dir "${out_dir}"
+    --output-dir "${out_dir}" \
+    ${CAPS_EXTRA_ARGS}
 done
 
 summary_inputs=()
