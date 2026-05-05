@@ -71,10 +71,12 @@ def summarize_period(input_dir):
     results = read_csv(os.path.join(input_dir, "results_by_params.csv"))
     static = next(row for row in results if row["method"] == "static")
     best = meta["best_metrics"]
+    best_params = meta.get("best_params_by_bad_macro_f1") or {}
 
     return {
         "period": meta["target_period"],
         "input_dir": input_dir,
+        "method": meta.get("method", "CAPS"),
         "static_overall_macro_f1": as_float(static, "overall_macro_f1"),
         "caps_overall_macro_f1": best["overall_macro_f1"],
         "delta_overall_macro_f1": best["overall_macro_f1"] - as_float(static, "overall_macro_f1"),
@@ -84,9 +86,10 @@ def summarize_period(input_dir):
         "static_stable_macro_f1": as_float(static, "stable_macro_f1"),
         "caps_stable_macro_f1": best["stable_macro_f1"],
         "delta_stable_macro_f1": best["stable_macro_f1"] - as_float(static, "stable_macro_f1"),
-        "best_alpha": meta["best_alpha_by_bad_macro_f1"],
-        "best_tau_conf": meta["best_tau_conf_by_bad_macro_f1"],
-        "best_momentum": meta["best_momentum_by_bad_macro_f1"],
+        "best_alpha": meta.get("best_alpha_by_bad_macro_f1", best_params.get("alpha")),
+        "best_tau_conf": meta.get("best_tau_conf_by_bad_macro_f1", best_params.get("tau_conf")),
+        "best_momentum": meta.get("best_momentum_by_bad_macro_f1", best_params.get("momentum")),
+        "best_adapter_lr": best_params.get("adapter_lr", ""),
         "accepted_rate": meta["best_update_stats"]["accepted_rate"],
         "num_updated_classes": meta["best_update_stats"]["num_updated_classes"],
     }, meta
@@ -109,10 +112,16 @@ def load_class_rows(input_dir, period):
                 if as_int(row, "target_support") else 0.0
             ),
             "static_f1": as_float(row, "static_f1", 0.0),
-            "caps_f1": as_float(row, "best_caps_f1", 0.0),
+            "caps_f1": as_float(
+                row, "best_caps_f1",
+                as_float(row, "best_capspp_f1", 0.0),
+            ),
             "delta_f1": as_float(row, "delta_f1", 0.0),
             "static_recall": as_float(row, "static_recall", 0.0),
-            "caps_recall": as_float(row, "best_caps_recall", 0.0),
+            "caps_recall": as_float(
+                row, "best_caps_recall",
+                as_float(row, "best_capspp_recall", 0.0),
+            ),
             "delta_recall": as_float(row, "delta_recall", 0.0),
         })
     return out
