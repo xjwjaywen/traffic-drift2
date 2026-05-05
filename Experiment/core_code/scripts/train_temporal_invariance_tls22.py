@@ -174,6 +174,77 @@ def batch_balanced_cross_entropy(logits, labels, num_classes):
     return F.cross_entropy(logits, labels, weight=weights)
 
 
+def risk_weighted_cross_entropy(logits, labels, num_classes, risk_classes, risk_weight):
+    """Cross entropy that only upweights historically vulnerable classes."""
+    weights = logits.new_ones(num_classes)
+    if risk_classes:
+        valid = [c for c in risk_classes if 0 <= c < num_classes]
+        if valid:
+            weights[torch.tensor(valid, device=logits.device)] = risk_weight
+    return F.cross_entropy(logits, labels, weight=weights)
+
+
+@torch.no_grad()
+def identify_history_risk_classes(
+    model,
+    period_loaders,
+    device,
+    num_classes,
+    min_support,
+    recall_threshold,
+    drop_threshold,
+):
+    """Select vulnerable classes using only historical period labels."""
+    recalls_by_period = []
+    supports_by_period = []
+    for _, loader in period_loaders:
+        correct = np.zeros(num_classes, dtype=np.int64)
+        support = np.zeros(num_classes, dtype=np.int64)
+        model.eval()
+        for batch in loader:
+            batch = move_batch(batch, device)
+            logits = model(batch["ppi"], batch.get("flow_stats"))
+            labels = batch["label"].cpu().numpy()
+            preds = logits.argmax(dim=1).cpu().numpy()
+            for c in range(num_classes):
+                mask = labels == c
+                count = int(mask.sum())
+                if count:
+                    support[c] += count
+                    correct[c] += int((preds[mask] == c).sum())
+        recall = np.divide(
+            correct,
+            np.maximum(support, 1),
+            out=np.zeros(num_classes, dtype=np.float64),
+            where=support > 0,
+        )
+        recalls_by_period.append(recall)
+        supports_by_period.append(support)
+
+    recalls = np.stack(recalls_by_period, axis=0)
+    supports = np.stack(supports_by_period, axis=0)
+    total_support = supports.sum(axis=0)
+    valid = total_support >= min_support
+    first_recall = recalls[0]
+    min_recall = recalls.min(axis=0)
+    max_drop = first_recall - min_recall
+    risk_mask = valid & ((min_recall < recall_threshold) | (max_drop > drop_threshold))
+    risk_classes = [int(c) for c in np.where(risk_mask)[0]]
+    rows = []
+    for c in range(num_classes):
+        if not valid[c]:
+            continue
+        rows.append({
+            "class_id": int(c),
+            "risk": int(risk_mask[c]),
+            "history_support": int(total_support[c]),
+            "first_recall": float(first_recall[c]),
+            "min_recall": float(min_recall[c]),
+            "max_drop": float(max_drop[c]),
+        })
+    return risk_classes, rows
+
+
 def group_macro_f1(report, classes):
     values = []
     support = 0
@@ -284,6 +355,8 @@ def train_one_epoch(
     lambda_temporal,
     min_proto_samples,
     num_classes,
+    risk_classes,
+    risk_weight,
     epoch,
     max_steps,
 ):
@@ -318,6 +391,10 @@ def train_one_epoch(
         logits, features = model(ppi, flow_stats, return_repr=True)
         if method == "class_balanced_erm":
             ce_loss = batch_balanced_cross_entropy(logits, labels, num_classes)
+        elif method == "risk_weighted_erm":
+            ce_loss = risk_weighted_cross_entropy(
+                logits, labels, num_classes, risk_classes, risk_weight
+            )
         else:
             ce_loss = F.cross_entropy(logits, labels)
         if method == "temporal_proto":
@@ -366,7 +443,12 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument(
         "--method",
-        choices=["pooled_erm", "class_balanced_erm", "temporal_proto"],
+        choices=[
+            "pooled_erm",
+            "class_balanced_erm",
+            "risk_weighted_erm",
+            "temporal_proto",
+        ],
         required=True,
     )
     parser.add_argument(
@@ -392,6 +474,11 @@ def main():
     parser.add_argument("--max-steps-per-epoch", type=int, default=0)
     parser.add_argument("--lambda-temporal", type=float, default=0.1)
     parser.add_argument("--min-proto-samples", type=int, default=2)
+    parser.add_argument("--risk-weight", type=float, default=3.0)
+    parser.add_argument("--risk-min-support", type=int, default=200)
+    parser.add_argument("--risk-recall-threshold", type=float, default=0.2)
+    parser.add_argument("--risk-drop-threshold", type=float, default=0.5)
+    parser.add_argument("--risk-classes", default=None)
     parser.add_argument(
         "--label-anchor-period",
         default=None,
@@ -413,6 +500,7 @@ def main():
     label_anchor_period = args.label_anchor_period or cfg["data"].get("train_period")
     collapse_classes = parse_class_list(args.collapse_classes, DEFAULT_COLLAPSE_CLASSES)
     stable_classes = parse_class_list(args.stable_classes, DEFAULT_STABLE_CLASSES)
+    override_risk_classes = parse_class_list(args.risk_classes, []) if args.risk_classes else None
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -461,6 +549,28 @@ def main():
         print(f"Initialized model from checkpoint: {args.init_checkpoint}")
     print(f"Num classes: {num_classes}")
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+    if override_risk_classes is not None:
+        risk_classes = override_risk_classes
+        risk_rows = [
+            {"class_id": int(c), "risk": 1, "history_support": "", "first_recall": "", "min_recall": "", "max_drop": ""}
+            for c in risk_classes
+        ]
+    elif args.method == "risk_weighted_erm":
+        print("Identifying historical risk classes...")
+        risk_classes, risk_rows = identify_history_risk_classes(
+            model,
+            train_loaders,
+            device,
+            num_classes,
+            args.risk_min_support,
+            args.risk_recall_threshold,
+            args.risk_drop_threshold,
+        )
+    else:
+        risk_classes, risk_rows = [], []
+    if args.method == "risk_weighted_erm" or override_risk_classes is not None:
+        print(f"Risk classes ({len(risk_classes)}): {risk_classes}")
+        write_csv(os.path.join(args.output_dir, "risk_classes.csv"), risk_rows)
 
     epochs = args.epochs or cfg["training"].get("epochs", 30)
     lr = args.lr if args.lr is not None else cfg["training"].get("lr", 1e-3)
@@ -488,6 +598,11 @@ def main():
         "weight_decay": weight_decay,
         "lambda_temporal": args.lambda_temporal,
         "min_proto_samples": args.min_proto_samples,
+        "risk_weight": args.risk_weight,
+        "risk_min_support": args.risk_min_support,
+        "risk_recall_threshold": args.risk_recall_threshold,
+        "risk_drop_threshold": args.risk_drop_threshold,
+        "risk_classes": risk_classes,
         "collapse_classes": collapse_classes,
         "stable_classes": stable_classes,
         "collapse_recall_threshold": args.collapse_recall_threshold,
@@ -512,6 +627,8 @@ def main():
             args.lambda_temporal if args.method == "temporal_proto" else 0.0,
             args.min_proto_samples,
             num_classes,
+            risk_classes,
+            args.risk_weight,
             epoch,
             max_steps,
         )
