@@ -19,6 +19,7 @@ OUTPUT_ROOT="${OUTPUT_ROOT:-outputs/titc_validation_tls22}"
 EPOCHS="${EPOCHS:-10}"
 LR="${LR:-0.001}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0.0001}"
+INIT_CHECKPOINT="${INIT_CHECKPOINT:-}"
 PER_PERIOD_BATCH_SIZE="${PER_PERIOD_BATCH_SIZE:-256}"
 MAX_STEPS_PER_EPOCH="${MAX_STEPS_PER_EPOCH:-0}"
 LAMBDA_TEMPORAL="${LAMBDA_TEMPORAL:-0.1}"
@@ -35,6 +36,10 @@ COMMON_ARGS=(
   --max-steps-per-epoch "${MAX_STEPS_PER_EPOCH}"
   --min-proto-samples "${MIN_PROTO_SAMPLES}"
 )
+
+if [[ -n "${INIT_CHECKPOINT}" ]]; then
+  COMMON_ARGS+=(--init-checkpoint "${INIT_CHECKPOINT}")
+fi
 
 echo "=== Training pooled ERM baseline ==="
 python scripts/train_temporal_invariance_tls22.py \
