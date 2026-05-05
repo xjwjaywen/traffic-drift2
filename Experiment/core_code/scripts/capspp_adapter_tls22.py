@@ -14,11 +14,13 @@ Learned online:
 
 Causal online protocol per target batch:
   1. Predict with current adapter and target prototypes.
-  2. Select high-confidence pseudo-labeled samples.
+  2. Select high-confidence pseudo-labeled samples from the frozen logits.
   3. Update target prototypes with adapted features.
   4. Update adapter for future batches using:
        L = lambda_proto * ||norm(h') - norm(p_t_y)||^2
          + lambda_anchor * ||h' - h||^2 for stable pseudo-labels
+         + lambda_identity * ||h' - h||^2
+         + lambda_logit * ||g(h') - z_static||^2
 
 Usage:
     python scripts/capspp_adapter_tls22.py \
@@ -80,35 +82,50 @@ def group_mask_from_pseudo(pseudo, classes):
 def adapter_losses(
     adapter,
     feat_b,
+    logits_static_b,
+    cls_head,
     pseudo,
     mask,
     target_prototypes,
     stable_classes,
     lambda_proto,
     lambda_anchor,
+    lambda_identity,
+    lambda_logit,
 ):
-    if mask.sum().item() == 0:
-        return None, {"proto_loss": 0.0, "anchor_loss": 0.0}
-
     h_prime = adapter(feat_b)
-    h_sel = h_prime[mask]
-    pseudo_sel = pseudo[mask]
-    proto_sel = target_prototypes[pseudo_sel].detach()
+    identity_loss = (h_prime - feat_b).pow(2).mean()
+    logit_loss = F.mse_loss(cls_head(h_prime), logits_static_b)
 
-    proto_loss = (
-        F.normalize(h_sel, dim=1) - F.normalize(proto_sel, dim=1)
-    ).pow(2).sum(dim=1).mean()
+    if mask.sum().item() > 0:
+        h_sel = h_prime[mask]
+        pseudo_sel = pseudo[mask]
+        proto_sel = target_prototypes[pseudo_sel].detach()
 
-    stable_mask = group_mask_from_pseudo(pseudo_sel, stable_classes)
-    if stable_mask.sum().item() > 0:
-        anchor_loss = (h_sel[stable_mask] - feat_b[mask][stable_mask]).pow(2).mean()
+        proto_loss = (
+            F.normalize(h_sel, dim=1) - F.normalize(proto_sel, dim=1)
+        ).pow(2).sum(dim=1).mean()
+
+        stable_mask = group_mask_from_pseudo(pseudo_sel, stable_classes)
+        if stable_mask.sum().item() > 0:
+            anchor_loss = (h_sel[stable_mask] - feat_b[mask][stable_mask]).pow(2).mean()
+        else:
+            anchor_loss = torch.tensor(0.0, device=feat_b.device)
     else:
+        proto_loss = torch.tensor(0.0, device=feat_b.device)
         anchor_loss = torch.tensor(0.0, device=feat_b.device)
 
-    loss = lambda_proto * proto_loss + lambda_anchor * anchor_loss
+    loss = (
+        lambda_proto * proto_loss
+        + lambda_anchor * anchor_loss
+        + lambda_identity * identity_loss
+        + lambda_logit * logit_loss
+    )
     return loss, {
         "proto_loss": float(proto_loss.detach().item()),
         "anchor_loss": float(anchor_loss.detach().item()),
+        "identity_loss": float(identity_loss.detach().item()),
+        "logit_loss": float(logit_loss.detach().item()),
     }
 
 
@@ -132,6 +149,8 @@ def run_capspp_online(
     adapter_steps,
     lambda_proto,
     lambda_anchor,
+    lambda_identity,
+    lambda_logit,
     stable_classes,
 ):
     tau_margin = 0.0 if tau_margin is None else tau_margin
@@ -157,6 +176,7 @@ def run_capspp_online(
     for start in range(0, n, batch_size):
         end = min(start + batch_size, n)
         feat_b = features[start:end]
+        logits_static_b = logits_static[start:end].to(device)
 
         # Predict before updating on this batch.
         with torch.no_grad():
@@ -167,7 +187,7 @@ def run_capspp_online(
             preds = scores.argmax(dim=1)
             all_preds.append(preds.cpu())
             mask, pseudo, _ = caps.select_update_samples(
-                logits_b,
+                logits_static_b,
                 h_prime,
                 target_prototypes,
                 valid_mask,
@@ -194,21 +214,25 @@ def run_capspp_online(
             loss, loss_info = adapter_losses(
                 adapter,
                 feat_b,
+                logits_static_b,
+                cls_head,
                 pseudo.detach(),
                 mask.detach(),
                 target_prototypes,
                 stable_classes,
                 lambda_proto,
                 lambda_anchor,
+                lambda_identity,
+                lambda_logit,
             )
-            if loss is None:
-                continue
             loss.backward()
             optimizer.step()
             update_steps += 1
             loss_sums["loss"] += float(loss.detach().item())
             loss_sums["proto_loss"] += loss_info["proto_loss"]
             loss_sums["anchor_loss"] += loss_info["anchor_loss"]
+            loss_sums["identity_loss"] += loss_info["identity_loss"]
+            loss_sums["logit_loss"] += loss_info["logit_loss"]
 
     preds = torch.cat(all_preds).numpy()
     avg_losses = {
@@ -232,15 +256,17 @@ def main():
     parser.add_argument("--reference-period", default="M-2022-4")
     parser.add_argument("--target-period", default="M-2022-12")
     parser.add_argument("--output-dir", default="outputs/capspp_adapter_tls22")
-    parser.add_argument("--alphas", default="2,5")
+    parser.add_argument("--alphas", default="0,2,5")
     parser.add_argument("--tau-confs", default="0.8,0.9")
     parser.add_argument("--momentums", default="0.9")
-    parser.add_argument("--adapter-lrs", default="0.0003,0.001")
+    parser.add_argument("--adapter-lrs", default="0.00001,0.00003,0.0001")
     parser.add_argument("--adapter-dim", type=int, default=64)
     parser.add_argument("--adapter-weight-decay", type=float, default=0.0)
     parser.add_argument("--adapter-steps", type=int, default=1)
-    parser.add_argument("--lambda-proto", type=float, default=1.0)
+    parser.add_argument("--lambda-proto", type=float, default=0.1)
     parser.add_argument("--lambda-anchor", type=float, default=1.0)
+    parser.add_argument("--lambda-identity", type=float, default=1.0)
+    parser.add_argument("--lambda-logit", type=float, default=10.0)
     parser.add_argument("--tau-margin", type=float, default=0.0)
     parser.add_argument("--tau-entropy", type=float, default=None)
     parser.add_argument("--require-proto-agreement", type=caps.parse_bool, default=True)
@@ -322,6 +348,18 @@ def main():
             raise
 
     cls_head = model.cls_head.to(grid_device)
+    with torch.no_grad():
+        head_logits = []
+        for start in range(0, features_grid.shape[0], args.batch_size):
+            end = min(start + args.batch_size, features_grid.shape[0])
+            head_logits.append(cls_head(features_grid[start:end]).cpu())
+        head_logits = torch.cat(head_logits, dim=0)
+        head_preds = head_logits.argmax(dim=1).numpy()
+    head_metrics = proto.summarize_predictions(
+        labels, head_preds, bad_classes, stable_classes
+    )
+    head_logit_mae = float((head_logits - target["logits"]).abs().mean().item())
+
     param_grid = [
         (alpha, tau_conf, momentum, adapter_lr)
         for alpha in alphas
@@ -339,7 +377,27 @@ def main():
         "accepted_rate": "",
         "num_updated_classes": "",
         "adapter_update_steps": "",
+        "loss": "",
+        "proto_loss": "",
+        "anchor_loss": "",
+        "identity_loss": "",
+        "logit_loss": "",
         **static_metrics,
+    }, {
+        "method": "cls_head_identity",
+        "alpha": "",
+        "tau_conf": "",
+        "momentum": "",
+        "adapter_lr": "",
+        "accepted_rate": "",
+        "num_updated_classes": "",
+        "adapter_update_steps": "",
+        "loss": "",
+        "proto_loss": "",
+        "anchor_loss": "",
+        "identity_loss": "",
+        "logit_loss": "",
+        **head_metrics,
     }]
     best = {
         "score": -float("inf"),
@@ -371,6 +429,8 @@ def main():
             args.adapter_steps,
             args.lambda_proto,
             args.lambda_anchor,
+            args.lambda_identity,
+            args.lambda_logit,
             stable_set,
         )
         metrics = proto.summarize_predictions(labels, preds, bad_classes, stable_classes)
@@ -383,6 +443,11 @@ def main():
             "accepted_rate": stats["accepted_rate"],
             "num_updated_classes": stats["num_updated_classes"],
             "adapter_update_steps": stats["adapter_update_steps"],
+            "loss": stats.get("loss", ""),
+            "proto_loss": stats.get("proto_loss", ""),
+            "anchor_loss": stats.get("anchor_loss", ""),
+            "identity_loss": stats.get("identity_loss", ""),
+            "logit_loss": stats.get("logit_loss", ""),
             **metrics,
         })
         pbar.set_postfix({
@@ -416,6 +481,7 @@ def main():
         [
             "method", "alpha", "tau_conf", "momentum", "adapter_lr",
             "accepted_rate", "num_updated_classes", "adapter_update_steps",
+            "loss", "proto_loss", "anchor_loss", "identity_loss", "logit_loss",
             "overall_accuracy", "overall_macro_f1",
             "bad_accuracy", "bad_macro_f1", "bad_support",
             "stable_accuracy", "stable_macro_f1", "stable_support",
@@ -497,6 +563,10 @@ def main():
         "adapter_steps": args.adapter_steps,
         "lambda_proto": args.lambda_proto,
         "lambda_anchor": args.lambda_anchor,
+        "lambda_identity": args.lambda_identity,
+        "lambda_logit": args.lambda_logit,
+        "cls_head_identity_metrics": head_metrics,
+        "cls_head_identity_logit_mae": head_logit_mae,
         "best_params_by_bad_macro_f1": best["params"],
         "best_metrics": best["metrics"],
         "best_update_stats": {
@@ -507,6 +577,8 @@ def main():
             "loss": best["stats"].get("loss"),
             "proto_loss": best["stats"].get("proto_loss"),
             "anchor_loss": best["stats"].get("anchor_loss"),
+            "identity_loss": best["stats"].get("identity_loss"),
+            "logit_loss": best["stats"].get("logit_loss"),
         },
         "bad_classes": bad_classes,
         "stable_classes": stable_classes,
@@ -521,6 +593,12 @@ def main():
         f"{'static':<20} macro_f1={static_metrics['overall_macro_f1']:.4f} "
         f"bad_f1={static_metrics['bad_macro_f1']:.4f} "
         f"stable_f1={static_metrics['stable_macro_f1']:.4f}"
+    )
+    print(
+        f"{'cls_head_identity':<20} macro_f1={head_metrics['overall_macro_f1']:.4f} "
+        f"bad_f1={head_metrics['bad_macro_f1']:.4f} "
+        f"stable_f1={head_metrics['stable_macro_f1']:.4f} "
+        f"logit_mae={head_logit_mae:.6f}"
     )
     print(
         f"{'best_capspp':<20} alpha={p['alpha']} tau={p['tau_conf']} "
