@@ -366,6 +366,11 @@ def main():
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
     parser.add_argument("--weight-decay", type=float, default=None)
+    parser.add_argument(
+        "--init-checkpoint",
+        default=None,
+        help="Optional train.py checkpoint used to warm-start drift-aware training.",
+    )
     parser.add_argument("--per-period-batch-size", type=int, default=256)
     parser.add_argument("--max-steps-per-epoch", type=int, default=0)
     parser.add_argument("--lambda-temporal", type=float, default=0.1)
@@ -427,6 +432,16 @@ def main():
 
     cfg["model"]["num_classes"] = num_classes
     model = TTATCModel(cfg["model"]).to(device)
+    if args.init_checkpoint:
+        checkpoint = torch.load(args.init_checkpoint, map_location=device, weights_only=False)
+        ckpt_num_classes = int(checkpoint.get("num_classes", num_classes))
+        if ckpt_num_classes != num_classes:
+            raise RuntimeError(
+                f"Checkpoint num_classes={ckpt_num_classes} does not match "
+                f"loader num_classes={num_classes}. Check label_anchor_period."
+            )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        print(f"Initialized model from checkpoint: {args.init_checkpoint}")
     print(f"Num classes: {num_classes}")
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
@@ -450,6 +465,7 @@ def main():
         "train_periods": train_periods,
         "test_periods": test_periods,
         "per_period_batch_size": args.per_period_batch_size,
+        "init_checkpoint": args.init_checkpoint,
         "epochs": epochs,
         "lr": lr,
         "weight_decay": weight_decay,
