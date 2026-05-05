@@ -165,6 +165,15 @@ def temporal_prototype_loss(features, labels, period_ids, num_periods, min_sampl
     return torch.stack(losses).mean(), stats
 
 
+def batch_balanced_cross_entropy(logits, labels, num_classes):
+    """Cross entropy with inverse-frequency weights from the current step."""
+    counts = torch.bincount(labels, minlength=num_classes).float()
+    present = counts > 0
+    weights = torch.zeros_like(counts)
+    weights[present] = 1.0 / counts[present].clamp_min(1.0)
+    return F.cross_entropy(logits, labels, weight=weights)
+
+
 def group_macro_f1(report, classes):
     values = []
     support = 0
@@ -274,6 +283,7 @@ def train_one_epoch(
     method,
     lambda_temporal,
     min_proto_samples,
+    num_classes,
     epoch,
     max_steps,
 ):
@@ -306,7 +316,10 @@ def train_one_epoch(
 
         optimizer.zero_grad()
         logits, features = model(ppi, flow_stats, return_repr=True)
-        ce_loss = F.cross_entropy(logits, labels)
+        if method == "class_balanced_erm":
+            ce_loss = batch_balanced_cross_entropy(logits, labels, num_classes)
+        else:
+            ce_loss = F.cross_entropy(logits, labels)
         if method == "temporal_proto":
             temp_loss, temp_stats = temporal_prototype_loss(
                 features, labels, period_ids, num_periods, min_proto_samples
@@ -351,7 +364,11 @@ def save_checkpoint(path, model, optimizer, cfg, epoch, best_score, num_classes)
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
-    parser.add_argument("--method", choices=["pooled_erm", "temporal_proto"], required=True)
+    parser.add_argument(
+        "--method",
+        choices=["pooled_erm", "class_balanced_erm", "temporal_proto"],
+        required=True,
+    )
     parser.add_argument(
         "--train-periods",
         nargs="+",
@@ -494,6 +511,7 @@ def main():
             args.method,
             args.lambda_temporal if args.method == "temporal_proto" else 0.0,
             args.min_proto_samples,
+            num_classes,
             epoch,
             max_steps,
         )
