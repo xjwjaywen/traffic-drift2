@@ -1,0 +1,359 @@
+"""
+Collapse-aware active maintenance MVP for TLS-Year22.
+
+This is a diagnostic active-label experiment, not zero-label TTA. It asks:
+given a small label budget in a target period, does querying samples around
+known absorber predictions repair collapse classes better than random labels?
+
+Usage from Experiment/core_code/:
+    python scripts/collapse_active_maintenance_tls22.py \
+      --config configs/eval_tls22.yaml \
+      --checkpoint outputs/tls22_cnn/best_model.pt \
+      --target-period M-2022-12 \
+      --output-dir outputs/collapse_active_maintenance_tls22_m12
+"""
+import argparse
+import copy
+import csv
+import json
+import os
+import sys
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, SCRIPT_DIR)
+sys.path.insert(0, os.path.dirname(SCRIPT_DIR))
+
+import prototype_recalibration_tls22 as proto
+
+
+DEFAULT_COLLAPSE_CLASSES = [56, 163, 174, 48, 38, 69, 104, 47, 66, 10, 109, 26]
+DEFAULT_STABLE_CLASSES = [
+    8, 15, 44, 57, 59, 62, 64, 76, 94, 98,
+    99, 107, 113, 119, 128, 130, 131, 132, 144, 145,
+]
+DEFAULT_ABSORBER_CLASSES = [96, 46, 2, 14, 45, 105, 5, 71, 156, 13]
+
+
+def parse_int_list(value, default=None):
+    if value is None or str(value).strip() == "":
+        return list(default or [])
+    return [int(x) for x in str(value).replace(",", " ").split()]
+
+
+def write_csv(path, rows, fieldnames=None):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if fieldnames is None:
+        fieldnames = []
+        for row in rows:
+            for key in row:
+                if key not in fieldnames:
+                    fieldnames.append(key)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def period_slug(period):
+    return period.lower().replace("m-2022-", "m").replace("-", "_")
+
+
+def top2_margin(logits):
+    top2 = torch.topk(logits, k=2, dim=1).values
+    return top2[:, 0] - top2[:, 1]
+
+
+def select_indices(
+    strategy,
+    logits,
+    labels,
+    budget,
+    num_classes,
+    collapse_classes,
+    absorber_classes,
+    seed,
+):
+    n = logits.shape[0]
+    budget = min(int(budget), n)
+    gen = torch.Generator()
+    gen.manual_seed(int(seed))
+    preds = logits.argmax(dim=1)
+    margin = top2_margin(logits)
+    labels_t = torch.as_tensor(labels, dtype=torch.long)
+
+    def random_from(candidates, k):
+        if candidates.numel() == 0 or k <= 0:
+            return torch.empty(0, dtype=torch.long)
+        k = min(k, candidates.numel())
+        perm = torch.randperm(candidates.numel(), generator=gen)[:k]
+        return candidates[perm]
+
+    if strategy == "random":
+        return torch.randperm(n, generator=gen)[:budget]
+
+    if strategy in {"absorber_random", "absorber_margin"}:
+        absorber = torch.zeros(num_classes, dtype=torch.bool)
+        absorber[torch.tensor([c for c in absorber_classes if 0 <= c < num_classes])] = True
+        candidates = torch.nonzero(absorber[preds], as_tuple=False).squeeze(1)
+        if strategy == "absorber_random":
+            selected = random_from(candidates, budget)
+        else:
+            k = min(budget, candidates.numel())
+            order = torch.argsort(margin[candidates])[:k] if k > 0 else torch.empty(0, dtype=torch.long)
+            selected = candidates[order] if k > 0 else torch.empty(0, dtype=torch.long)
+    elif strategy == "oracle_collapse_random":
+        collapse = torch.zeros(num_classes, dtype=torch.bool)
+        collapse[torch.tensor([c for c in collapse_classes if 0 <= c < num_classes])] = True
+        candidates = torch.nonzero(collapse[labels_t], as_tuple=False).squeeze(1)
+        selected = random_from(candidates, budget)
+    else:
+        raise ValueError(f"Unknown active strategy: {strategy}")
+
+    if selected.numel() < budget:
+        used = torch.zeros(n, dtype=torch.bool)
+        used[selected] = True
+        topup = random_from(torch.nonzero(~used, as_tuple=False).squeeze(1), budget - selected.numel())
+        selected = torch.cat([selected, topup])
+    return selected[:budget]
+
+
+def fit_head(model, train_features, train_labels, lr, epochs, batch_size, weight_decay, device):
+    head = copy.deepcopy(model.cls_head).to(device)
+    for p in head.parameters():
+        p.requires_grad_(True)
+    opt = torch.optim.AdamW(head.parameters(), lr=lr, weight_decay=weight_decay)
+    x = train_features.to(device)
+    y = torch.as_tensor(train_labels, dtype=torch.long, device=device)
+    n = x.shape[0]
+    head.train()
+    for _ in range(epochs):
+        perm = torch.randperm(n, device=device)
+        for start in range(0, n, batch_size):
+            idx = perm[start : start + batch_size]
+            loss = F.cross_entropy(head(x[idx]), y[idx])
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+    return head
+
+
+@torch.no_grad()
+def predict_head(head, features, device, chunk_size=8192):
+    preds = []
+    head.eval()
+    for start in range(0, features.shape[0], chunk_size):
+        chunk = features[start : start + chunk_size].to(device)
+        preds.append(head(chunk).argmax(dim=1).cpu())
+    return torch.cat(preds).numpy()
+
+
+def collapse_counts(report, collapse_classes, recall_threshold, severe_threshold):
+    collapsed = 0
+    severe = 0
+    for c in collapse_classes:
+        item = report.get(str(c), {})
+        recall = float(item.get("recall", 0.0))
+        if recall < recall_threshold:
+            collapsed += 1
+        if recall < severe_threshold:
+            severe += 1
+    return collapsed, severe
+
+
+def summarize(labels, preds, collapse_classes, stable_classes, thresholds):
+    row = proto.summarize_predictions(labels, preds, collapse_classes, stable_classes)
+    metrics = proto.compute_metrics(labels, preds)
+    collapsed, severe = collapse_counts(
+        metrics["classification_report"],
+        collapse_classes,
+        thresholds["collapse"],
+        thresholds["severe"],
+    )
+    row["collapsed_count"] = collapsed
+    row["severe_collapsed_count"] = severe
+    return row, metrics["classification_report"]
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--target-period", default="M-2022-12")
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--budgets", default="50,100,200,500,1000")
+    parser.add_argument(
+        "--strategies",
+        default="random,absorber_random,absorber_margin,oracle_collapse_random",
+    )
+    parser.add_argument("--collapse-classes", default=None)
+    parser.add_argument("--stable-classes", default=None)
+    parser.add_argument("--absorber-classes", default=None)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--ft-lr", type=float, default=1e-3)
+    parser.add_argument("--ft-epochs", type=int, default=30)
+    parser.add_argument("--ft-batch-size", type=int, default=64)
+    parser.add_argument("--ft-weight-decay", type=float, default=1e-4)
+    parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
+    parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
+    args = parser.parse_args()
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, train_cfg, num_classes = proto.load_source_model(args.checkpoint, device)
+    eval_cfg = proto.load_config(args.config)
+    eval_cfg["data"]["num_classes"] = num_classes
+
+    collapse_classes = parse_int_list(args.collapse_classes, DEFAULT_COLLAPSE_CLASSES)
+    stable_classes = parse_int_list(args.stable_classes, DEFAULT_STABLE_CLASSES)
+    absorber_classes = parse_int_list(args.absorber_classes, DEFAULT_ABSORBER_CLASSES)
+    budgets = parse_int_list(args.budgets)
+    strategies = [s for s in args.strategies.replace(",", " ").split() if s]
+    thresholds = {
+        "collapse": args.collapse_recall_threshold,
+        "severe": args.severe_recall_threshold,
+    }
+
+    print(f"Using device: {device}")
+    print(f"Target period: {args.target_period}")
+    print(f"Num classes: {num_classes}")
+    print(f"Collapse classes: {collapse_classes}")
+    print(f"Absorber classes: {absorber_classes}")
+
+    loader, loader_classes = proto.make_test_loader(eval_cfg, args.target_period)
+    if loader_classes != num_classes:
+        print(f"WARNING: loader classes={loader_classes}, model classes={num_classes}")
+    outputs = proto.collect_outputs(
+        model, loader, device, desc=f"Collect {args.target_period}"
+    )
+    features = outputs["features"]
+    logits = outputs["logits"]
+    labels = outputs["labels"]
+    static_preds = logits.argmax(dim=1).numpy()
+
+    rows = []
+    per_class_rows = []
+    selected_rows = []
+
+    static_summary, static_report = summarize(
+        labels, static_preds, collapse_classes, stable_classes, thresholds
+    )
+    rows.append({
+        "method": "static",
+        "strategy": "",
+        "budget": 0,
+        "selected_collapse_labels": 0,
+        "selected_absorber_preds": 0,
+        **static_summary,
+    })
+
+    for strategy in strategies:
+        for budget in budgets:
+            idx = select_indices(
+                strategy,
+                logits,
+                labels,
+                budget,
+                num_classes,
+                collapse_classes,
+                absorber_classes,
+                args.seed,
+            )
+            selected_labels = labels[idx.numpy()]
+            selected_preds = static_preds[idx.numpy()]
+            head = fit_head(
+                model,
+                features[idx],
+                selected_labels,
+                args.ft_lr,
+                args.ft_epochs,
+                args.ft_batch_size,
+                args.ft_weight_decay,
+                device,
+            )
+            preds = predict_head(head, features, device)
+            summary, report = summarize(labels, preds, collapse_classes, stable_classes, thresholds)
+
+            selected_collapse = int(np.isin(selected_labels, collapse_classes).sum())
+            selected_absorber = int(np.isin(selected_preds, absorber_classes).sum())
+            rows.append({
+                "method": "active_head_ft",
+                "strategy": strategy,
+                "budget": int(idx.numel()),
+                "selected_collapse_labels": selected_collapse,
+                "selected_absorber_preds": selected_absorber,
+                **summary,
+            })
+            for c in collapse_classes:
+                item = report.get(str(c), {})
+                per_class_rows.append({
+                    "strategy": strategy,
+                    "budget": int(idx.numel()),
+                    "class_id": c,
+                    "support": int(item.get("support", 0)),
+                    "recall": float(item.get("recall", 0.0)),
+                    "f1": float(item.get("f1-score", 0.0)),
+                })
+            for c in range(num_classes):
+                count = int((selected_labels == c).sum())
+                if count:
+                    selected_rows.append({
+                        "strategy": strategy,
+                        "budget": int(idx.numel()),
+                        "class_id": c,
+                        "selected_count": count,
+                    })
+            print(
+                f"{strategy:<22} budget={int(idx.numel()):4d} "
+                f"macro={summary['overall_macro_f1']:.4f} "
+                f"collapse={summary['bad_macro_f1']:.4f} "
+                f"stable={summary['stable_macro_f1']:.4f} "
+                f"collapsed={summary['collapsed_count']} "
+                f"sel_collapse={selected_collapse}"
+            )
+
+    write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), rows)
+    write_csv(
+        os.path.join(args.output_dir, f"per_collapse_class_{period_slug(args.target_period)}.csv"),
+        per_class_rows,
+    )
+    write_csv(os.path.join(args.output_dir, "selected_class_counts.csv"), selected_rows)
+    summary = {
+        "target_period": args.target_period,
+        "num_classes": num_classes,
+        "collapse_classes": collapse_classes,
+        "stable_classes": stable_classes,
+        "absorber_classes": absorber_classes,
+        "budgets": budgets,
+        "strategies": strategies,
+        "seed": args.seed,
+    }
+    with open(os.path.join(args.output_dir, "summary.json"), "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+
+    best = max(
+        [r for r in rows if r["method"] != "static"],
+        key=lambda r: (r["bad_macro_f1"], r["overall_macro_f1"]),
+    )
+    print("\n=== Collapse Active Maintenance Summary ===")
+    print(
+        f"static macro={static_summary['overall_macro_f1']:.4f} "
+        f"collapse={static_summary['bad_macro_f1']:.4f} "
+        f"stable={static_summary['stable_macro_f1']:.4f} "
+        f"collapsed={static_summary['collapsed_count']}"
+    )
+    print(
+        f"best strategy={best['strategy']} budget={best['budget']} "
+        f"macro={best['overall_macro_f1']:.4f} "
+        f"collapse={best['bad_macro_f1']:.4f} "
+        f"stable={best['stable_macro_f1']:.4f} "
+        f"collapsed={best['collapsed_count']}"
+    )
+    print(f"Saved outputs to: {args.output_dir}")
+
+
+if __name__ == "__main__":
+    main()
