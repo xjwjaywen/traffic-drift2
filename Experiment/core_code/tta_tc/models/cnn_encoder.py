@@ -12,7 +12,8 @@ class CNNEncoder(nn.Module):
         Flow stats branch: FC -> ReLU -> FC
         Concat -> FC -> representation
 
-    Uses GroupNorm instead of BatchNorm for TTA stability.
+    Supports GroupNorm, BatchNorm, LayerNorm-style GroupNorm, and
+    InstanceNorm for drift-type normalization ablations.
     """
 
     def __init__(
@@ -69,6 +70,8 @@ class CNNEncoder(nn.Module):
             return nn.GroupNorm(1, channels)  # GroupNorm(1, C) == LayerNorm
         elif norm_type == "bn":
             return nn.BatchNorm1d(channels)
+        elif norm_type == "in":
+            return nn.InstanceNorm1d(channels, affine=True, track_running_stats=False)
         else:
             return nn.Identity()
 
@@ -92,6 +95,6 @@ class CNNEncoder(nn.Module):
         """Return normalization layer parameters (for norm-only adaptation)."""
         params = []
         for m in self.modules():
-            if isinstance(m, (nn.GroupNorm, nn.LayerNorm, nn.BatchNorm1d)):
+            if isinstance(m, (nn.GroupNorm, nn.LayerNorm, nn.BatchNorm1d, nn.InstanceNorm1d)):
                 params.extend(m.parameters())
         return params
