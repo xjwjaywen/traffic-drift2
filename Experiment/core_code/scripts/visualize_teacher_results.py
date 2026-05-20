@@ -328,6 +328,89 @@ def plot_collapse_heatmap(args, out_dir):
     return {"heatmap": out_path, "classes": collapsed_classes, "periods": periods}, None
 
 
+def plot_tta_drift_groups(args, out_dir):
+    if not exists(args.tta_drift_group_csv):
+        return None, f"Missing TTA drift-group metrics: {args.tta_drift_group_csv}"
+    rows = read_csv(args.tta_drift_group_csv)
+    important_groups = [
+        "stable",
+        "final_collapsed",
+        "abrupt_collapsed",
+        "gradual_collapsed",
+        "absorber",
+        "degraded_noncollapsed",
+    ]
+    periods = sorted({r["period"] for r in rows}, key=period_sort_key)
+    if not periods:
+        return None, f"No rows in TTA drift-group metrics: {args.tta_drift_group_csv}"
+    final_period = periods[-1]
+    final_rows = [
+        r for r in rows
+        if r["period"] == final_period and r["group"] in important_groups
+    ]
+    methods = [
+        m for m in ["static", "eata", "cotta", "sar", "tta_tc", "tent", "note", "bn_adapt"]
+        if any(r["method"] == m for r in final_rows)
+    ]
+    if not final_rows or not methods:
+        return None, f"No final-period TTA drift-group rows for {final_period}"
+
+    x = np.arange(len(important_groups))
+    width = 0.8 / len(methods)
+    plt.figure(figsize=(11.5, 5.2))
+    for i, method in enumerate(methods):
+        vals = []
+        for group in important_groups:
+            match = [
+                r for r in final_rows
+                if r["method"] == method and r["group"] == group
+            ]
+            vals.append(as_float(match[0].get("macro_f1")) if match else np.nan)
+        plt.bar(x + i * width, vals, width=width, label=method_label(method))
+    plt.xticks(
+        x + width * (len(methods) - 1) / 2,
+        important_groups,
+        rotation=25,
+        ha="right",
+    )
+    plt.title(f"TLS22 TTA drift-type group F1 ({final_period})")
+    plt.ylabel("Group macro-F1")
+    plt.grid(True, axis="y", alpha=0.25)
+    plt.legend(ncol=3, fontsize=8)
+    group_plot = os.path.join(out_dir, "tls22_tta_m12_drift_type_group_f1.png")
+    savefig(group_plot)
+
+    focused_groups = ["stable", "abrupt_collapsed", "gradual_collapsed"]
+    x = np.arange(len(focused_groups))
+    width = 0.8 / len(methods)
+    plt.figure(figsize=(9.5, 4.8))
+    for i, method in enumerate(methods):
+        vals = []
+        for group in focused_groups:
+            match = [
+                r for r in final_rows
+                if r["method"] == method and r["group"] == group
+            ]
+            vals.append(as_float(match[0].get("macro_f1")) if match else np.nan)
+        plt.bar(x + i * width, vals, width=width, label=method_label(method))
+    plt.xticks(
+        x + width * (len(methods) - 1) / 2,
+        ["stable", "abrupt", "gradual"],
+    )
+    plt.title(f"TLS22 TTA focused drift-type F1 ({final_period})")
+    plt.ylabel("Group macro-F1")
+    plt.grid(True, axis="y", alpha=0.25)
+    plt.legend(ncol=3, fontsize=8)
+    focused_plot = os.path.join(out_dir, "tls22_tta_m12_stable_abrupt_gradual_f1.png")
+    savefig(focused_plot)
+
+    return {
+        "group_bar": group_plot,
+        "focused_bar": focused_plot,
+        "final_period": final_period,
+    }, None
+
+
 def format_table(rows, headers, keys, float_digits=4):
     lines = []
     lines.append("| " + " | ".join(headers) + " |")
@@ -401,6 +484,7 @@ def main():
     parser.add_argument("--norm-group-csv", default="outputs/norm_drift_type_ablation_tls22/norm_group_metrics.csv")
     parser.add_argument("--adabn-period-csv", default="outputs/adabn_drift_type_ablation_tls22/adabn_period_metrics.csv")
     parser.add_argument("--adabn-group-csv", default="outputs/adabn_drift_type_ablation_tls22/adabn_group_metrics.csv")
+    parser.add_argument("--tta-drift-group-csv", default="outputs/tta_drift_type_ablation_tls22/tta_drift_group_metrics.csv")
     parser.add_argument("--collapse-timeline-csv", default="outputs/per_class_collapse_tls22_monthly/collapse_timeline.csv")
     parser.add_argument("--collapse-classes-csv", default="outputs/per_class_collapse_tls22_monthly/collapse_classes.csv")
     args = parser.parse_args()
@@ -432,6 +516,12 @@ def main():
         missing.append(err)
     else:
         generated["collapse"] = info
+
+    info, err = plot_tta_drift_groups(args, args.output_dir)
+    if err:
+        missing.append(err)
+    else:
+        generated["tta_drift_groups"] = info
 
     summary_path = os.path.join(args.output_dir, "teacher_result_visuals_summary.md")
     write_summary(summary_path, generated, missing)
