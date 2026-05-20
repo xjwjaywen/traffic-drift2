@@ -23,6 +23,7 @@ import time
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from tqdm import tqdm
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -141,6 +142,97 @@ def make_method(method_name, base_model, checkpoint_dir, num_classes, eval_cfg, 
         )
     cls = METHOD_CLASSES[method_name]
     return model, cls(model, adapt_cfg)
+
+
+@torch.no_grad()
+def evaluate_tta_tc_period_offload(engine, test_loader, period_name):
+    """
+    Memory-safe TTA-TC v9 evaluation.
+
+    The original TTAEngine.adapt_period keeps all period features/logits on GPU.
+    That is fine on an idle GPU, but this drift-type diagnostic is often run
+    after several large experiments. We offload collected tensors to CPU and
+    only move small chunks back to GPU for prototype scoring.
+    """
+    device = engine.device
+    all_features = []
+    all_labels = []
+    all_static_logits = []
+
+    engine.model.eval()
+    for batch in tqdm(test_loader, desc=f"TTA-TC@{period_name} pass1-offload"):
+        ppi = batch["ppi"].to(device)
+        labels = batch["label"]
+        flow_stats = batch.get("flow_stats")
+        if flow_stats is not None:
+            flow_stats = flow_stats.to(device)
+
+        logits, features = engine.model(ppi, flow_stats, return_repr=True)
+        all_features.append(features.detach().cpu())
+        all_labels.append(labels.detach().cpu())
+        all_static_logits.append(logits.detach().cpu())
+        del ppi, logits, features
+        if flow_stats is not None:
+            del flow_stats
+
+    features_cpu = torch.cat(all_features, dim=0)
+    labels_cpu = torch.cat(all_labels, dim=0)
+    logits_cpu = torch.cat(all_static_logits, dim=0)
+    n_samples = features_cpu.size(0)
+
+    budget = min(engine.label_budget_per_period, n_samples)
+    gen = None
+    if engine.seed is not None:
+        gen = torch.Generator(device="cpu")
+        gen.manual_seed(int(engine.seed))
+    pred_classes = logits_cpu.argmax(dim=1)
+    idx = engine.sampler(
+        features=features_cpu,
+        static_logits=logits_cpu,
+        pred_classes=pred_classes,
+        budget=budget,
+        num_classes=engine.num_classes,
+        generator=gen,
+    )
+    idx = idx.cpu()
+    queried_labels = labels_cpu[idx]
+    queried_features = features_cpu[idx]
+    engine.labels_used = idx.size(0)
+
+    source_prototypes = engine.source_prototypes.detach().cpu()
+    period_prototypes = source_prototypes.clone()
+    f_norm = F.normalize(queried_features, dim=1)
+    for class_id in queried_labels.unique():
+        mask = queried_labels == class_id
+        class_mean = F.normalize(f_norm[mask].mean(dim=0), dim=0)
+        blended = (
+            engine.proto_blend * source_prototypes[class_id]
+            + (1.0 - engine.proto_blend) * class_mean
+        )
+        period_prototypes[class_id] = F.normalize(blended, dim=0)
+
+    period_prototypes = period_prototypes.to(device)
+    all_preds = []
+    chunk_size = int(engine.cfg.get("diagnostic_chunk_size", 4096))
+    for start in tqdm(
+        range(0, n_samples, chunk_size),
+        desc=f"TTA-TC@{period_name} pass2-chunked",
+    ):
+        end = min(start + chunk_size, n_samples)
+        f_chunk = F.normalize(features_cpu[start:end].to(device), dim=1)
+        logits_chunk = logits_cpu[start:end].to(device)
+        proto_logits = torch.matmul(f_chunk, period_prototypes.T) / engine.proto_temperature
+        static_probs = F.softmax(logits_chunk, dim=1)
+        proto_probs = F.softmax(proto_logits, dim=1)
+        final_probs = (1.0 - engine.tta_blend) * static_probs + engine.tta_blend * proto_probs
+        all_preds.append(final_probs.argmax(dim=1).cpu())
+        del f_chunk, logits_chunk, proto_logits, static_probs, proto_probs, final_probs
+
+    preds = torch.cat(all_preds, dim=0)
+    del period_prototypes
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return labels_cpu.numpy(), preds.numpy()
 
 
 def write_report(path, overall_rows, delta_rows, methods):
@@ -270,7 +362,7 @@ def main():
                 labels, preds = evaluate_static(method_model, loader, device)
             elif method == "tta_tc":
                 engine.reset_period()
-                labels, preds = engine.adapt_period(loader, period)
+                labels, preds = evaluate_tta_tc_period_offload(engine, loader, period)
             else:
                 labels, preds, _ = evaluate_tta_method(
                     engine,
@@ -359,4 +451,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
