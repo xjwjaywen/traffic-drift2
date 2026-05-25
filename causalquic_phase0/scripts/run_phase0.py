@@ -39,6 +39,36 @@ HANDSHAKE_KEYS = (
 )
 PROVIDER_KEYS = ("ASN", "COUNTRY", "HOST", "SUBNET", "DST", "CDN", "PROVIDER")
 NETWORK_KEYS = ("PPI", "DURATION", "BYTES", "PACKETS", "PKTS", "HIST", "IAT", "RTT", "TIME")
+CANDIDATE_COLUMNS = [
+    "service",
+    "time_bin",
+    "prev_time_bin",
+    "drift_score",
+    "placebo_pvalue",
+    "weak_source",
+    "confidence",
+    "handshake_shift",
+    "provider_shift",
+    "network_shift",
+    "other_shift",
+]
+
+
+def parse_time_column(series: pd.Series) -> pd.Series:
+    """Parse timestamps while handling CESNET Unix-second flow times."""
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    if numeric.notna().mean() >= 0.8:
+        median = float(numeric.dropna().abs().median())
+        if median > 1e17:
+            return pd.to_datetime(numeric, unit="ns", errors="coerce")
+        if median > 1e14:
+            return pd.to_datetime(numeric, unit="us", errors="coerce")
+        if median > 1e11:
+            return pd.to_datetime(numeric, unit="ms", errors="coerce")
+        if median > 1e8:
+            return pd.to_datetime(numeric, unit="s", errors="coerce")
+    return pd.to_datetime(series, errors="coerce")
 
 
 def parse_args() -> argparse.Namespace:
@@ -170,7 +200,7 @@ def build_window_metrics(
     min_flows: int,
 ) -> pd.DataFrame:
     df = df.copy()
-    df["_time"] = pd.to_datetime(df[time_col], errors="coerce")
+    df["_time"] = parse_time_column(df[time_col])
     df = df.dropna(subset=["_time", service_col])
     df["_bin"] = df["_time"].dt.floor(bin_size)
 
@@ -185,6 +215,8 @@ def build_window_metrics(
             row[f"{group}_summary"] = summarize_window(sub, cols)
         rows.append(row)
 
+    if not rows:
+        return pd.DataFrame(columns=["service", "time_bin", "n_flows"])
     return pd.DataFrame(rows).sort_values(["service", "time_bin"]).reset_index(drop=True)
 
 
@@ -242,6 +274,9 @@ def find_candidate_windows(
     confidence_threshold: float,
     pvalue_threshold: float,
 ) -> pd.DataFrame:
+    if metrics.empty or "service" not in metrics.columns:
+        return pd.DataFrame(columns=CANDIDATE_COLUMNS)
+
     rows = []
     placebo_by_service: dict[object, list[float]] = {}
 
@@ -286,7 +321,7 @@ def find_candidate_windows(
 
     out = pd.DataFrame(rows)
     if out.empty:
-        return out
+        return pd.DataFrame(columns=CANDIDATE_COLUMNS)
     return (
         out.sort_values(["confidence", "drift_score"], ascending=False)
         .head(max_candidates)
@@ -335,7 +370,7 @@ def evaluate_actions(
         return pd.DataFrame()
 
     work = df.copy()
-    work["_time"] = pd.to_datetime(work[time_col], errors="coerce")
+    work["_time"] = parse_time_column(work[time_col])
     work = work.dropna(subset=["_time", target_col, service_col])
     work["_bin"] = work["_time"].dt.floor(bin_size)
     if work["_bin"].nunique() < 4 or work[target_col].nunique() < 2:
@@ -345,6 +380,11 @@ def evaluate_actions(
     train = work[work["_bin"] <= split_time]
     test = work[work["_bin"] > split_time]
     if train.empty or test.empty:
+        return pd.DataFrame()
+
+    seen_labels = set(train[target_col].astype(str))
+    test = test[test[target_col].astype(str).isin(seen_labels)]
+    if test.empty:
         return pd.DataFrame()
 
     exclude = {time_col, service_col, target_col, "_time", "_bin"}
@@ -454,6 +494,8 @@ def align_events(candidates: pd.DataFrame, events_csv: str | None) -> pd.DataFra
     events = events.copy()
     events["event_time"] = pd.to_datetime(events["time"], errors="coerce")
     candidates = candidates.copy()
+    if "time_bin" not in candidates.columns:
+        candidates = pd.DataFrame(columns=CANDIDATE_COLUMNS)
     candidates["time_bin"] = pd.to_datetime(candidates["time_bin"], errors="coerce")
 
     rows = []
@@ -488,6 +530,8 @@ def write_report(
     policy: pd.DataFrame,
     events: pd.DataFrame,
 ) -> None:
+    if candidates.empty or "confidence" not in candidates.columns:
+        candidates = pd.DataFrame(columns=CANDIDATE_COLUMNS)
     high = candidates[(candidates["confidence"] >= confidence_threshold) & (candidates["weak_source"] != "unknown")]
     non_google = high[~high["service"].astype(str).str.contains("google", case=False, na=False)]
     source_counts = Counter(non_google["weak_source"].astype(str))
