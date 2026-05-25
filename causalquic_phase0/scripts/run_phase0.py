@@ -157,8 +157,86 @@ def numeric_safe(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
+def is_sequence_value(value: object) -> bool:
+    return isinstance(value, (list, tuple, np.ndarray)) and not isinstance(value, (str, bytes, bytearray))
+
+
+def is_missing_value(value: object) -> bool:
+    if value is None:
+        return True
+    if is_sequence_value(value):
+        return False
+    try:
+        missing = pd.isna(value)
+    except (TypeError, ValueError):
+        return False
+    if isinstance(missing, (bool, np.bool_)):
+        return bool(missing)
+    return False
+
+
+def flatten_numeric_sequence(value: object, limit: int = 256) -> list[float]:
+    if not is_sequence_value(value):
+        return []
+
+    out: list[float] = []
+    stack = [value]
+    while stack and len(out) < limit:
+        current = stack.pop()
+        if is_sequence_value(current):
+            try:
+                items = list(np.asarray(current, dtype=object).ravel())
+            except Exception:
+                items = list(current)
+            stack.extend(reversed(items))
+            continue
+        try:
+            numeric = float(current)
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(numeric):
+            out.append(numeric)
+    return out
+
+
+def sequence_signature(numbers: list[float], limit: int = 12) -> str:
+    if not numbers:
+        return "empty"
+    return ",".join(str(int(round(value))) for value in numbers[:limit])
+
+
+def add_value_features(rec: dict[str, float], col: str, value: object) -> None:
+    if is_missing_value(value):
+        return
+
+    if is_sequence_value(value):
+        numbers = flatten_numeric_sequence(value)
+        rec[f"{col}__seq_len"] = float(len(numbers))
+        if numbers:
+            arr = np.asarray(numbers, dtype=float)
+            rec[f"{col}__seq_mean"] = float(arr.mean())
+            rec[f"{col}__seq_std"] = float(arr.std())
+            rec[f"{col}__seq_min"] = float(arr.min())
+            rec[f"{col}__seq_max"] = float(arr.max())
+            for idx, item in enumerate(numbers[:8]):
+                rec[f"{col}__seq_{idx}"] = float(item)
+        rec[f"{col}__seq_sig={sequence_signature(numbers)}"] = 1.0
+        return
+
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        rec[f"{col}={str(value)[:80]}"] = 1.0
+        return
+
+    if np.isfinite(numeric):
+        rec[col] = numeric
+    else:
+        rec[f"{col}={str(value)[:80]}"] = 1.0
+
+
 def top_distribution(values: pd.Series, limit: int = 30) -> dict[str, float]:
-    clean = values.dropna().astype(str)
+    clean = values[~values.map(is_missing_value)].map(lambda value: str(value)[:120])
     if clean.empty:
         return {}
     counts = clean.value_counts().head(limit)
@@ -172,8 +250,14 @@ def dist_shift(a: dict[str, float], b: dict[str, float]) -> float:
         return 0.0
     pa = np.array([a.get(k, 0.0) for k in keys], dtype=float)
     pb = np.array([b.get(k, 0.0) for k in keys], dtype=float)
-    pa = pa / max(pa.sum(), 1e-12)
-    pb = pb / max(pb.sum(), 1e-12)
+    sa = float(pa.sum())
+    sb = float(pb.sum())
+    if sa <= 0 and sb <= 0:
+        return 0.0
+    if sa <= 0 or sb <= 0:
+        return 1.0
+    pa = pa / sa
+    pb = pb / sb
     return float(jensenshannon(pa, pb, base=2.0) ** 2)
 
 
@@ -182,6 +266,26 @@ def summarize_window(df: pd.DataFrame, cols: list[str]) -> dict[str, object]:
     for col in cols:
         if col not in df:
             continue
+        non_missing = df[col][~df[col].map(is_missing_value)]
+        if not non_missing.empty and non_missing.head(20).map(is_sequence_value).mean() >= 0.5:
+            lengths = []
+            means = []
+            signatures = []
+            for value in non_missing:
+                numbers = flatten_numeric_sequence(value)
+                lengths.append(len(numbers))
+                if numbers:
+                    means.append(float(np.mean(numbers)))
+                signatures.append(sequence_signature(numbers))
+            if lengths:
+                out[f"{col}__seq_len_mean"] = float(np.mean(lengths))
+                out[f"{col}__seq_len_std"] = float(np.std(lengths))
+            if means:
+                out[f"{col}__seq_mean_mean"] = float(np.mean(means))
+                out[f"{col}__seq_mean_std"] = float(np.std(means))
+            out[f"{col}__seq_sig_dist"] = top_distribution(pd.Series(signatures))
+            continue
+
         numeric = numeric_safe(df[col])
         if numeric.notna().mean() >= 0.8:
             out[f"{col}__mean"] = float(numeric.mean())
@@ -334,13 +438,7 @@ def records_for_hashing(df: pd.DataFrame, cols: list[str]) -> list[dict[str, flo
     for _, row in df[cols].iterrows():
         rec: dict[str, float] = {}
         for col, value in row.items():
-            if pd.isna(value):
-                continue
-            numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
-            if pd.notna(numeric):
-                rec[col] = float(numeric)
-            else:
-                rec[f"{col}={str(value)[:80]}"] = 1.0
+            add_value_features(rec, col, value)
         records.append(rec)
     return records
 
