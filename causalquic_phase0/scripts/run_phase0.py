@@ -52,6 +52,7 @@ CANDIDATE_COLUMNS = [
     "network_shift",
     "other_shift",
 ]
+MAX_FEATURE_ABS = 1e9
 
 
 def parse_time_column(series: pd.Series) -> pd.Series:
@@ -202,7 +203,16 @@ def flatten_numeric_sequence(value: object, limit: int = 256) -> list[float]:
 def sequence_signature(numbers: list[float], limit: int = 12) -> str:
     if not numbers:
         return "empty"
-    return ",".join(str(int(round(value))) for value in numbers[:limit])
+    parts = []
+    for value in numbers[:limit]:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(numeric):
+            continue
+        parts.append(str(int(round(float(np.clip(numeric, -MAX_FEATURE_ABS, MAX_FEATURE_ABS))))))
+    return ",".join(parts) if parts else "empty"
 
 
 def add_value_features(rec: dict[str, float], col: str, value: object) -> None:
@@ -214,12 +224,21 @@ def add_value_features(rec: dict[str, float], col: str, value: object) -> None:
         rec[f"{col}__seq_len"] = float(len(numbers))
         if numbers:
             arr = np.asarray(numbers, dtype=float)
-            rec[f"{col}__seq_mean"] = float(arr.mean())
-            rec[f"{col}__seq_std"] = float(arr.std())
-            rec[f"{col}__seq_min"] = float(arr.min())
-            rec[f"{col}__seq_max"] = float(arr.max())
+            mean = float(arr.mean())
+            std = float(arr.std())
+            min_value = float(arr.min())
+            max_value = float(arr.max())
+            for name, feature_value in (
+                (f"{col}__seq_mean", mean),
+                (f"{col}__seq_std", std),
+                (f"{col}__seq_min", min_value),
+                (f"{col}__seq_max", max_value),
+            ):
+                if np.isfinite(feature_value):
+                    rec[name] = float(np.clip(feature_value, -MAX_FEATURE_ABS, MAX_FEATURE_ABS))
             for idx, item in enumerate(numbers[:8]):
-                rec[f"{col}__seq_{idx}"] = float(item)
+                if np.isfinite(item):
+                    rec[f"{col}__seq_{idx}"] = float(np.clip(item, -MAX_FEATURE_ABS, MAX_FEATURE_ABS))
         rec[f"{col}__seq_sig={sequence_signature(numbers)}"] = 1.0
         return
 
@@ -230,7 +249,7 @@ def add_value_features(rec: dict[str, float], col: str, value: object) -> None:
         return
 
     if np.isfinite(numeric):
-        rec[col] = numeric
+        rec[col] = float(np.clip(numeric, -MAX_FEATURE_ABS, MAX_FEATURE_ABS))
     else:
         rec[f"{col}={str(value)[:80]}"] = 1.0
 
@@ -448,9 +467,14 @@ def build_feature_matrix(train: pd.DataFrame, test: pd.DataFrame, cols: list[str
     x_train = hasher.transform(records_for_hashing(train, cols))
     x_test = hasher.transform(records_for_hashing(test, cols))
 
+    x_train.data = np.nan_to_num(x_train.data, nan=0.0, posinf=MAX_FEATURE_ABS, neginf=-MAX_FEATURE_ABS)
+    x_test.data = np.nan_to_num(x_test.data, nan=0.0, posinf=MAX_FEATURE_ABS, neginf=-MAX_FEATURE_ABS)
+
     scaler = StandardScaler(with_mean=False)
     x_train = scaler.fit_transform(x_train)
     x_test = scaler.transform(x_test)
+    x_train.data = np.nan_to_num(x_train.data, nan=0.0, posinf=MAX_FEATURE_ABS, neginf=-MAX_FEATURE_ABS)
+    x_test.data = np.nan_to_num(x_test.data, nan=0.0, posinf=MAX_FEATURE_ABS, neginf=-MAX_FEATURE_ABS)
     return x_train, x_test
 
 
