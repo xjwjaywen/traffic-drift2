@@ -1,0 +1,13 @@
+{
+  "input_glob": "/path/to/quicext25/**/*.parquet",
+  "out_dir": "outputs/quicext25_phase0",
+  "time_col": "TIME_FIRST",
+  "service_col": "APP",
+  "target_col": "APP",
+  "provider_col": "DST_ASN",
+  "country_col": "DST_COUNTRY",
+  "bin_size": "1D",
+  "sample_rows": 2000000,
+  "min_flows_per_bin": 100,
+  "max_candidate_windows": 500
+}

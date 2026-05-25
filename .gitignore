@@ -23,3 +23,15 @@ Experiment/analysis/results/
 Experiment/core_code/data/
 *.h5
 *.npz
+
+.DS_Store
+*.py[cod]
+.venv/
+venv/
+
+# Local data and generated experiment outputs.
+data/
+outputs/
+causalquic_phase0/data/
+causalquic_phase0/outputs/
+causalquic_phase0/reports/
