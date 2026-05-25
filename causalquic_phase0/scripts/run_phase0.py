@@ -87,6 +87,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-rows", type=int, default=0)
     parser.add_argument("--min-flows-per-bin", type=int, default=100)
     parser.add_argument("--max-candidate-windows", type=int, default=500)
+    parser.add_argument("--skip-policy", action="store_true")
+    parser.add_argument("--max-policy-rows", type=int, default=100000)
     parser.add_argument("--confidence-threshold", type=float, default=0.55)
     parser.add_argument("--placebo-pvalue-threshold", type=float, default=0.25)
     parser.add_argument("--seed", type=int, default=13)
@@ -487,11 +489,14 @@ def evaluate_actions(
     candidates: pd.DataFrame,
     bin_size: str,
     seed: int,
+    max_policy_rows: int,
 ) -> pd.DataFrame:
     if not target_col or target_col not in df.columns:
         return pd.DataFrame()
 
     work = df.copy()
+    if max_policy_rows and max_policy_rows > 0 and len(work) > max_policy_rows:
+        work = work.sample(n=max_policy_rows, random_state=seed)
     work["_time"] = parse_time_column(work[time_col])
     work = work.dropna(subset=["_time", target_col, service_col])
     work["_bin"] = work["_time"].dt.floor(bin_size)
@@ -739,16 +744,20 @@ def main() -> None:
         args.confidence_threshold,
         args.placebo_pvalue_threshold,
     )
-    policy = evaluate_actions(
-        df=df,
-        time_col=args.time_col,
-        service_col=args.service_col,
-        target_col=args.target_col,
-        groups=groups,
-        candidates=candidates,
-        bin_size=args.bin_size,
-        seed=args.seed,
-    )
+    if args.skip_policy:
+        policy = pd.DataFrame()
+    else:
+        policy = evaluate_actions(
+            df=df,
+            time_col=args.time_col,
+            service_col=args.service_col,
+            target_col=args.target_col,
+            groups=groups,
+            candidates=candidates,
+            bin_size=args.bin_size,
+            seed=args.seed,
+            max_policy_rows=args.max_policy_rows,
+        )
     events = align_events(candidates, args.events_csv)
 
     metrics.to_csv(out_dir / "window_metrics.csv", index=False)
