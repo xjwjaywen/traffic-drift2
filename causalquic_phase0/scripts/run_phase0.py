@@ -211,6 +211,11 @@ def is_google_related_service(value: object) -> bool:
     return any(text == domain or text.endswith(f".{domain}") for domain in domains) or "google" in text
 
 
+def is_valid_service_value(value: object) -> bool:
+    text = str(value).strip().lower()
+    return text not in {"", "nan", "none", "null", "unknown"}
+
+
 def infer_groups(columns: Iterable[str], exclude: set[str]) -> dict[str, list[str]]:
     groups = {"handshake": [], "provider": [], "network": [], "other": []}
     for col in columns:
@@ -748,7 +753,9 @@ def write_report(
     if candidates.empty or "confidence" not in candidates.columns:
         candidates = pd.DataFrame(columns=CANDIDATE_COLUMNS)
     high = candidates[(candidates["confidence"] >= confidence_threshold) & (candidates["weak_source"] != "unknown")]
-    non_google = high[~high["service"].map(is_google_related_service)]
+    high_valid = high[high["service"].map(is_valid_service_value)]
+    high_google = high_valid[high_valid["service"].map(is_google_related_service)]
+    non_google = high_valid[~high_valid["service"].map(is_google_related_service)]
     source_counts = Counter(non_google["weak_source"].astype(str))
 
     policy_candidates = policy[policy.get("row_type", pd.Series(dtype=str)) == "candidate_policy"] if not policy.empty else pd.DataFrame()
@@ -771,7 +778,10 @@ def write_report(
             "",
             "## Drift Windows",
             f"- Candidate windows: {len(candidates):,}",
-            f"- High-confidence non-Google windows: {len(non_google):,}",
+            f"- High-confidence non-unknown-source windows: {len(high):,}",
+            f"- High-confidence valid-service windows: {len(high_valid):,}",
+            f"- High-confidence Google-related windows: {len(high_google):,}",
+            f"- High-confidence non-Google valid-service windows: {len(non_google):,}",
             f"- Non-Google source counts: {dict(source_counts)}",
             "",
             "## Policy",
