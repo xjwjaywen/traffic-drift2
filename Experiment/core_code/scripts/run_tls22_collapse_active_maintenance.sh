@@ -17,6 +17,9 @@ SEED="${SEED:-0}"
 FT_LR="${FT_LR:-0.001}"
 FT_EPOCHS="${FT_EPOCHS:-30}"
 FT_BATCH_SIZE="${FT_BATCH_SIZE:-64}"
+REPLAY_MODE="${REPLAY_MODE:-none}"
+REPLAY_PER_CLASS="${REPLAY_PER_CLASS:-0}"
+TARGET_REPEAT="${TARGET_REPEAT:-1}"
 
 python scripts/collapse_active_maintenance_tls22.py \
   --config "${CONFIG}" \
@@ -29,7 +32,10 @@ python scripts/collapse_active_maintenance_tls22.py \
   --seed "${SEED}" \
   --ft-lr "${FT_LR}" \
   --ft-epochs "${FT_EPOCHS}" \
-  --ft-batch-size "${FT_BATCH_SIZE}"
+  --ft-batch-size "${FT_BATCH_SIZE}" \
+  --replay-mode "${REPLAY_MODE}" \
+  --replay-per-class "${REPLAY_PER_CLASS}" \
+  --target-repeat "${TARGET_REPEAT}"
 
 python scripts/summarize_active_maintenance_results.py \
   --input-dir "${OUTPUT_DIR}"
