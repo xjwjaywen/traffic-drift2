@@ -30,6 +30,7 @@ FOCUS_STRATEGIES = [
     "random",
     "entropy",
     "margin",
+    "absorber_random",
     "absorber_margin",
     "absorber_distance",
     "absorber_proto_disagree",
@@ -173,6 +174,18 @@ def write_report(path, rows, best_budget_rows, best_strategy_rows, budget_plot, 
         "# Collapse-Aware Active Maintenance Summary",
         "",
     ]
+    replay_mode = next((row.get("replay_mode") for row in rows if row.get("replay_mode")), "")
+    replay_samples = next((row.get("replay_samples") for row in rows if row.get("replay_samples")), "")
+    target_repeat = next((row.get("target_repeat") for row in rows if row.get("target_repeat")), "")
+    if replay_mode:
+        lines.extend([
+            "## Replay Setting",
+            "",
+            f"- replay mode: `{replay_mode}`",
+            f"- replay samples: `{as_int(replay_samples)}`",
+            f"- target repeat: `{as_int(target_repeat, 1)}`",
+            "",
+        ])
     if static:
         lines.extend([
             "## Static Baseline",

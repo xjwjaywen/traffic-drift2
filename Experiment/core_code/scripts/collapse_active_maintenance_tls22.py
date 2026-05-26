@@ -38,6 +38,7 @@ DEFAULT_STABLE_CLASSES = [
     99, 107, 113, 119, 128, 130, 131, 132, 144, 145,
 ]
 DEFAULT_ABSORBER_CLASSES = [96, 46, 2, 14, 45, 105, 5, 71, 156, 13]
+REPLAY_MODES = {"none", "stable", "all", "absorber", "collapse", "stable_absorber"}
 
 
 def parse_int_list(value, default=None):
@@ -94,6 +95,61 @@ def normalized_score(values):
     lo = torch.quantile(values, 0.01)
     hi = torch.quantile(values, 0.99)
     return ((values - lo) / (hi - lo + 1e-12)).clamp(0.0, 1.0)
+
+
+def replay_class_set(mode, num_classes, collapse_classes, stable_classes, absorber_classes):
+    if mode == "none":
+        return []
+    if mode == "stable":
+        return [c for c in stable_classes if 0 <= c < num_classes]
+    if mode == "absorber":
+        return [c for c in absorber_classes if 0 <= c < num_classes]
+    if mode == "collapse":
+        return [c for c in collapse_classes if 0 <= c < num_classes]
+    if mode == "stable_absorber":
+        return sorted({
+            c for c in list(stable_classes) + list(absorber_classes)
+            if 0 <= c < num_classes
+        })
+    if mode == "all":
+        return list(range(num_classes))
+    raise ValueError(f"Unknown replay mode: {mode}")
+
+
+def sample_replay_indices(labels, classes, per_class, seed):
+    if per_class <= 0 or not classes:
+        return torch.empty(0, dtype=torch.long)
+    labels_t = torch.as_tensor(labels, dtype=torch.long)
+    gen = torch.Generator()
+    gen.manual_seed(int(seed))
+    sampled = []
+    for c in classes:
+        candidates = torch.nonzero(labels_t == int(c), as_tuple=False).squeeze(1)
+        if candidates.numel() == 0:
+            continue
+        k = min(int(per_class), candidates.numel())
+        perm = torch.randperm(candidates.numel(), generator=gen)[:k]
+        sampled.append(candidates[perm])
+    if not sampled:
+        return torch.empty(0, dtype=torch.long)
+    return torch.cat(sampled)
+
+
+def build_head_training_set(
+    target_features,
+    target_labels,
+    ref_features,
+    ref_labels,
+    replay_idx,
+    target_repeat,
+):
+    target_repeat = max(1, int(target_repeat))
+    feature_parts = [target_features] * target_repeat
+    label_parts = [torch.as_tensor(target_labels, dtype=torch.long)] * target_repeat
+    if replay_idx.numel() > 0:
+        feature_parts.append(ref_features[replay_idx])
+        label_parts.append(torch.as_tensor(ref_labels[replay_idx.numpy()], dtype=torch.long))
+    return torch.cat(feature_parts, dim=0), torch.cat(label_parts, dim=0)
 
 
 def select_indices(
@@ -278,6 +334,24 @@ def main():
     parser.add_argument("--ft-epochs", type=int, default=30)
     parser.add_argument("--ft-batch-size", type=int, default=64)
     parser.add_argument("--ft-weight-decay", type=float, default=1e-4)
+    parser.add_argument(
+        "--replay-mode",
+        choices=sorted(REPLAY_MODES),
+        default="none",
+        help="Reference-period labeled replay set used while fitting the target head.",
+    )
+    parser.add_argument(
+        "--replay-per-class",
+        type=int,
+        default=0,
+        help="Number of reference samples per replay class. Zero disables replay.",
+    )
+    parser.add_argument(
+        "--target-repeat",
+        type=int,
+        default=1,
+        help="Repeat selected target labels during head fitting to balance replay.",
+    )
     parser.add_argument("--min-prototype-support", type=int, default=1)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
@@ -305,6 +379,10 @@ def main():
     print(f"Num classes: {num_classes}")
     print(f"Collapse classes: {collapse_classes}")
     print(f"Absorber classes: {absorber_classes}")
+    print(
+        f"Replay: mode={args.replay_mode} per_class={args.replay_per_class} "
+        f"target_repeat={args.target_repeat}"
+    )
 
     ref_loader, ref_classes = proto.make_test_loader(eval_cfg, args.reference_period)
     if ref_classes != num_classes:
@@ -322,6 +400,24 @@ def main():
         f"Built reference prototypes for {int(valid_mask.sum())}/{num_classes} classes "
         f"(min_support={args.min_prototype_support})."
     )
+    replay_classes = replay_class_set(
+        args.replay_mode,
+        num_classes,
+        collapse_classes,
+        stable_classes,
+        absorber_classes,
+    )
+    replay_idx = sample_replay_indices(
+        ref_outputs["labels"],
+        replay_classes,
+        args.replay_per_class,
+        args.seed + 10007,
+    )
+    if replay_idx.numel() > 0:
+        print(
+            f"Using {int(replay_idx.numel())} replay samples from "
+            f"{len(replay_classes)} reference classes."
+        )
 
     loader, loader_classes = proto.make_test_loader(eval_cfg, args.target_period)
     if loader_classes != num_classes:
@@ -346,6 +442,10 @@ def main():
         "method": "static",
         "strategy": "",
         "budget": 0,
+        "replay_mode": args.replay_mode,
+        "replay_per_class": args.replay_per_class,
+        "target_repeat": args.target_repeat,
+        "replay_samples": int(replay_idx.numel()),
         "selected_collapse_labels": 0,
         "selected_absorber_preds": 0,
         **static_summary,
@@ -368,10 +468,18 @@ def main():
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
             selected_distance = nearest_distance[idx].numpy()
-            head = fit_head(
-                model,
+            train_features, train_labels = build_head_training_set(
                 features[idx],
                 selected_labels,
+                ref_outputs["features"],
+                ref_outputs["labels"],
+                replay_idx,
+                args.target_repeat,
+            )
+            head = fit_head(
+                model,
+                train_features,
+                train_labels,
                 args.ft_lr,
                 args.ft_epochs,
                 args.ft_batch_size,
@@ -387,6 +495,11 @@ def main():
                 "method": "active_head_ft",
                 "strategy": strategy,
                 "budget": int(idx.numel()),
+                "replay_mode": args.replay_mode,
+                "replay_per_class": args.replay_per_class,
+                "target_repeat": args.target_repeat,
+                "replay_samples": int(replay_idx.numel()),
+                "head_train_samples": int(train_features.shape[0]),
                 "selected_collapse_labels": selected_collapse,
                 "selected_absorber_preds": selected_absorber,
                 "selected_mean_proto_distance": float(selected_distance.mean()) if selected_distance.size else "",
@@ -417,7 +530,8 @@ def main():
                 f"collapse={summary['bad_macro_f1']:.4f} "
                 f"stable={summary['stable_macro_f1']:.4f} "
                 f"collapsed={summary['collapsed_count']} "
-                f"sel_collapse={selected_collapse}"
+                f"sel_collapse={selected_collapse} "
+                f"replay={int(replay_idx.numel())}"
             )
 
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), rows)
@@ -436,6 +550,11 @@ def main():
         "budgets": budgets,
         "strategies": strategies,
         "seed": args.seed,
+        "replay_mode": args.replay_mode,
+        "replay_per_class": args.replay_per_class,
+        "target_repeat": args.target_repeat,
+        "replay_samples": int(replay_idx.numel()),
+        "replay_classes": replay_classes,
         "min_prototype_support": args.min_prototype_support,
         "num_valid_prototypes": int(valid_mask.sum()),
     }
