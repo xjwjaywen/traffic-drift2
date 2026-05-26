@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--provider-col")
     parser.add_argument("--country-col")
     parser.add_argument("--events-csv")
+    parser.add_argument("--domain-service", action="store_true", help="Use an approximate eTLD+1 domain derived from --service-col.")
     parser.add_argument("--bin-size", default="1D")
     parser.add_argument("--sample-rows", type=int, default=0)
     parser.add_argument("--min-flows-per-bin", type=int, default=100)
@@ -123,9 +124,21 @@ def load_data(input_glob: str, sample_rows: int, seed: int) -> pd.DataFrame:
         raise FileNotFoundError(f"no files matched {input_glob!r}")
 
     frames: list[pd.DataFrame] = []
-    remaining = sample_rows if sample_rows and sample_rows > 0 else None
     rng = np.random.default_rng(seed)
 
+    if sample_rows and sample_rows > 0 and len(paths) > 1:
+        per_file = max(1, int(math.ceil(sample_rows / len(paths))))
+        for path in paths:
+            df = read_table(path)
+            if len(df) > per_file:
+                df = df.sample(n=per_file, random_state=int(rng.integers(0, 1_000_000)))
+            frames.append(df)
+        out = pd.concat(frames, ignore_index=True)
+        if len(out) > sample_rows:
+            out = out.sample(n=sample_rows, random_state=seed)
+        return out.reset_index(drop=True)
+
+    remaining = sample_rows if sample_rows and sample_rows > 0 else None
     for path in paths:
         df = read_table(path)
         if remaining is not None and len(df) > remaining:
@@ -137,6 +150,32 @@ def load_data(input_glob: str, sample_rows: int, seed: int) -> pd.DataFrame:
                 break
 
     return pd.concat(frames, ignore_index=True)
+
+
+def approximate_domain(value: object) -> str:
+    text = str(value).strip().lower().rstrip(".")
+    if not text or text == "nan":
+        return "unknown"
+    parts = [part for part in text.split(".") if part]
+    if len(parts) < 2:
+        return text
+
+    two_part_suffixes = {
+        "co.uk",
+        "com.au",
+        "com.br",
+        "com.cn",
+        "com.tr",
+        "co.jp",
+        "co.kr",
+        "com.tw",
+        "com.hk",
+        "co.in",
+    }
+    suffix = ".".join(parts[-2:])
+    if suffix in two_part_suffixes and len(parts) >= 3:
+        return ".".join(parts[-3:])
+    return suffix
 
 
 def infer_groups(columns: Iterable[str], exclude: set[str]) -> dict[str, list[str]]:
@@ -490,6 +529,7 @@ def evaluate_actions(
     bin_size: str,
     seed: int,
     max_policy_rows: int,
+    extra_exclude_cols: set[str] | None = None,
 ) -> pd.DataFrame:
     if not target_col or target_col not in df.columns:
         return pd.DataFrame()
@@ -514,7 +554,7 @@ def evaluate_actions(
     if test.empty:
         return pd.DataFrame()
 
-    exclude = {time_col, service_col, target_col, "_time", "_bin"}
+    exclude = {time_col, service_col, target_col, "_time", "_bin", *(extra_exclude_cols or set())}
     all_feature_cols = [col for col in work.columns if col not in exclude]
     action_drops = {
         "full": [],
@@ -725,15 +765,26 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_data(args.input_glob, args.sample_rows, args.seed)
-    exclude = {args.time_col, args.service_col}
-    if args.target_col:
-        exclude.add(args.target_col)
+    service_col = args.service_col
+    target_col = args.target_col
+    extra_exclude = set()
+    if args.domain_service:
+        domain_col = f"{args.service_col}_DOMAIN"
+        df[domain_col] = df[args.service_col].map(approximate_domain)
+        extra_exclude.add(args.service_col)
+        service_col = domain_col
+        if target_col == args.service_col:
+            target_col = domain_col
+
+    exclude = {args.time_col, service_col, *extra_exclude}
+    if target_col:
+        exclude.add(target_col)
     groups = infer_groups(df.columns, exclude)
 
     metrics = build_window_metrics(
         df=df,
         time_col=args.time_col,
-        service_col=args.service_col,
+        service_col=service_col,
         groups=groups,
         bin_size=args.bin_size,
         min_flows=args.min_flows_per_bin,
@@ -748,15 +799,16 @@ def main() -> None:
         policy = pd.DataFrame()
     else:
         policy = evaluate_actions(
-            df=df,
-            time_col=args.time_col,
-            service_col=args.service_col,
-            target_col=args.target_col,
-            groups=groups,
-            candidates=candidates,
-            bin_size=args.bin_size,
+        df=df,
+        time_col=args.time_col,
+        service_col=service_col,
+        target_col=target_col,
+        groups=groups,
+        candidates=candidates,
+        bin_size=args.bin_size,
             seed=args.seed,
             max_policy_rows=args.max_policy_rows,
+            extra_exclude_cols=extra_exclude,
         )
     events = align_events(candidates, args.events_csv)
 
@@ -765,7 +817,7 @@ def main() -> None:
     policy.to_csv(out_dir / "action_policy_eval.csv", index=False)
     if not events.empty:
         events.to_csv(out_dir / "event_alignment.csv", index=False)
-    write_report(out_dir, df, args.service_col, args.confidence_threshold, groups, candidates, policy, events)
+    write_report(out_dir, df, service_col, args.confidence_threshold, groups, candidates, policy, events)
 
     print(f"wrote outputs to {out_dir}")
     print(f"candidate windows: {len(candidates):,}")
