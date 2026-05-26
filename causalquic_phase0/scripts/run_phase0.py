@@ -39,6 +39,20 @@ HANDSHAKE_KEYS = (
 )
 PROVIDER_KEYS = ("ASN", "COUNTRY", "HOST", "SUBNET", "DST", "CDN", "PROVIDER")
 NETWORK_KEYS = ("PPI", "DURATION", "BYTES", "PACKETS", "PKTS", "HIST", "IAT", "RTT", "TIME")
+PROVIDER_COLUMNS = {"DST_IP", "DST_IP_SUBNET", "DST_ASN", "DST_COUNTRY", "DST_PORT"}
+NETWORK_PREFIXES = ("PPI", "PHIST")
+NETWORK_COLUMNS = {
+    "DURATION",
+    "BYTES",
+    "BYTES_REV",
+    "PACKETS",
+    "PACKETS_REV",
+    "PPI_LEN",
+    "PPI_DURATION",
+    "PPI_ROUNDTRIPS",
+}
+TIME_COLUMNS = {"TIME_FIRST", "TIME_LAST"}
+IGNORED_COLUMNS = {"DST_IP_VERSION"}
 CANDIDATE_COLUMNS = [
     "service",
     "time_bin",
@@ -178,13 +192,47 @@ def approximate_domain(value: object) -> str:
     return suffix
 
 
+def is_google_related_service(value: object) -> bool:
+    text = str(value).strip().lower()
+    domains = {
+        "google.com",
+        "googleapis.com",
+        "googlevideo.com",
+        "gstatic.com",
+        "ytimg.com",
+        "youtube.com",
+        "doubleclick.net",
+        "googlesyndication.com",
+        "googleadservices.com",
+        "googleusercontent.com",
+        "gvt1.com",
+        "gvt2.com",
+    }
+    return any(text == domain or text.endswith(f".{domain}") for domain in domains) or "google" in text
+
+
 def infer_groups(columns: Iterable[str], exclude: set[str]) -> dict[str, list[str]]:
     groups = {"handshake": [], "provider": [], "network": [], "other": []}
     for col in columns:
         if col in exclude:
             continue
         upper = col.upper()
-        if any(key in upper for key in HANDSHAKE_KEYS):
+        if upper in TIME_COLUMNS or upper in IGNORED_COLUMNS:
+            continue
+        if upper in PROVIDER_COLUMNS:
+            groups["provider"].append(col)
+        elif upper in NETWORK_COLUMNS or any(upper.startswith(prefix) for prefix in NETWORK_PREFIXES):
+            groups["network"].append(col)
+        elif (
+            upper.startswith("QUIC_")
+            or "TLS" in upper
+            or "SNI" in upper
+            or "USER_AGENT" in upper
+            or "USERAGENT" in upper
+            or "HANDSHAKE" in upper
+            or "CERT" in upper
+            or "TOKEN" in upper
+        ):
             groups["handshake"].append(col)
         elif any(key in upper for key in PROVIDER_KEYS):
             groups["provider"].append(col)
@@ -700,7 +748,7 @@ def write_report(
     if candidates.empty or "confidence" not in candidates.columns:
         candidates = pd.DataFrame(columns=CANDIDATE_COLUMNS)
     high = candidates[(candidates["confidence"] >= confidence_threshold) & (candidates["weak_source"] != "unknown")]
-    non_google = high[~high["service"].astype(str).str.contains("google", case=False, na=False)]
+    non_google = high[~high["service"].map(is_google_related_service)]
     source_counts = Counter(non_google["weak_source"].astype(str))
 
     policy_candidates = policy[policy.get("row_type", pd.Series(dtype=str)) == "candidate_policy"] if not policy.empty else pd.DataFrame()
