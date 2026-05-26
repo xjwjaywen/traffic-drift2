@@ -2,13 +2,15 @@
 Collapse-aware active maintenance MVP for TLS-Year22.
 
 This is a diagnostic active-label experiment, not zero-label TTA. It asks:
-given a small label budget in a target period, does querying samples around
-known absorber predictions repair collapse classes better than random labels?
+given a small label budget in a target period, does querying high-risk samples
+around known absorber predictions repair collapse classes better than random
+labels?
 
 Usage from Experiment/core_code/:
     python scripts/collapse_active_maintenance_tls22.py \
       --config configs/eval_tls22.yaml \
       --checkpoint outputs/tls22_cnn/best_model.pt \
+      --reference-period M-2022-4 \
       --target-period M-2022-12 \
       --output-dir outputs/collapse_active_maintenance_tls22_m12
 """
@@ -67,6 +69,33 @@ def top2_margin(logits):
     return top2[:, 0] - top2[:, 1]
 
 
+def prediction_signals(logits):
+    probs = F.softmax(logits, dim=1)
+    confidence = probs.max(dim=1).values
+    margin = top2_margin(logits)
+    entropy = -(probs * torch.log(probs.clamp_min(1e-12))).sum(dim=1)
+    preds = probs.argmax(dim=1)
+    return probs, confidence, margin, entropy, preds
+
+
+def prototype_distance_signals(features, prototypes, valid_mask):
+    feat_n = F.normalize(features, dim=1)
+    proto_n = F.normalize(prototypes, dim=1)
+    sims = feat_n @ proto_n.t()
+    if valid_mask is not None:
+        sims[:, ~valid_mask.to(sims.device)] = -1e9
+    nearest_proto = sims.argmax(dim=1)
+    nearest_distance = 1.0 - sims.max(dim=1).values
+    return nearest_distance.cpu(), nearest_proto.cpu()
+
+
+def normalized_score(values):
+    values = values.float()
+    lo = torch.quantile(values, 0.01)
+    hi = torch.quantile(values, 0.99)
+    return ((values - lo) / (hi - lo + 1e-12)).clamp(0.0, 1.0)
+
+
 def select_indices(
     strategy,
     logits,
@@ -76,13 +105,14 @@ def select_indices(
     collapse_classes,
     absorber_classes,
     seed,
+    nearest_distance=None,
+    nearest_proto=None,
 ):
     n = logits.shape[0]
     budget = min(int(budget), n)
     gen = torch.Generator()
     gen.manual_seed(int(seed))
-    preds = logits.argmax(dim=1)
-    margin = top2_margin(logits)
+    _, confidence, margin, entropy, preds = prediction_signals(logits)
     labels_t = torch.as_tensor(labels, dtype=torch.long)
 
     def random_from(candidates, k):
@@ -95,21 +125,67 @@ def select_indices(
     if strategy == "random":
         return torch.randperm(n, generator=gen)[:budget]
 
-    if strategy in {"absorber_random", "absorber_margin"}:
+    if strategy == "entropy":
+        return torch.argsort(entropy, descending=True)[:budget]
+
+    if strategy == "margin":
+        return torch.argsort(margin)[:budget]
+
+    if strategy == "confidence_low":
+        return torch.argsort(confidence)[:budget]
+
+    if strategy in {
+        "absorber_random",
+        "absorber_margin",
+        "absorber_entropy",
+        "absorber_distance",
+        "absorber_proto_disagree",
+        "hybrid_risk",
+    }:
         absorber = torch.zeros(num_classes, dtype=torch.bool)
         absorber[torch.tensor([c for c in absorber_classes if 0 <= c < num_classes])] = True
         candidates = torch.nonzero(absorber[preds], as_tuple=False).squeeze(1)
         if strategy == "absorber_random":
             selected = random_from(candidates, budget)
-        else:
+        elif strategy == "absorber_margin":
             k = min(budget, candidates.numel())
             order = torch.argsort(margin[candidates])[:k] if k > 0 else torch.empty(0, dtype=torch.long)
+            selected = candidates[order] if k > 0 else torch.empty(0, dtype=torch.long)
+        elif strategy == "absorber_entropy":
+            k = min(budget, candidates.numel())
+            order = torch.argsort(entropy[candidates], descending=True)[:k] if k > 0 else torch.empty(0, dtype=torch.long)
+            selected = candidates[order] if k > 0 else torch.empty(0, dtype=torch.long)
+        elif strategy in {"absorber_distance", "absorber_proto_disagree", "hybrid_risk"}:
+            if nearest_distance is None or nearest_proto is None:
+                raise ValueError(f"{strategy} requires prototype distance signals")
+            nearest_distance = nearest_distance.cpu()
+            nearest_proto = nearest_proto.cpu()
+            if strategy == "absorber_proto_disagree":
+                candidates = candidates[nearest_proto[candidates] != preds[candidates].cpu()]
+                score = nearest_distance
+            elif strategy == "hybrid_risk":
+                distance_score = normalized_score(nearest_distance)
+                entropy_score = normalized_score(entropy.cpu())
+                low_margin_score = 1.0 - normalized_score(margin.cpu())
+                disagree_score = (nearest_proto != preds.cpu()).float()
+                score = distance_score + entropy_score + low_margin_score + disagree_score
+            else:
+                score = nearest_distance
+            k = min(budget, candidates.numel())
+            order = torch.argsort(score[candidates], descending=True)[:k] if k > 0 else torch.empty(0, dtype=torch.long)
             selected = candidates[order] if k > 0 else torch.empty(0, dtype=torch.long)
     elif strategy == "oracle_collapse_random":
         collapse = torch.zeros(num_classes, dtype=torch.bool)
         collapse[torch.tensor([c for c in collapse_classes if 0 <= c < num_classes])] = True
         candidates = torch.nonzero(collapse[labels_t], as_tuple=False).squeeze(1)
         selected = random_from(candidates, budget)
+    elif strategy == "oracle_collapse_margin":
+        collapse = torch.zeros(num_classes, dtype=torch.bool)
+        collapse[torch.tensor([c for c in collapse_classes if 0 <= c < num_classes])] = True
+        candidates = torch.nonzero(collapse[labels_t], as_tuple=False).squeeze(1)
+        k = min(budget, candidates.numel())
+        order = torch.argsort(margin[candidates])[:k] if k > 0 else torch.empty(0, dtype=torch.long)
+        selected = candidates[order] if k > 0 else torch.empty(0, dtype=torch.long)
     else:
         raise ValueError(f"Unknown active strategy: {strategy}")
 
@@ -182,12 +258,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--reference-period", default="M-2022-4")
     parser.add_argument("--target-period", default="M-2022-12")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--budgets", default="50,100,200,500,1000")
     parser.add_argument(
         "--strategies",
-        default="random,absorber_random,absorber_margin,oracle_collapse_random",
+        default=(
+            "random,entropy,margin,absorber_random,absorber_margin,"
+            "absorber_distance,absorber_proto_disagree,hybrid_risk,"
+            "oracle_collapse_random"
+        ),
     )
     parser.add_argument("--collapse-classes", default=None)
     parser.add_argument("--stable-classes", default=None)
@@ -197,6 +278,7 @@ def main():
     parser.add_argument("--ft-epochs", type=int, default=30)
     parser.add_argument("--ft-batch-size", type=int, default=64)
     parser.add_argument("--ft-weight-decay", type=float, default=1e-4)
+    parser.add_argument("--min-prototype-support", type=int, default=1)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
     args = parser.parse_args()
@@ -218,10 +300,28 @@ def main():
     }
 
     print(f"Using device: {device}")
+    print(f"Reference period: {args.reference_period}")
     print(f"Target period: {args.target_period}")
     print(f"Num classes: {num_classes}")
     print(f"Collapse classes: {collapse_classes}")
     print(f"Absorber classes: {absorber_classes}")
+
+    ref_loader, ref_classes = proto.make_test_loader(eval_cfg, args.reference_period)
+    if ref_classes != num_classes:
+        print(f"WARNING: reference loader classes={ref_classes}, model classes={num_classes}")
+    ref_outputs = proto.collect_outputs(
+        model, ref_loader, device, desc=f"Reference {args.reference_period}"
+    )
+    prototypes, proto_support, valid_mask = proto.build_prototypes(
+        ref_outputs["features"],
+        ref_outputs["labels"],
+        num_classes,
+        args.min_prototype_support,
+    )
+    print(
+        f"Built reference prototypes for {int(valid_mask.sum())}/{num_classes} classes "
+        f"(min_support={args.min_prototype_support})."
+    )
 
     loader, loader_classes = proto.make_test_loader(eval_cfg, args.target_period)
     if loader_classes != num_classes:
@@ -233,6 +333,7 @@ def main():
     logits = outputs["logits"]
     labels = outputs["labels"]
     static_preds = logits.argmax(dim=1).numpy()
+    nearest_distance, nearest_proto = prototype_distance_signals(features, prototypes, valid_mask)
 
     rows = []
     per_class_rows = []
@@ -261,9 +362,12 @@ def main():
                 collapse_classes,
                 absorber_classes,
                 args.seed,
+                nearest_distance=nearest_distance,
+                nearest_proto=nearest_proto,
             )
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
+            selected_distance = nearest_distance[idx].numpy()
             head = fit_head(
                 model,
                 features[idx],
@@ -285,6 +389,7 @@ def main():
                 "budget": int(idx.numel()),
                 "selected_collapse_labels": selected_collapse,
                 "selected_absorber_preds": selected_absorber,
+                "selected_mean_proto_distance": float(selected_distance.mean()) if selected_distance.size else "",
                 **summary,
             })
             for c in collapse_classes:
@@ -323,6 +428,7 @@ def main():
     write_csv(os.path.join(args.output_dir, "selected_class_counts.csv"), selected_rows)
     summary = {
         "target_period": args.target_period,
+        "reference_period": args.reference_period,
         "num_classes": num_classes,
         "collapse_classes": collapse_classes,
         "stable_classes": stable_classes,
@@ -330,6 +436,8 @@ def main():
         "budgets": budgets,
         "strategies": strategies,
         "seed": args.seed,
+        "min_prototype_support": args.min_prototype_support,
+        "num_valid_prototypes": int(valid_mask.sum()),
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
