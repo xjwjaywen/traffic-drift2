@@ -178,6 +178,37 @@ def select_indices(
         perm = torch.randperm(candidates.numel(), generator=gen)[:k]
         return candidates[perm]
 
+    def balanced_topk_by_pred(candidates, score, k, descending=False):
+        if candidates.numel() == 0 or k <= 0:
+            return torch.empty(0, dtype=torch.long)
+        grouped = []
+        for cls in torch.unique(preds[candidates]).tolist():
+            cls_candidates = candidates[preds[candidates] == int(cls)]
+            if cls_candidates.numel() == 0:
+                continue
+            order = torch.argsort(score[cls_candidates], descending=descending)
+            grouped.append(cls_candidates[order])
+        if not grouped:
+            return torch.empty(0, dtype=torch.long)
+        selected = []
+        positions = [0 for _ in grouped]
+        while len(selected) < k:
+            progressed = False
+            for group_idx, group in enumerate(grouped):
+                pos = positions[group_idx]
+                if pos >= group.numel():
+                    continue
+                selected.append(group[pos])
+                positions[group_idx] += 1
+                progressed = True
+                if len(selected) >= k:
+                    break
+            if not progressed:
+                break
+        if not selected:
+            return torch.empty(0, dtype=torch.long)
+        return torch.stack(selected).long()
+
     if strategy == "random":
         return torch.randperm(n, generator=gen)[:budget]
 
@@ -193,6 +224,7 @@ def select_indices(
     if strategy in {
         "absorber_random",
         "absorber_margin",
+        "absorber_margin_balanced",
         "absorber_entropy",
         "absorber_distance",
         "absorber_proto_disagree",
@@ -203,6 +235,8 @@ def select_indices(
         candidates = torch.nonzero(absorber[preds], as_tuple=False).squeeze(1)
         if strategy == "absorber_random":
             selected = random_from(candidates, budget)
+        elif strategy == "absorber_margin_balanced":
+            selected = balanced_topk_by_pred(candidates, margin, budget, descending=False)
         elif strategy == "absorber_margin":
             k = min(budget, candidates.numel())
             order = torch.argsort(margin[candidates])[:k] if k > 0 else torch.empty(0, dtype=torch.long)
@@ -253,7 +287,20 @@ def select_indices(
     return selected[:budget]
 
 
-def fit_head(model, train_features, train_labels, lr, epochs, batch_size, weight_decay, device):
+def fit_head(
+    model,
+    train_features,
+    train_labels,
+    lr,
+    epochs,
+    batch_size,
+    weight_decay,
+    device,
+    distill_features=None,
+    distill_logits=None,
+    distill_weight=0.0,
+    distill_temperature=2.0,
+):
     head = copy.deepcopy(model.cls_head).to(device)
     for p in head.parameters():
         p.requires_grad_(True)
@@ -261,12 +308,33 @@ def fit_head(model, train_features, train_labels, lr, epochs, batch_size, weight
     x = train_features.to(device)
     y = torch.as_tensor(train_labels, dtype=torch.long, device=device)
     n = x.shape[0]
+    use_distill = (
+        distill_weight > 0.0
+        and distill_features is not None
+        and distill_logits is not None
+        and distill_features.shape[0] > 0
+    )
+    if use_distill:
+        dx = distill_features.to(device)
+        teacher_logits = distill_logits.to(device)
+        dn = dx.shape[0]
+        temp = float(distill_temperature)
     head.train()
     for _ in range(epochs):
         perm = torch.randperm(n, device=device)
         for start in range(0, n, batch_size):
             idx = perm[start : start + batch_size]
             loss = F.cross_entropy(head(x[idx]), y[idx])
+            if use_distill:
+                didx = torch.randint(0, dn, (idx.numel(),), device=device)
+                student_log_probs = F.log_softmax(head(dx[didx]) / temp, dim=1)
+                teacher_probs = F.softmax(teacher_logits[didx] / temp, dim=1)
+                distill_loss = F.kl_div(
+                    student_log_probs,
+                    teacher_probs,
+                    reduction="batchmean",
+                ) * (temp ** 2)
+                loss = loss + float(distill_weight) * distill_loss
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -352,6 +420,18 @@ def main():
         default=1,
         help="Repeat selected target labels during head fitting to balance replay.",
     )
+    parser.add_argument(
+        "--replay-distill-weight",
+        type=float,
+        default=0.0,
+        help="KL distillation weight on replay samples against the frozen source head.",
+    )
+    parser.add_argument(
+        "--distill-temperature",
+        type=float,
+        default=2.0,
+        help="Temperature for replay distillation.",
+    )
     parser.add_argument("--min-prototype-support", type=int, default=1)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
@@ -381,7 +461,8 @@ def main():
     print(f"Absorber classes: {absorber_classes}")
     print(
         f"Replay: mode={args.replay_mode} per_class={args.replay_per_class} "
-        f"target_repeat={args.target_repeat}"
+        f"target_repeat={args.target_repeat} "
+        f"distill_weight={args.replay_distill_weight}"
     )
 
     ref_loader, ref_classes = proto.make_test_loader(eval_cfg, args.reference_period)
@@ -418,6 +499,12 @@ def main():
             f"Using {int(replay_idx.numel())} replay samples from "
             f"{len(replay_classes)} reference classes."
         )
+    replay_features = ref_outputs["features"][replay_idx] if replay_idx.numel() > 0 else None
+    replay_logits = None
+    if replay_features is not None and args.replay_distill_weight > 0.0:
+        with torch.no_grad():
+            model.cls_head.eval()
+            replay_logits = model.cls_head(replay_features.to(device)).cpu()
 
     loader, loader_classes = proto.make_test_loader(eval_cfg, args.target_period)
     if loader_classes != num_classes:
@@ -445,6 +532,8 @@ def main():
         "replay_mode": args.replay_mode,
         "replay_per_class": args.replay_per_class,
         "target_repeat": args.target_repeat,
+        "replay_distill_weight": args.replay_distill_weight,
+        "distill_temperature": args.distill_temperature,
         "replay_samples": int(replay_idx.numel()),
         "selected_collapse_labels": 0,
         "selected_absorber_preds": 0,
@@ -485,6 +574,10 @@ def main():
                 args.ft_batch_size,
                 args.ft_weight_decay,
                 device,
+                distill_features=replay_features,
+                distill_logits=replay_logits,
+                distill_weight=args.replay_distill_weight,
+                distill_temperature=args.distill_temperature,
             )
             preds = predict_head(head, features, device)
             summary, report = summarize(labels, preds, collapse_classes, stable_classes, thresholds)
@@ -498,6 +591,8 @@ def main():
                 "replay_mode": args.replay_mode,
                 "replay_per_class": args.replay_per_class,
                 "target_repeat": args.target_repeat,
+                "replay_distill_weight": args.replay_distill_weight,
+                "distill_temperature": args.distill_temperature,
                 "replay_samples": int(replay_idx.numel()),
                 "head_train_samples": int(train_features.shape[0]),
                 "selected_collapse_labels": selected_collapse,
@@ -531,7 +626,8 @@ def main():
                 f"stable={summary['stable_macro_f1']:.4f} "
                 f"collapsed={summary['collapsed_count']} "
                 f"sel_collapse={selected_collapse} "
-                f"replay={int(replay_idx.numel())}"
+                f"replay={int(replay_idx.numel())} "
+                f"distill={args.replay_distill_weight:g}"
             )
 
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), rows)
@@ -553,6 +649,8 @@ def main():
         "replay_mode": args.replay_mode,
         "replay_per_class": args.replay_per_class,
         "target_repeat": args.target_repeat,
+        "replay_distill_weight": args.replay_distill_weight,
+        "distill_temperature": args.distill_temperature,
         "replay_samples": int(replay_idx.numel()),
         "replay_classes": replay_classes,
         "min_prototype_support": args.min_prototype_support,

@@ -20,6 +20,8 @@ FT_BATCH_SIZE="${FT_BATCH_SIZE:-64}"
 REPLAY_MODE="${REPLAY_MODE:-none}"
 REPLAY_PER_CLASS="${REPLAY_PER_CLASS:-0}"
 TARGET_REPEAT="${TARGET_REPEAT:-1}"
+REPLAY_DISTILL_WEIGHT="${REPLAY_DISTILL_WEIGHT:-0}"
+DISTILL_TEMPERATURE="${DISTILL_TEMPERATURE:-2.0}"
 
 python scripts/collapse_active_maintenance_tls22.py \
   --config "${CONFIG}" \
@@ -35,7 +37,9 @@ python scripts/collapse_active_maintenance_tls22.py \
   --ft-batch-size "${FT_BATCH_SIZE}" \
   --replay-mode "${REPLAY_MODE}" \
   --replay-per-class "${REPLAY_PER_CLASS}" \
-  --target-repeat "${TARGET_REPEAT}"
+  --target-repeat "${TARGET_REPEAT}" \
+  --replay-distill-weight "${REPLAY_DISTILL_WEIGHT}" \
+  --distill-temperature "${DISTILL_TEMPERATURE}"
 
 python scripts/summarize_active_maintenance_results.py \
   --input-dir "${OUTPUT_DIR}"

@@ -32,6 +32,7 @@ FOCUS_STRATEGIES = [
     "margin",
     "absorber_random",
     "absorber_margin",
+    "absorber_margin_balanced",
     "absorber_distance",
     "absorber_proto_disagree",
     "hybrid_risk",
