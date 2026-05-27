@@ -23,7 +23,68 @@ from tta_tc.utils.config import load_config
 from tta_tc.utils.metrics import compute_metrics
 
 
-def train_epoch(model, ssl_loss_fn, dataloader, optimizer, device, ssl_weight, epoch):
+def _region_positions(region):
+    if region == "all":
+        return list(range(30))
+    if region == "front_0_9":
+        return list(range(0, 10))
+    if region == "middle_10_19":
+        return list(range(10, 20))
+    if region == "tail_20_29":
+        return list(range(20, 30))
+    raise ValueError(f"Unknown augmentation region: {region}")
+
+
+def apply_ppi_augmentation(ppi, cfg):
+    """Apply optional training-time PPI augmentation."""
+    if not cfg or not cfg.get("enabled", False):
+        return ppi
+
+    out = ppi.clone()
+    if cfg.get("packet_mask_prob", 0.0) > 0:
+        keep = (
+            torch.rand(out.size(0), 1, out.size(2), device=out.device)
+            > float(cfg["packet_mask_prob"])
+        ).float()
+        out = out * keep
+
+    size_noise = float(cfg.get("size_noise_std", 0.0))
+    if size_noise > 0:
+        noise = 1.0 + torch.randn(out.size(0), 1, out.size(2), device=out.device) * size_noise
+        out[:, 0:1, :] = out[:, 0:1, :] * noise
+
+    ipt_noise = float(cfg.get("ipt_noise_std", 0.0))
+    if ipt_noise > 0:
+        noise = 1.0 + torch.randn(out.size(0), 1, out.size(2), device=out.device) * ipt_noise
+        out[:, 2:3, :] = out[:, 2:3, :] * noise
+
+    direction_dropout = float(cfg.get("direction_dropout_prob", 0.0))
+    if direction_dropout > 0:
+        positions = torch.tensor(
+            _region_positions(cfg.get("direction_region", "all")),
+            device=out.device,
+            dtype=torch.long,
+        )
+        keep = (
+            torch.rand(out.size(0), 1, len(positions), device=out.device)
+            > direction_dropout
+        ).float()
+        out[:, 1:2, positions] = out[:, 1:2, positions] * keep
+
+    return out
+
+
+def train_epoch(
+    model,
+    ssl_loss_fn,
+    dataloader,
+    optimizer,
+    device,
+    ssl_weight,
+    epoch,
+    augmentation_cfg=None,
+    max_steps=0,
+):
     """Train one epoch with joint cls + SSL loss."""
     model.train()
     total_cls_loss = 0
@@ -33,7 +94,7 @@ def train_epoch(model, ssl_loss_fn, dataloader, optimizer, device, ssl_weight, e
     num_batches = 0
 
     pbar = tqdm(dataloader, desc=f"Epoch {epoch}")
-    for batch in pbar:
+    for step, batch in enumerate(pbar, start=1):
         ppi = batch["ppi"].to(device)
         labels = batch["label"].to(device)
         flow_stats = batch.get("flow_stats")
@@ -42,12 +103,15 @@ def train_epoch(model, ssl_loss_fn, dataloader, optimizer, device, ssl_weight, e
 
         optimizer.zero_grad()
 
+        aug_ppi = apply_ppi_augmentation(ppi, augmentation_cfg)
+
         # Classification forward
-        logits = model(ppi, flow_stats)
+        logits = model(aug_ppi, flow_stats)
         cls_loss = F.cross_entropy(logits, labels)
 
         # SSL forward
-        ssl_loss, ssl_dict = ssl_loss_fn(model, ppi, flow_stats)
+        ssl_ppi = aug_ppi if (augmentation_cfg or {}).get("apply_to_ssl", False) else ppi
+        ssl_loss, ssl_dict = ssl_loss_fn(model, ssl_ppi, flow_stats)
 
         # Combined loss
         loss = cls_loss + ssl_weight * ssl_loss
@@ -64,6 +128,8 @@ def train_epoch(model, ssl_loss_fn, dataloader, optimizer, device, ssl_weight, e
             "cls": f"{cls_loss.item():.4f}",
             "ssl": f"{ssl_loss.item():.4f}",
         })
+        if max_steps and step >= max_steps:
+            break
 
     metrics = compute_metrics(all_labels, all_preds)
     return {
@@ -111,6 +177,13 @@ def main():
     parser = argparse.ArgumentParser(description="TTA-TC Training")
     parser.add_argument("--config", type=str, required=True, help="Path to config YAML")
     parser.add_argument("--output-dir", type=str, default=None, help="Override output directory")
+    parser.add_argument("--epochs", type=int, default=None, help="Override number of epochs")
+    parser.add_argument(
+        "--max-steps-per-epoch",
+        type=int,
+        default=0,
+        help="Debug/smoke limit; 0 means use full epoch",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -168,14 +241,25 @@ def main():
     writer = SummaryWriter(os.path.join(output_dir, "tb_logs"))
 
     ssl_weight = cfg["training"].get("ssl_weight", 1.0)
-    epochs = cfg["training"].get("epochs", 50)
+    epochs = args.epochs or cfg["training"].get("epochs", 50)
+    augmentation_cfg = cfg.get("augmentation", {})
     best_val_f1 = 0
     best_epoch = 0
 
+    if augmentation_cfg.get("enabled", False):
+        print(f"Training augmentation enabled: {augmentation_cfg}")
     print(f"Starting training for {epochs} epochs...")
     for epoch in range(1, epochs + 1):
         train_metrics = train_epoch(
-            model, ssl_loss_fn, train_loader, optimizer, device, ssl_weight, epoch
+            model,
+            ssl_loss_fn,
+            train_loader,
+            optimizer,
+            device,
+            ssl_weight,
+            epoch,
+            augmentation_cfg=augmentation_cfg,
+            max_steps=args.max_steps_per_epoch,
         )
         val_metrics = evaluate(model, val_loader, device)
         scheduler.step()
