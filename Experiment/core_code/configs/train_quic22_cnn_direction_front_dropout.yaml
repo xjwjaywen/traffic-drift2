@@ -1,0 +1,50 @@
+# QUIC22 targeted training augmentation.
+# Same source period/model as train_quic22_cnn.yaml, but applies light dropout to
+# the direction channel in early packet positions during training.
+
+data:
+  dataset: quic22
+  data_dir: ./data/quic22
+  size: S
+  train_period: "W-2022-44"
+  test_period: "W-2022-45"
+  batch_size: 1024
+  num_workers: 16
+  val_ratio: 0.2
+
+model:
+  backbone: cnn
+  hidden_dim: 256
+  norm_type: gn
+  num_groups: 8
+  flow_stats_dim: 0
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+  fsr_target_dim: 6
+
+ssl:
+  alpha: 0.2
+  beta: 0.1
+  mask_ratio: 0.15
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
+training:
+  epochs: 50
+  lr: 0.001
+  weight_decay: 0.0001
+  ssl_weight: 1.0
+
+augmentation:
+  enabled: true
+  direction_region: front_0_9
+  direction_dropout_prob: 0.02
+  size_noise_std: 0.0
+  ipt_noise_std: 0.0
+  packet_mask_prob: 0.0
+  apply_to_ssl: false
+
+output_dir: outputs/quic22_cnn_direction_front_drop002
+
