@@ -42,8 +42,10 @@ REPLAY_MODES = {"none", "stable", "all", "absorber", "collapse", "stable_absorbe
 
 
 def parse_int_list(value, default=None):
-    if value is None or str(value).strip() == "":
+    if value is None:
         return list(default or [])
+    if str(value).strip() == "":
+        return []
     return [int(x) for x in str(value).replace(",", " ").split()]
 
 
