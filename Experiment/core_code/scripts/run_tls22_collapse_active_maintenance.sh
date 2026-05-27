@@ -22,6 +22,20 @@ REPLAY_PER_CLASS="${REPLAY_PER_CLASS:-0}"
 TARGET_REPEAT="${TARGET_REPEAT:-1}"
 REPLAY_DISTILL_WEIGHT="${REPLAY_DISTILL_WEIGHT:-0}"
 DISTILL_TEMPERATURE="${DISTILL_TEMPERATURE:-2.0}"
+COLLAPSE_CLASSES="${COLLAPSE_CLASSES:-}"
+STABLE_CLASSES="${STABLE_CLASSES:-}"
+ABSORBER_CLASSES="${ABSORBER_CLASSES:-}"
+
+CLASS_ARGS=()
+if [[ -n "${COLLAPSE_CLASSES}" ]]; then
+  CLASS_ARGS+=(--collapse-classes "${COLLAPSE_CLASSES}")
+fi
+if [[ -n "${STABLE_CLASSES}" ]]; then
+  CLASS_ARGS+=(--stable-classes "${STABLE_CLASSES}")
+fi
+if [[ -n "${ABSORBER_CLASSES}" ]]; then
+  CLASS_ARGS+=(--absorber-classes "${ABSORBER_CLASSES}")
+fi
 
 python scripts/collapse_active_maintenance_tls22.py \
   --config "${CONFIG}" \
@@ -39,7 +53,8 @@ python scripts/collapse_active_maintenance_tls22.py \
   --replay-per-class "${REPLAY_PER_CLASS}" \
   --target-repeat "${TARGET_REPEAT}" \
   --replay-distill-weight "${REPLAY_DISTILL_WEIGHT}" \
-  --distill-temperature "${DISTILL_TEMPERATURE}"
+  --distill-temperature "${DISTILL_TEMPERATURE}" \
+  "${CLASS_ARGS[@]}"
 
 python scripts/summarize_active_maintenance_results.py \
   --input-dir "${OUTPUT_DIR}"
