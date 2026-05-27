@@ -519,6 +519,14 @@ def main():
     parser.add_argument("--top-k", type=int, default=20)
     parser.add_argument("--max-confusion-pairs", type=int, default=0,
                         help="Limit confusion CSV rows per period; <=0 saves all nonzero off-diagonal pairs")
+    parser.add_argument(
+        "--quick-collapse-only",
+        action="store_true",
+        help=(
+            "Skip CPU-heavy feature geometry and input-drift diagnostics. "
+            "This is enough for collapse-class extraction and active replay."
+        ),
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -599,15 +607,20 @@ def main():
     add_metric_deltas(per_class_rows, reference_by_class)
 
     confusion_pairs = add_confusion_deltas(confusion_by_period, reference_period)
-    feature_geometry_rows = compute_feature_geometry(
-        period_outputs, confusion_by_period, reference_period, num_classes
-    )
-    class_input_rows = compute_class_input_drift(
-        period_outputs,
-        reference_period,
-        reference_by_class,
-        min_support=args.min_support,
-    )
+    if args.quick_collapse_only:
+        print("Quick collapse mode: skipping feature geometry and input drift.")
+        feature_geometry_rows = []
+        class_input_rows = []
+    else:
+        feature_geometry_rows = compute_feature_geometry(
+            period_outputs, confusion_by_period, reference_period, num_classes
+        )
+        class_input_rows = compute_class_input_drift(
+            period_outputs,
+            reference_period,
+            reference_by_class,
+            min_support=args.min_support,
+        )
 
     bad_classes, stable_classes = select_bad_and_stable_classes(
         per_class_rows,
@@ -625,6 +638,7 @@ def main():
         "num_classes": num_classes,
         "min_support": args.min_support,
         "top_k": args.top_k,
+        "quick_collapse_only": bool(args.quick_collapse_only),
         "group_summary": summarize_groups(
             class_input_rows, feature_geometry_rows, bad_classes, stable_classes
         ),
