@@ -10,13 +10,20 @@ CHECKPOINT="${CHECKPOINT:-outputs/tls22_cnn/best_model.pt}"
 PERIODS="${PERIODS:-M-2022-4 M-2022-5 M-2022-6 M-2022-7 M-2022-8 M-2022-9 M-2022-10 M-2022-11 M-2022-12}"
 DRIFT_OUTPUT_DIR="${DRIFT_OUTPUT_DIR:-outputs/class_conditional_drift_tls22_monthly}"
 COLLAPSE_OUTPUT_DIR="${COLLAPSE_OUTPUT_DIR:-outputs/per_class_collapse_tls22_monthly}"
+QUICK_COLLAPSE_ONLY="${QUICK_COLLAPSE_ONLY:-0}"
 COLLAPSE_EXTRA_ARGS="${COLLAPSE_EXTRA_ARGS:-}"
+
+QUICK_ARGS=()
+if [[ "${QUICK_COLLAPSE_ONLY}" == "1" ]]; then
+  QUICK_ARGS+=(--quick-collapse-only)
+fi
 
 python scripts/class_conditional_drift.py \
   --config "${CONFIG}" \
   --checkpoint "${CHECKPOINT}" \
   --periods ${PERIODS} \
-  --output-dir "${DRIFT_OUTPUT_DIR}"
+  --output-dir "${DRIFT_OUTPUT_DIR}" \
+  "${QUICK_ARGS[@]}"
 
 python scripts/summarize_per_class_collapse.py \
   --input-dir "${DRIFT_OUTPUT_DIR}" \
