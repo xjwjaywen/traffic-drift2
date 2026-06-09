@@ -88,7 +88,10 @@ class CausalStateTTA:
         self.drift_ema_alpha = cfg.get("drift_ema_alpha", 0.1)
 
         # Blending weight: 0 = pure static, 1 = pure Kalman
-        self.tta_blend = cfg.get("tta_blend", 0.5)
+        self.tta_blend = cfg.get("tta_blend", 0.3)
+
+        # Only compute SSL drift every N batches (expensive forward pass)
+        self.drift_check_interval = cfg.get("drift_check_interval", 50)
 
         self.labels_used = 0
         self.steps = 0
@@ -130,29 +133,31 @@ class CausalStateTTA:
         logits, features = self.model(ppi, flow_stats, return_repr=True)
 
         # --- drift estimation via SSL reconstruction error ---
-        ssl_loss, _ = self.ssl_loss_fn(self.model, ppi, flow_stats)
-        ssl_val = ssl_loss.item()
-        self.drift_ema = (
-            (1 - self.drift_ema_alpha) * self.drift_ema
-            + self.drift_ema_alpha * ssl_val
-        )
-        drift_ratio = self.drift_ema / max(self.base_ssl_loss, 1e-8)
-        self.kf.set_drift_scale(drift_ratio)
+        # Only compute every N batches to avoid the expensive SSL forward pass
+        ssl_val = self.drift_ema
+        if self.steps % self.drift_check_interval == 0:
+            ssl_loss, _ = self.ssl_loss_fn(self.model, ppi, flow_stats)
+            ssl_val = ssl_loss.item()
+            self.drift_ema = (
+                (1 - self.drift_ema_alpha) * self.drift_ema
+                + self.drift_ema_alpha * ssl_val
+            )
+            drift_ratio = self.drift_ema / max(self.base_ssl_loss, 1e-8)
+            self.kf.set_drift_scale(drift_ratio)
 
         # --- Kalman predict ---
         self.kf.predict()
 
-        # --- per-class observations ---
+        # --- per-class observations (vectorized) ---
         pred_classes = logits.argmax(dim=1)
-        class_obs = torch.zeros(
-            self.num_classes, features.size(1), device=self.device
+        one_hot = torch.zeros(
+            features.size(0), self.num_classes, device=self.device
         )
-        class_count = torch.zeros(self.num_classes, device=self.device)
-        for c in range(self.num_classes):
-            mask = pred_classes == c
-            if mask.sum() > 0:
-                class_obs[c] = features[mask].mean(dim=0)
-                class_count[c] = mask.sum().float()
+        one_hot.scatter_(1, pred_classes.unsqueeze(1), 1.0)
+        class_count = one_hot.sum(dim=0)                          # (C,)
+        class_sum = one_hot.T @ features                          # (C, D)
+        safe_count = class_count.clamp(min=1).unsqueeze(1)
+        class_obs = class_sum / safe_count                        # (C, D)
 
         # --- Kalman update ---
         self.kf.update(class_obs, class_count)
