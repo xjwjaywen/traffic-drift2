@@ -70,8 +70,8 @@ class CausalStateTTA:
 
         # Active labeling (separate key from TTA-TC's label_budget_per_period)
         self.label_budget = cfg.get("cs_label_budget", 50)
-        # Labeled observations get scaled-down R (more trusted)
-        self.labeled_r_scale = cfg.get("labeled_r_scale", 0.1)
+        # Labeled observations: moderate trust (not too aggressive)
+        self.labeled_r_scale = cfg.get("labeled_r_scale", 2.0)
 
         self.labels_used = 0
         self.steps = 0
@@ -210,16 +210,13 @@ class CausalStateTTA:
             # --- Kalman predict ---
             self.kf.predict()
 
-            # --- active labeling ---
+            # --- active labeling (random selection) ---
             if (budget > 0
                     and self.labels_used < budget
                     and batch_idx % label_interval == 0):
-                probs = F.softmax(logits, dim=1)
-                ent = -(probs * torch.log(probs + 1e-8)).sum(dim=1)
-                top_idx = ent.argmax().item()
-
-                true_label = gt_labels[top_idx].item()
-                self._labeled_update(true_label, features[top_idx])
+                rand_idx = torch.randint(0, logits.size(0), (1,)).item()
+                true_label = gt_labels[rand_idx].item()
+                self._labeled_update(true_label, features[rand_idx])
                 self.labels_used += 1
 
             # --- unlabeled update ---
