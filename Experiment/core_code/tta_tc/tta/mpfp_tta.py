@@ -138,7 +138,6 @@ class MPFPTTA:
         self.steps += 1
         return logits, {"ssl_loss": ssl_val, "reliable": reliable.sum().item()}
 
-    @torch.no_grad()
     def adapt_period(self, test_loader, period_name=""):
         """Period-level: stream adapt_batch over all batches."""
         self.reset_period()
