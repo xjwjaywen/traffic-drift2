@@ -40,11 +40,14 @@ tta:
   spa_temperature: 0.1
 
   # CausalState-TTA params
-  q_causal: 0.0001        # process noise for causal dims (low — stable)
-  q_spurious: 0.01        # process noise for spurious dims (high — expected to drift)
-  r_base: 0.1             # base observation noise
-  kf_temperature: 0.1     # cosine similarity temperature
-  kf_min_samples: 2       # min samples per class to trigger Kalman update
-  drift_ema_alpha: 0.1    # EMA smoothing for SSL drift estimation
+  q_causal: 0.0001
+  q_spurious: 0.01
+  r_base: 0.1
+  kf_temperature: 0.1
+  kf_min_samples: 3
+  drift_ema_alpha: 0.1
+  entropy_filter_q: 0.4
+  cs_label_budget: 50       # only 50 labels (vs TTA-TC's 500)
+  labeled_r_scale: 0.1      # low observation noise for labeled samples
 
 output_dir: outputs/eval_quic22_causal

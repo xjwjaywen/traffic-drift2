@@ -50,7 +50,10 @@ tta:
   q_spurious: 0.01
   r_base: 0.1
   kf_temperature: 0.1
-  kf_min_samples: 2
+  kf_min_samples: 3
   drift_ema_alpha: 0.1
+  entropy_filter_q: 0.4
+  cs_label_budget: 50
+  labeled_r_scale: 0.1
 
 output_dir: outputs/eval_tls22_causal

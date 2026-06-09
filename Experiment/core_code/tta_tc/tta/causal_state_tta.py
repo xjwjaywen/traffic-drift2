@@ -1,17 +1,18 @@
 """
-Causal-Aware State-Space TTA (CausalState-TTA).
+Causal-Aware State-Space TTA (CausalState-TTA) — Label-Efficient Version.
 
-Novel TTA method combining three ideas:
-  1. Causal feature identification — distinguish invariant (causal) vs
-     environment-dependent (spurious) hidden dimensions
-  2. Bayesian state-space tracking — model class prototype evolution via
-     Kalman filtering with causal-aware process noise
-  3. SSL drift estimation — use MPFP reconstruction error as a proxy for
-     drift magnitude to dynamically modulate the Kalman process noise
+Combines:
+  1. Bayesian state-space tracking of class prototypes via Kalman filtering
+  2. Causal-aware process noise (spurious dims drift faster)
+  3. Active labeling with minimal budget (default 50 labels per period)
+  4. Entropy-filtered pseudo-label updates for unlabeled samples
 
-v2 changes: entropy-based filtering for Kalman updates. Only high-confidence
-predictions (low entropy) contribute to prototype updates, dramatically
-reducing noise from misclassified samples.
+Key insight: a few ground-truth labeled samples (50) anchored via Kalman
+filtering can match 500-label methods, because:
+  - Labeled updates go to the correct class (no pseudo-label noise)
+  - Kalman filtering propagates labeled information across time
+  - Entropy filtering keeps pseudo-label updates clean between labels
+  - Single-pass streaming — no need to buffer the entire period
 """
 import numpy as np
 import torch
@@ -23,7 +24,7 @@ from ..ssl_tasks.combined import CombinedSSLLoss
 
 
 class CausalStateTTA:
-    """Causal-aware state-space TTA engine."""
+    """Label-efficient causal state-space TTA engine."""
 
     def __init__(self, model, cfg, prototypes=None, causal_mask=None,
                  position_stats=None):
@@ -40,7 +41,6 @@ class CausalStateTTA:
         if prototypes is None:
             raise ValueError("CausalStateTTA requires class prototypes")
 
-        # Kalman filter
         self.kf = PrototypeKalmanFilter(
             num_classes=self.num_classes,
             hidden_dim=hidden_dim,
@@ -54,27 +54,24 @@ class CausalStateTTA:
         )
         self.kf.initialize(prototypes)
 
-        # SSL drift estimator (MPFP only)
+        # SSL drift estimator
         ssl_cfg = cfg.get("ssl", {})
         self.ssl_loss_fn = CombinedSSLLoss(
             mask_ratio=ssl_cfg.get("mask_ratio", 0.15),
-            enable_mpfp=True,
-            enable_pop=False,
-            enable_fsr=False,
+            enable_mpfp=True, enable_pop=False, enable_fsr=False,
         )
         self.base_ssl_loss = float(cfg.get("base_ssl_loss", 1.0))
         self.drift_ema = self.base_ssl_loss
         self.drift_ema_alpha = cfg.get("drift_ema_alpha", 0.1)
+        self.drift_check_interval = cfg.get("drift_check_interval", 50)
 
-        # Blending
         self.tta_blend = cfg.get("tta_blend", 0.5)
-
-        # Entropy filtering: only use predictions with entropy below this
-        # quantile for prototype updates (0.4 = keep lowest 40% entropy)
         self.entropy_filter_q = cfg.get("entropy_filter_q", 0.4)
 
-        # SSL drift check frequency
-        self.drift_check_interval = cfg.get("drift_check_interval", 50)
+        # Active labeling (separate key from TTA-TC's label_budget_per_period)
+        self.label_budget = cfg.get("cs_label_budget", 50)
+        # Labeled observations get scaled-down R (more trusted)
+        self.labeled_r_scale = cfg.get("labeled_r_scale", 0.1)
 
         self.labels_used = 0
         self.steps = 0
@@ -94,12 +91,60 @@ class CausalStateTTA:
     def reset(self):
         self.reset_period()
 
+    def _labeled_update(self, class_id, feature):
+        """Kalman update for a single ground-truth labeled sample.
+
+        Uses scaled-down observation noise since the class assignment is
+        certain (only feature noise remains).
+        """
+        R_labeled = self.kf.R * self.labeled_r_scale
+        K = self.kf.P[class_id] / (self.kf.P[class_id] + R_labeled)
+        innovation = feature - self.kf.mu[class_id]
+        self.kf.mu[class_id] = self.kf.mu[class_id] + K * innovation
+        self.kf.P[class_id] = (1 - K) * self.kf.P[class_id]
+
+    def _unlabeled_update(self, logits, features):
+        """Entropy-filtered pseudo-label Kalman update."""
+        probs = F.softmax(logits, dim=1)
+        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=1)
+
+        if entropy.numel() > 1:
+            threshold = torch.quantile(entropy, self.entropy_filter_q)
+            reliable = entropy <= threshold
+        else:
+            reliable = torch.ones_like(entropy, dtype=torch.bool)
+
+        if reliable.sum() < self.kf.min_samples:
+            return
+
+        rel_features = features[reliable]
+        rel_preds = logits[reliable].argmax(dim=1)
+        one_hot = torch.zeros(
+            rel_features.size(0), self.num_classes, device=self.device
+        )
+        one_hot.scatter_(1, rel_preds.unsqueeze(1), 1.0)
+        class_count = one_hot.sum(dim=0)
+        class_sum = one_hot.T @ rel_features
+        class_obs = class_sum / class_count.clamp(min=1).unsqueeze(1)
+        self.kf.update(class_obs, class_count)
+
+    def _classify(self, logits, features):
+        """Blend static logits with Kalman prototype logits."""
+        kf_logits = self.kf.get_logits(features)
+        static_probs = F.softmax(logits, dim=1)
+        kf_probs = F.softmax(kf_logits, dim=1)
+        final_probs = (
+            (1 - self.tta_blend) * static_probs
+            + self.tta_blend * kf_probs
+        )
+        return torch.log(final_probs + 1e-8)
+
     @torch.no_grad()
     def adapt_batch(self, ppi, flow_stats=None, labels=None):
-        """Single-batch streaming adaptation with entropy-filtered updates."""
+        """Streaming adaptation (no active labeling)."""
         logits, features = self.model(ppi, flow_stats, return_repr=True)
 
-        # --- drift estimation (every N batches) ---
+        # Drift estimation
         ssl_val = self.drift_ema
         if self.steps % self.drift_check_interval == 0:
             ssl_loss, _ = self.ssl_loss_fn(self.model, ppi, flow_stats)
@@ -108,71 +153,82 @@ class CausalStateTTA:
                 (1 - self.drift_ema_alpha) * self.drift_ema
                 + self.drift_ema_alpha * ssl_val
             )
-            drift_ratio = self.drift_ema / max(self.base_ssl_loss, 1e-8)
-            self.kf.set_drift_scale(drift_ratio)
-
-        # --- Kalman predict ---
-        self.kf.predict()
-
-        # --- entropy filtering: select reliable samples ---
-        probs = F.softmax(logits, dim=1)
-        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=1)  # (B,)
-
-        if entropy.numel() > 1:
-            threshold = torch.quantile(entropy, self.entropy_filter_q)
-            reliable = entropy <= threshold
-        else:
-            reliable = torch.ones(entropy.size(0), dtype=torch.bool,
-                                  device=self.device)
-
-        # --- per-class observations from reliable samples only ---
-        if reliable.sum() >= self.kf.min_samples:
-            rel_features = features[reliable]
-            rel_preds = logits[reliable].argmax(dim=1)
-            one_hot = torch.zeros(
-                rel_features.size(0), self.num_classes, device=self.device
+            self.kf.set_drift_scale(
+                self.drift_ema / max(self.base_ssl_loss, 1e-8)
             )
-            one_hot.scatter_(1, rel_preds.unsqueeze(1), 1.0)
-            class_count = one_hot.sum(dim=0)
-            class_sum = one_hot.T @ rel_features
-            safe_count = class_count.clamp(min=1).unsqueeze(1)
-            class_obs = class_sum / safe_count
-            self.kf.update(class_obs, class_count)
 
-        # --- blended classification ---
-        kf_logits = self.kf.get_logits(features)
-        static_probs = F.softmax(logits, dim=1)
-        kf_probs = F.softmax(kf_logits, dim=1)
-        final_probs = (
-            (1 - self.tta_blend) * static_probs
-            + self.tta_blend * kf_probs
-        )
-
+        self.kf.predict()
+        self._unlabeled_update(logits, features)
         self.steps += 1
-        final_logits = torch.log(final_probs + 1e-8)
 
-        return final_logits, {
+        return self._classify(logits, features), {
             "drift_scale": self.kf.q_scale,
-            "ssl_loss": ssl_val,
-            "reliable_ratio": reliable.float().mean().item(),
         }
 
     @torch.no_grad()
     def adapt_period(self, test_loader, period_name=""):
-        """Period-level adaptation: stream through all batches."""
+        """Period-level adaptation with active labeling.
+
+        Spreads the label budget evenly across batches. For each labeled
+        batch, selects the highest-entropy sample and queries its true
+        label for a clean Kalman update.
+        """
         self.reset_period()
         all_labels = []
         all_preds = []
 
-        for batch in tqdm(test_loader, desc=f"CausalState@{period_name}"):
+        total_batches = len(test_loader)
+        budget = self.label_budget
+        # Spread labels evenly: label 1 sample every `interval` batches
+        if budget > 0 and total_batches > 0:
+            label_interval = max(1, total_batches // budget)
+        else:
+            label_interval = total_batches + 1
+
+        for batch_idx, batch in enumerate(
+            tqdm(test_loader, desc=f"CausalState@{period_name}")
+        ):
             ppi = batch["ppi"].to(self.device)
-            labels = batch["label"]
+            gt_labels = batch["label"]
             flow_stats = batch.get("flow_stats")
             if flow_stats is not None:
                 flow_stats = flow_stats.to(self.device)
 
-            final_logits, _ = self.adapt_batch(ppi, flow_stats)
+            logits, features = self.model(ppi, flow_stats, return_repr=True)
+
+            # --- drift estimation ---
+            if self.steps % self.drift_check_interval == 0:
+                ssl_loss, _ = self.ssl_loss_fn(self.model, ppi, flow_stats)
+                self.drift_ema = (
+                    (1 - self.drift_ema_alpha) * self.drift_ema
+                    + self.drift_ema_alpha * ssl_loss.item()
+                )
+                self.kf.set_drift_scale(
+                    self.drift_ema / max(self.base_ssl_loss, 1e-8)
+                )
+
+            # --- Kalman predict ---
+            self.kf.predict()
+
+            # --- active labeling ---
+            if (budget > 0
+                    and self.labels_used < budget
+                    and batch_idx % label_interval == 0):
+                probs = F.softmax(logits, dim=1)
+                ent = -(probs * torch.log(probs + 1e-8)).sum(dim=1)
+                top_idx = ent.argmax().item()
+
+                true_label = gt_labels[top_idx].item()
+                self._labeled_update(true_label, features[top_idx])
+                self.labels_used += 1
+
+            # --- unlabeled update ---
+            self._unlabeled_update(logits, features)
+
+            # --- classify ---
+            final_logits = self._classify(logits, features)
             all_preds.extend(final_logits.argmax(dim=1).cpu().numpy())
-            all_labels.extend(labels.numpy())
+            all_labels.extend(gt_labels.numpy())
+            self.steps += 1
 
         return np.array(all_labels), np.array(all_preds)
