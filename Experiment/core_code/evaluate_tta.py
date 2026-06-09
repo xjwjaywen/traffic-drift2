@@ -389,6 +389,8 @@ def main():
                         help="Path to source GroupNorm stats .pt for DT-TTA methods")
     parser.add_argument("--output-suffix", type=str, default="",
                         help="Suffix appended to results filename")
+    parser.add_argument("--cs-label-budget", type=int, default=None,
+                        help="CausalState label budget override")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -406,6 +408,8 @@ def main():
         np.random.seed(args.seed)
     if args.dt_source_stats:
         cfg.setdefault("tta", {})["dt_source_stats"] = args.dt_source_stats
+    if args.cs_label_budget is not None:
+        cfg.setdefault("tta", {})["cs_label_budget"] = args.cs_label_budget
 
     # Device
     if torch.cuda.is_available():
