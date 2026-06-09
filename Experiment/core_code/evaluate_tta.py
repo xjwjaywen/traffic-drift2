@@ -17,7 +17,7 @@ import numpy as np
 from tqdm import tqdm
 
 from tta_tc.models import TTATCModel
-from tta_tc.tta import TTAEngine, CausalStateTTA
+from tta_tc.tta import TTAEngine, CausalStateTTA, GraphRefineTTA
 from tta_tc.baselines import (
     Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC,
     KNNLabeled, FineTuneHead, SupervisedNormAdapt,
@@ -224,6 +224,22 @@ def run_single_period_eval(model_path, eval_cfg, device):
             print(f"Accuracy: {m['accuracy']:.4f}, F1: {m['macro_f1']:.4f}, Time: {t:.1f}s")
             del cs_model
 
+        elif method_key == "graph_refine":
+            print("\n=== GraphRefine-TTA ===")
+            gr_model = copy.deepcopy(model)
+            gr_model.to(device)
+            gr_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
+            engine = GraphRefineTTA(gr_model, gr_cfg)
+            labels, preds, t = evaluate_tta_method(engine, test_loader, device, "GraphRefine")
+            m = compute_metrics(labels, preds)
+            results["graph_refine"] = {
+                "accuracy": m["accuracy"],
+                "macro_f1": m["macro_f1"],
+                "adapt_time_s": t,
+            }
+            print(f"Accuracy: {m['accuracy']:.4f}, F1: {m['macro_f1']:.4f}, Time: {t:.1f}s")
+            del gr_model
+
     return results
 
 
@@ -288,7 +304,8 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 m = tracker.add_period(period_name, labels, preds)
                 print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
 
-        elif method_key in ("tta_tc", "causal_state", "knn_labeled", "ft_head",
+        elif method_key in ("tta_tc", "causal_state", "graph_refine",
+                             "knn_labeled", "ft_head",
                              "supervised_norm", "selective_norm",
                              "focal_strategy", "diffuse_strategy"):
             tta_model = copy.deepcopy(model).to(device)
@@ -302,6 +319,8 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 engine = CausalStateTTA(tta_model, tta_cfg, prototypes=prototypes,
                                         causal_mask=causal_mask,
                                         position_stats=position_stats)
+            elif method_key == "graph_refine":
+                engine = GraphRefineTTA(tta_model, tta_cfg)
             elif method_key == "knn_labeled":
                 engine = KNNLabeled(tta_model, tta_cfg)
             elif method_key == "ft_head":
