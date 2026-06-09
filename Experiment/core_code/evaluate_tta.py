@@ -17,7 +17,7 @@ import numpy as np
 from tqdm import tqdm
 
 from tta_tc.models import TTATCModel
-from tta_tc.tta import TTAEngine
+from tta_tc.tta import TTAEngine, CausalStateTTA
 from tta_tc.baselines import (
     Tent, EATA, CoTTA, SAR, NOTE, BNAdapt, MVFC,
     KNNLabeled, FineTuneHead, SupervisedNormAdapt,
@@ -130,6 +130,18 @@ def run_single_period_eval(model_path, eval_cfg, device):
         position_stats = torch.load(pos_stats_path, map_location=device, weights_only=True)
         print(f"Loaded position stats: mean/std for {position_stats['mean'].shape[0]} positions")
 
+    causal_mask = None
+    causal_mask_path = os.path.join(ckpt_dir, "causal_mask.pt")
+    if os.path.exists(causal_mask_path):
+        causal_mask = torch.load(causal_mask_path, map_location=device, weights_only=True)
+        print(f"Loaded causal mask: {causal_mask.sum().item()}/{causal_mask.numel()} causal dims")
+
+    base_ssl_loss = None
+    base_ssl_path = os.path.join(ckpt_dir, "base_ssl_loss.pt")
+    if os.path.exists(base_ssl_path):
+        base_ssl_loss = torch.load(base_ssl_path, map_location="cpu", weights_only=True).item()
+        print(f"Loaded base SSL loss: {base_ssl_loss:.4f}")
+
     # Methods to evaluate
     methods_to_eval = eval_cfg.get("methods", ["bn_adapt", "tent", "eata", "cotta", "sar", "note", "tta_tc"])
     adapt_cfg = {
@@ -189,6 +201,29 @@ def run_single_period_eval(model_path, eval_cfg, device):
             print(f"Accuracy: {m['accuracy']:.4f}, F1: {m['macro_f1']:.4f}, Time: {t:.1f}s")
             del tta_model
 
+        elif method_key == "causal_state":
+            print("\n=== CausalState-TTA ===")
+            cs_model = copy.deepcopy(model)
+            cs_model.to(device)
+            cs_cfg = {
+                "num_classes": num_classes,
+                **eval_cfg.get("tta", {}),
+            }
+            if base_ssl_loss is not None:
+                cs_cfg["base_ssl_loss"] = base_ssl_loss
+            engine = CausalStateTTA(cs_model, cs_cfg, prototypes=prototypes,
+                                    causal_mask=causal_mask,
+                                    position_stats=position_stats)
+            labels, preds, t = evaluate_tta_method(engine, test_loader, device, "CausalState")
+            m = compute_metrics(labels, preds)
+            results["causal_state"] = {
+                "accuracy": m["accuracy"],
+                "macro_f1": m["macro_f1"],
+                "adapt_time_s": t,
+            }
+            print(f"Accuracy: {m['accuracy']:.4f}, F1: {m['macro_f1']:.4f}, Time: {t:.1f}s")
+            del cs_model
+
     return results
 
 
@@ -224,6 +259,18 @@ def run_sequential_eval(model_path, eval_cfg, device):
         position_stats = torch.load(pos_stats_path, map_location=device, weights_only=True)
         print(f"Loaded position stats: mean/std for {position_stats['mean'].shape[0]} positions")
 
+    causal_mask = None
+    causal_mask_path = os.path.join(train_dir, "causal_mask.pt")
+    if os.path.exists(causal_mask_path):
+        causal_mask = torch.load(causal_mask_path, map_location=device, weights_only=True)
+        print(f"Loaded causal mask: {causal_mask.sum().item()}/{causal_mask.numel()} causal dims")
+
+    base_ssl_loss = None
+    base_ssl_path = os.path.join(train_dir, "base_ssl_loss.pt")
+    if os.path.exists(base_ssl_path):
+        base_ssl_loss = torch.load(base_ssl_path, map_location="cpu", weights_only=True).item()
+        print(f"Loaded base SSL loss: {base_ssl_loss:.4f}")
+
     # Methods
     methods_to_eval = eval_cfg.get("methods", ["static", "tent", "eata", "tta_tc"])
     all_results = {}
@@ -241,13 +288,20 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 m = tracker.add_period(period_name, labels, preds)
                 print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
 
-        elif method_key in ("tta_tc", "knn_labeled", "ft_head", "supervised_norm",
-                             "selective_norm", "focal_strategy", "diffuse_strategy"):
+        elif method_key in ("tta_tc", "causal_state", "knn_labeled", "ft_head",
+                             "supervised_norm", "selective_norm",
+                             "focal_strategy", "diffuse_strategy"):
             tta_model = copy.deepcopy(model).to(device)
             tta_cfg = {"num_classes": num_classes, **eval_cfg.get("tta", {})}
             if method_key == "tta_tc":
                 engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes,
                                    position_stats=position_stats)
+            elif method_key == "causal_state":
+                if base_ssl_loss is not None:
+                    tta_cfg["base_ssl_loss"] = base_ssl_loss
+                engine = CausalStateTTA(tta_model, tta_cfg, prototypes=prototypes,
+                                        causal_mask=causal_mask,
+                                        position_stats=position_stats)
             elif method_key == "knn_labeled":
                 engine = KNNLabeled(tta_model, tta_cfg)
             elif method_key == "ft_head":

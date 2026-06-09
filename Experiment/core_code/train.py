@@ -360,6 +360,19 @@ def main():
     torch.save(position_stats, os.path.join(output_dir, "position_stats.pt"))
     print(f"Position stats saved: {all_ppi.shape[0]} samples, shape {list(position_stats['mean'].shape)}")
 
+    # Compute causal feature mask and base SSL loss for CausalState-TTA
+    from tta_tc.tta.causal_features import compute_causal_mask, compute_base_ssl_loss
+    causal_mask, stability = compute_causal_mask(
+        model, val_loader, num_classes, cfg["model"]["hidden_dim"], device,
+        n_folds=5, causal_ratio=cfg.get("causal_ratio", 0.5),
+    )
+    torch.save(causal_mask.cpu(), os.path.join(output_dir, "causal_mask.pt"))
+    torch.save(stability.cpu(), os.path.join(output_dir, "causal_stability.pt"))
+    print(f"Causal mask saved: {causal_mask.sum().item()}/{causal_mask.numel()} causal dims")
+
+    base_ssl = compute_base_ssl_loss(model, ssl_loss_fn, val_loader, device)
+    torch.save(torch.tensor(base_ssl), os.path.join(output_dir, "base_ssl_loss.pt"))
+
     # Save results
     results = {
         "best_epoch": best_epoch,
@@ -367,6 +380,8 @@ def main():
         "test_accuracy": test_metrics["accuracy"],
         "test_macro_f1": test_metrics["macro_f1"],
         "num_classes": num_classes,
+        "base_ssl_loss": base_ssl,
+        "causal_dims": int(causal_mask.sum().item()),
     }
     with open(os.path.join(output_dir, "train_results.json"), "w") as f:
         json.dump(results, f, indent=2)
