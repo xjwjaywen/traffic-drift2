@@ -1,0 +1,50 @@
+# Evaluation config: CausalState-TTA on CESNET-QUIC22
+# Compares causal state-space TTA against static, baselines, and TTA-TC
+
+data:
+  dataset: quic22
+  data_dir: ./data/quic22
+  size: S
+  train_period: "W-2022-44"
+  test_period: "W-2022-45"
+  test_periods:
+    - "W-2022-45"
+    - "W-2022-46"
+    - "W-2022-47"
+  batch_size: 256
+  num_workers: 4
+
+methods:
+  - static
+  - tent
+  - eata
+  - sar
+  - note
+  - tta_tc
+  - causal_state
+
+tta:
+  # General TTA baseline params
+  adapt_lr: 0.00001
+  adapt_mode: encoder
+  ema_momentum: 0.999
+  restore_prob: 0.01
+  fisher_alpha: 2000.0
+  entropy_filter_ratio: 0.4
+  buffer_size: 2000
+
+  # TTA-TC v9 params
+  label_budget_per_period: 500
+  proto_blend: 0.2
+  tta_blend: 0.8
+  spa_temperature: 0.1
+
+  # CausalState-TTA params
+  q_causal: 0.0001        # process noise for causal dims (low — stable)
+  q_spurious: 0.01        # process noise for spurious dims (high — expected to drift)
+  r_base: 0.1             # base observation noise
+  kf_temperature: 0.1     # cosine similarity temperature
+  kf_min_samples: 2       # min samples per class to trigger Kalman update
+  drift_ema_alpha: 0.1    # EMA smoothing for SSL drift estimation
+
+output_dir: outputs/eval_quic22_causal
