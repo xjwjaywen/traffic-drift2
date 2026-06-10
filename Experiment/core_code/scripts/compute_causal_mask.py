@@ -49,22 +49,26 @@ def main():
         device = torch.device("cpu")
     print(f"Device: {device}")
 
-    # Load model
+    # Load model — handle both train.py and temporal_invariance checkpoint formats
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    model_cfg = ckpt["config"]
-    model_cfg["model"]["num_classes"] = ckpt["num_classes"]
+    file_cfg = load_config(args.config)
+    num_classes = ckpt["num_classes"]
+
+    if "model" in ckpt.get("config", {}):
+        model_cfg = ckpt["config"]
+    else:
+        model_cfg = file_cfg
+    model_cfg["model"]["num_classes"] = num_classes
     model = TTATCModel(model_cfg["model"]).to(device)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
-    print(f"Loaded model: {ckpt['num_classes']} classes, "
-          f"hidden_dim={model_cfg['model'].get('hidden_dim', 256)}")
+    hidden_dim = model_cfg["model"].get("hidden_dim", 256)
+    print(f"Loaded model: {num_classes} classes, hidden_dim={hidden_dim}")
 
     # Load data
-    data_cfg = load_config(args.config)
-    _, val_loader, _, num_classes = build_dataloaders(data_cfg["data"])
+    _, val_loader, _, _ = build_dataloaders(file_cfg["data"])
 
     output_dir = args.output_dir or os.path.dirname(args.checkpoint)
-    hidden_dim = model_cfg["model"].get("hidden_dim", 256)
 
     # Compute causal mask
     causal_mask, stability = compute_causal_mask(
