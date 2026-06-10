@@ -27,15 +27,30 @@ from tta_tc.utils.config import load_config
 from tta_tc.utils.metrics import MetricsTracker
 
 
-def load_source_model(checkpoint_path, device):
-    """Load trained source model."""
+def load_source_model(checkpoint_path, device, fallback_config=None):
+    """Load trained source model.
+
+    Handles both train.py checkpoints (config has 'model' key) and
+    temporal_invariance checkpoints (config is a flat run_cfg dict).
+    When the checkpoint lacks model config, falls back to the eval
+    config's data section to infer model settings.
+    """
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     cfg = ckpt["config"]
-    cfg["model"]["num_classes"] = ckpt["num_classes"]
+    num_classes = ckpt["num_classes"]
+
+    if "model" not in cfg and fallback_config is not None:
+        cfg = fallback_config
+    if "model" not in cfg:
+        raise KeyError(
+            "Checkpoint config has no 'model' key and no fallback config provided. "
+            "Pass --config with the original training YAML."
+        )
+    cfg["model"]["num_classes"] = num_classes
     model = TTATCModel(cfg["model"]).to(device)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
-    return model, cfg, ckpt["num_classes"]
+    return model, cfg, num_classes
 
 
 def evaluate_static(model, test_loader, device):
@@ -92,7 +107,7 @@ def evaluate_tta_method(method, test_loader, device, method_name="TTA",
 
 def run_single_period_eval(model_path, eval_cfg, device):
     """Evaluate all methods on a single test period."""
-    model, train_cfg, num_classes = load_source_model(model_path, device)
+    model, train_cfg, num_classes = load_source_model(model_path, device, fallback_config=eval_cfg)
     eval_cfg["data"]["num_classes"] = num_classes
 
     # Build test loader
@@ -261,7 +276,7 @@ def run_single_period_eval(model_path, eval_cfg, device):
 
 def run_sequential_eval(model_path, eval_cfg, device):
     """Evaluate all methods across sequential test periods (continual TTA)."""
-    model, train_cfg, num_classes = load_source_model(model_path, device)
+    model, train_cfg, num_classes = load_source_model(model_path, device, fallback_config=eval_cfg)
 
     # Build sequential test loaders
     loaders, _ = build_sequential_test_loaders(eval_cfg["data"])
