@@ -428,6 +428,8 @@ def main():
                         help="Suffix appended to results filename")
     parser.add_argument("--cs-label-budget", type=int, default=None,
                         help="CausalState label budget override")
+    parser.add_argument("--mpfp-lr", type=float, default=None,
+                        help="MPFP-TTA learning rate override")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -447,6 +449,8 @@ def main():
         cfg.setdefault("tta", {})["dt_source_stats"] = args.dt_source_stats
     if args.cs_label_budget is not None:
         cfg.setdefault("tta", {})["cs_label_budget"] = args.cs_label_budget
+    if args.mpfp_lr is not None:
+        cfg.setdefault("tta", {})["mpfp_lr"] = args.mpfp_lr
 
     # Device
     if torch.cuda.is_available():
