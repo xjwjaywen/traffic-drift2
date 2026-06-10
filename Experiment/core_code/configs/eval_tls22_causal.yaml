@@ -1,6 +1,16 @@
 # Evaluation config: CausalState-TTA on CESNET-TLS-Year22 (long-term)
 # 9-month sequential evaluation
 
+model:
+  backbone: cnn
+  hidden_dim: 256
+  norm_type: gn
+  num_groups: 8
+  flow_stats_dim: 0
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
 data:
   dataset: tls22
   data_dir: ./data/tls22
