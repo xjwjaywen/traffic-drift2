@@ -333,7 +333,7 @@ def run_sequential_eval(model_path, eval_cfg, device):
             for period_name, test_loader in loaders:
                 labels, preds = evaluate_static(model, test_loader, device)
                 m = tracker.add_period(period_name, labels, preds)
-                print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
+                print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}" if m.get('arr') is not None else f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}")
 
         elif method_key in ("tta_tc", "causal_state", "graph_refine",
                              "mpfp_tta", "knn_labeled", "ft_head",
@@ -414,7 +414,7 @@ def run_sequential_eval(model_path, eval_cfg, device):
                         method, test_loader, device, f"{method_key}@{period_name}"
                     )
                     m = tracker.add_period(period_name, labels, preds)
-                    print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}")
+                    print(f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}, ARR={m['arr']:.4f}" if m.get('arr') is not None else f"  {period_name}: Acc={m['accuracy']:.4f}, F1={m['macro_f1']:.4f}")
                 del method_model
 
         aurc = tracker.compute_aurc()
