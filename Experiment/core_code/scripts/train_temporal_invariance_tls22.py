@@ -359,6 +359,9 @@ def train_one_epoch(
     risk_weight,
     epoch,
     max_steps,
+    lambda_irm=0.0,
+    ssl_loss_fn=None,
+    ssl_weight=0.0,
 ):
     model.train()
     num_periods = len(period_loaders)
@@ -369,6 +372,8 @@ def train_one_epoch(
         "loss": 0.0,
         "ce_loss": 0.0,
         "temporal_loss": 0.0,
+        "irm_penalty": 0.0,
+        "ssl_loss": 0.0,
         "temporal_classes": 0.0,
     }
 
@@ -404,7 +409,22 @@ def train_one_epoch(
         else:
             temp_loss = features.new_tensor(0.0)
             temp_stats = {"temporal_classes": 0, "temporal_proto_terms": 0}
-        loss = ce_loss + lambda_temporal * temp_loss
+
+        if method in ("irm", "irm_ssl"):
+            from tta_tc.losses.irm import multi_env_irm_penalty
+            irm_pen = multi_env_irm_penalty(logits, labels, period_ids, num_periods)
+        else:
+            irm_pen = features.new_tensor(0.0)
+
+        if method == "irm_ssl" and ssl_loss_fn is not None:
+            ssl_loss_val, _ = ssl_loss_fn(model, ppi, flow_stats)
+        else:
+            ssl_loss_val = features.new_tensor(0.0)
+
+        loss = (ce_loss
+                + lambda_temporal * temp_loss
+                + lambda_irm * irm_pen
+                + ssl_weight * ssl_loss_val)
         loss.backward()
         optimizer.step()
 
@@ -412,6 +432,8 @@ def train_one_epoch(
             "loss": float(loss.item()),
             "ce_loss": float(ce_loss.item()),
             "temporal_loss": float(temp_loss.item()),
+            "irm_penalty": float(irm_pen.item()),
+            "ssl_loss": float(ssl_loss_val.item()),
             **temp_stats,
         }
         rows.append(batch_row)
@@ -448,6 +470,8 @@ def main():
             "class_balanced_erm",
             "risk_weighted_erm",
             "temporal_proto",
+            "irm",
+            "irm_ssl",
         ],
         required=True,
     )
@@ -473,6 +497,11 @@ def main():
     parser.add_argument("--per-period-batch-size", type=int, default=256)
     parser.add_argument("--max-steps-per-epoch", type=int, default=0)
     parser.add_argument("--lambda-temporal", type=float, default=0.1)
+    parser.add_argument("--lambda-irm", type=float, default=1.0)
+    parser.add_argument("--irm-anneal-epochs", type=int, default=5,
+                        help="Linearly anneal lambda_irm from 0 to target over N epochs")
+    parser.add_argument("--ssl-weight", type=float, default=1.0,
+                        help="SSL loss weight for irm_ssl method")
     parser.add_argument("--min-proto-samples", type=int, default=2)
     parser.add_argument("--risk-weight", type=float, default=3.0)
     parser.add_argument("--risk-min-support", type=int, default=200)
@@ -597,6 +626,9 @@ def main():
         "lr": lr,
         "weight_decay": weight_decay,
         "lambda_temporal": args.lambda_temporal,
+        "lambda_irm": args.lambda_irm,
+        "irm_anneal_epochs": args.irm_anneal_epochs,
+        "ssl_weight": args.ssl_weight,
         "min_proto_samples": args.min_proto_samples,
         "risk_weight": args.risk_weight,
         "risk_min_support": args.risk_min_support,
@@ -616,8 +648,29 @@ def main():
     best_path = os.path.join(args.output_dir, "best_model.pt")
     max_steps = args.max_steps_per_epoch if args.max_steps_per_epoch > 0 else None
 
+    # IRM + SSL setup
+    ssl_loss_fn = None
+    if args.method == "irm_ssl":
+        from tta_tc.ssl_tasks.combined import CombinedSSLLoss
+        ssl_loss_fn = CombinedSSLLoss(
+            alpha=cfg.get("ssl", {}).get("alpha", 0.2),
+            beta=cfg.get("ssl", {}).get("beta", 0.1),
+            mask_ratio=cfg.get("ssl", {}).get("mask_ratio", 0.15),
+            enable_mpfp=cfg.get("ssl", {}).get("enable_mpfp", True),
+            enable_pop=cfg.get("ssl", {}).get("enable_pop", True),
+            enable_fsr=cfg.get("ssl", {}).get("enable_fsr", True),
+        )
+
     print(f"Starting training for {epochs} epochs...")
     for epoch in range(1, epochs + 1):
+        # IRM annealing: ramp penalty from 0 to target
+        if args.method in ("irm", "irm_ssl") and args.irm_anneal_epochs > 0:
+            effective_irm = args.lambda_irm * min(1.0, epoch / args.irm_anneal_epochs)
+        elif args.method in ("irm", "irm_ssl"):
+            effective_irm = args.lambda_irm
+        else:
+            effective_irm = 0.0
+
         train_metrics, _ = train_one_epoch(
             model,
             train_loaders,
@@ -631,6 +684,9 @@ def main():
             args.risk_weight,
             epoch,
             max_steps,
+            lambda_irm=effective_irm,
+            ssl_loss_fn=ssl_loss_fn,
+            ssl_weight=args.ssl_weight if args.method == "irm_ssl" else 0.0,
         )
         scheduler.step()
         val_rows, _ = evaluate_periods(
