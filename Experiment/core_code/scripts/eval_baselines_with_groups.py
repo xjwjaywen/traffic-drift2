@@ -76,12 +76,16 @@ def evaluate_tta(method, loader, device, name):
 
 
 def group_f1(labels, preds, class_ids):
-    mask = np.isin(labels, class_ids)
-    if mask.sum() == 0:
-        return 0.0
-    return float(f1_score(labels[mask], preds[mask],
-                          labels=class_ids, average="macro",
-                          zero_division=0))
+    """Compute macro F1 for a group of classes using full-dataset FP/FN."""
+    from sklearn.metrics import classification_report
+    report = classification_report(labels, preds, output_dict=True,
+                                   zero_division=0)
+    f1s = []
+    for c in class_ids:
+        entry = report.get(str(c), {})
+        if entry.get("support", 0) > 0:
+            f1s.append(entry["f1-score"])
+    return float(np.mean(f1s)) if f1s else 0.0
 
 
 def compute_all_metrics(labels, preds):
