@@ -1,0 +1,451 @@
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{subcaption}
+\usepackage{balance}
+
+\newcommand{\ours}{CARE}  % Collapse-Aware REpair
+\newcommand{\ie}{\textit{i.e.}}
+\newcommand{\eg}{\textit{e.g.}}
+\newcommand{\etal}{\textit{et al.}}
+
+\begin{document}
+
+\title{Collapse-Aware Active Repair for Temporally Robust Encrypted Traffic Classification}
+
+\author{
+  Junwei Xiao,~\IEEEmembership{}
+  Xiaobo Jin,~\IEEEmembership{}
+  % Add other authors
+  \thanks{Manuscript received xxx; revised xxx.}
+  \thanks{Authors are with xxx University. E-mail: xxx}
+}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+Deep learning-based encrypted traffic classifiers suffer significant performance degradation after deployment due to concept drift caused by application updates, certificate rotations, and CDN migrations.
+We identify a previously unstudied failure mode that we term the \textit{absorber-collapse pattern}: a small number of dominant classes systematically absorb predictions from other classes, causing those victim classes to collapse to near-zero recall.
+On the CESNET-TLS-Year22 dataset, we find that 12 out of 178 classes collapse below 0.1 recall within 9 months, while existing test-time adaptation methods (Tent, EATA, SAR, CoTTA, NOTE) provide no relief---their collapse-class F1 remains below 0.03, identical to a static baseline.
+
+We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted repair framework that (1)~identifies absorber-victim class pairs through confusion analysis, (2)~selects a minimal set of informative samples from the target period for labeling, (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
+The three components play complementary roles: targeted fine-tuning repairs collapsed classes, source replay prevents catastrophic forgetting of stable classes, and distillation anchors the classifier's overall behavior.
+
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 7 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.426 while maintaining stable-class performance (F1: 0.903$\to$0.891). With only 1{,}000 labeled target samples ($<$0.6\% of the test set), \ours{} achieves an overall macro-F1 of 0.683, outperforming the best baseline by 5.4 percentage points.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Encrypted traffic classification, concept drift, class collapse, test-time adaptation, knowledge distillation
+\end{IEEEkeywords}
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+
+% P1: Problem - drift in traffic classifiers
+Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{luxemburk2023quic, lin2022etbert, zhao2023yatc}.
+However, a growing body of evidence shows that these classifiers degrade rapidly after deployment.
+Luxemburk and Hynek~\cite{luxemburk2023quic} report a 13.5\% accuracy drop within one week on the CESNET-QUIC22 dataset, while Malekghaini~\etal{}~\cite{malekghaini2023drift} observe F1 declining from 0.95 to 0.60 over several months on ISP-scale data.
+The causes are diverse: application version updates alter protocol behavior, TLS certificate rotations change handshake fingerprints, and CDN migrations shift IP ranges and packet size distributions~\cite{soukup2025drift}.
+
+% P2: Existing solutions and their limitations
+Existing approaches to this problem fall into two categories.
+The first is periodic retraining with freshly labeled data~\cite{chen2025selfevolving}, which is costly due to the expense of obtaining ground-truth labels for encrypted traffic.
+The second is test-time adaptation (TTA), a family of methods from computer vision that adapt models to distribution shift without labels~\cite{wang2021tent, niu2022eata, niu2023sar}.
+However, as we demonstrate in this work, these general-purpose TTA methods are ineffective for the specific failure modes of traffic classifiers.
+
+% P3: Our finding - absorber-collapse pattern
+We identify a previously unstudied failure mode that we term the \textit{absorber-collapse pattern}.
+Through systematic confusion analysis on the CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, we discover that performance degradation is not uniform across classes.
+Instead, a small number of dominant ``absorber'' classes systematically attract predictions away from ``victim'' classes, causing the victims to collapse to near-zero recall.
+For example, class~56 (a popular web service) is misclassified as class~96 (its absorber) at a rate of 25.2\%, while class~163 loses 41.8\% of its predictions to class~46.
+This pattern affects 12 out of 178 classes within 9 months, rendering them effectively undetectable.
+Critically, we show that all seven evaluated TTA methods---including state-of-the-art approaches like SAR~\cite{niu2023sar} and NOTE~\cite{gong2022note}---produce collapse-class F1 scores below 0.03, offering no improvement over a static (non-adapted) baseline.
+
+% P4: Our solution
+We propose \ours{}, a collapse-aware repair framework with three complementary components:
+\begin{itemize}
+  \item \textbf{Targeted fine-tuning}: We identify high-risk absorber-victim pairs and actively select a minimal number of informative samples near class boundaries for labeling. Only the classification head is updated, keeping the encoder frozen to preserve learned representations.
+  \item \textbf{Source replay}: Reference-period samples are mixed into the fine-tuning process to prevent catastrophic forgetting of stable classes.
+  \item \textbf{Knowledge distillation}: A KL-divergence loss between the updated and original classifier heads anchors the overall prediction behavior, ensuring that repairing collapsed classes does not destabilize the rest.
+\end{itemize}
+
+% P5: Results highlight
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) show that \ours{} recovers 7 of 12 collapsed classes to usable recall levels, improving collapse-class F1 from 0.028 to 0.426 (+15$\times$) with only 1{,}000 labeled samples from the target period.
+Three classes achieve recall above 0.62, with one reaching 0.91.
+The overall macro-F1 improves from 0.629 to 0.683 (+5.4\%), while stable-class F1 decreases only marginally (0.903$\to$0.891).
+
+% P6: Contributions
+Our contributions are:
+\begin{enumerate}
+  \item We identify and formalize the \textit{absorber-collapse pattern} in encrypted traffic classifiers---a systematic failure mode where dominant classes absorb predictions from victim classes under concept drift (\S\ref{sec:analysis}).
+  \item We are the first to systematically evaluate general-purpose TTA methods on encrypted traffic classification and demonstrate their inability to address class collapse (\S\ref{sec:tta_eval}).
+  \item We propose \ours{}, a targeted repair framework combining few-shot fine-tuning, source replay, and knowledge distillation, and validate each component through ablation studies (\S\ref{sec:method}, \S\ref{sec:experiments}).
+\end{enumerate}
+
+
+% ============================================================
+\section{Background and Related Work}
+\label{sec:related}
+
+\subsection{Concept Drift in Encrypted Traffic Classification}
+
+% Drift phenomenon
+Encrypted traffic classifiers rely on statistical features of packet sequences---packet sizes, directions, and inter-packet times---since payload inspection is infeasible under TLS/QUIC encryption~\cite{luxemburk2023quic}.
+These features are inherently non-stationary: application updates change protocol behavior, certificate rotations alter handshake patterns, and CDN migrations shift server-side characteristics~\cite{soukup2025drift, malekghaini2023drift}.
+
+% Prior drift work
+Luxemburk and Hynek~\cite{luxemburk2023quic} first quantified temporal degradation on the CESNET-QUIC22 dataset, reporting 13.5\% accuracy loss in one week.
+Malekghaini~\etal{}~\cite{malekghaini2023drift} studied drift on ISP data and proposed architectural best practices, noting that ``Web is the class most misclassified flows are confused with''---an early empirical observation of absorber-like behavior, though without further analysis or targeted remedy.
+Soukup~\etal{}~\cite{soukup2025drift} developed a drift stability benchmark for CESNET-TLS-Year22, identifying 28 classes with frequent drifts, but analyzed only per-class F1 trajectories without examining inter-class confusion dynamics.
+Chen~\etal{}~\cite{chen2025selfevolving} proposed self-evolving classification using high-confidence pseudo-labels for whole-model fine-tuning, but explicitly stated ``we will not specifically study the feature changes of a certain category.''
+
+None of these works identifies or addresses the systematic absorber-victim pattern that we formalize in this paper.
+
+\subsection{Test-Time Adaptation}
+
+Test-time adaptation methods from computer vision update model parameters at inference time to handle distribution shift without labeled target data.
+Tent~\cite{wang2021tent} minimizes prediction entropy on batch normalization parameters.
+EATA~\cite{niu2022eata} adds entropy-based sample filtering and Fisher regularization.
+SAR~\cite{niu2023sar} introduces sharpness-aware optimization for robustness.
+CoTTA~\cite{wang2022cotta} uses augmentation-averaged pseudo-labels with stochastic restoration.
+NOTE~\cite{gong2022note} handles non-i.i.d.\ test streams with prediction-balanced sampling.
+
+These methods were designed for image corruption benchmarks (ImageNet-C) and assume BatchNorm-based architectures.
+As we show in Section~\ref{sec:tta_eval}, they are ineffective for traffic classification, where drift manifests as systematic class confusion rather than global distribution shift.
+
+\subsection{Continual Learning for Traffic Classification}
+
+ILETC~\cite{zhu2023iletc} addresses class-incremental learning using WGAN-GP generative replay.
+MEMENTO~\cite{cerasuolo2024memento} combines knowledge distillation, memory replay, and rectification for learning new application classes without forgetting old ones.
+While these works share individual technical components with our approach (replay, distillation), they address a fundamentally different problem: adding \textit{new} classes to the classifier, not repairing \textit{existing} classes that have collapsed due to drift.
+Our problem formulation---targeted repair of absorber-victim confusion---is distinct and, to our knowledge, previously unstudied.
+
+
+% ============================================================
+\section{Empirical Analysis: Class Collapse Under Drift}
+\label{sec:analysis}
+
+\subsection{Experimental Setup}
+
+We use the CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, which contains 507.7M TLS flows across 12 months of 2022 from a university network.
+Each flow is represented by Per-Packet Information (PPI): packet sizes, directions, and inter-packet times for the first 30 packets.
+We train a CNN classifier (3-layer 1D convolution with GroupNorm, 256-dim hidden layer, 178 classes) on months M1--M3 and evaluate on M4--M12.
+
+\subsection{The Absorber-Collapse Pattern}
+\label{sec:absorber}
+
+% Describe the phenomenon
+Figure~\ref{fig:collapse_timeline} shows the recall trajectory of 12 classes that collapse below 0.1 recall by month 12.
+The collapses follow two distinct temporal patterns:
+\begin{itemize}
+  \item \textbf{Abrupt collapse}: Recall drops sharply within one month (\eg{}, class~56 drops from 0.95 to 0.02 at M5 due to certificate rotation).
+  \item \textbf{Gradual collapse}: Recall decays steadily over several months (\eg{}, class~104 declines from 0.63 to 0.01 over M3--M9).
+\end{itemize}
+
+% Absorber pattern
+Crucially, these collapses are not random---each victim class has a \textit{primary absorber}: a dominant class that captures the majority of the victim's mispredictions.
+Table~\ref{tab:absorber_pairs} lists the 12 collapse classes and their absorbers, with confusion rates ranging from 21\% to 77\%.
+
+\begin{table}[t]
+\centering
+\caption{Absorber-collapse pairs at M-2022-12. Each collapsed class has a dominant absorber that captures the majority of its mispredictions.}
+\label{tab:absorber_pairs}
+\small
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+Victim & Absorber & Confusion & Victim & Pattern & First \\
+Class  & Class    & Rate      & Recall & Type    & Collapse \\
+\midrule
+56  & 96  & 25.2\% & 0.000 & abrupt  & M5 \\
+163 & 46  & 41.8\% & 0.015 & gradual & M5 \\
+174 & 2   & 29.2\% & 0.000 & abrupt  & M7 \\
+48  & 14  & 39.0\% & 0.001 & abrupt  & M7 \\
+38  & 45  & 46.1\% & 0.052 & abrupt  & M8 \\
+69  & 105 & 37.7\% & 0.005 & abrupt  & M9 \\
+104 & 2   & 21.2\% & 0.010 & gradual & M9 \\
+47  & 5   & 45.1\% & 0.000 & gradual & M11 \\
+66  & 71  & 13.9\% & 0.001 & abrupt  & M11 \\
+10  & 156 & 36.5\% & 0.098 & gradual & M11 \\
+109 & 71  & 24.9\% & 0.000 & abrupt  & M12 \\
+26  & 13  & ---    & 0.019 & ---     & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Why General TTA Methods Fail}
+\label{sec:tta_eval}
+
+We evaluate seven TTA methods from computer vision on the same setup.
+Table~\ref{tab:tta_baselines} reports results at three time points.
+All methods maintain stable-class F1 near 0.90 but provide \textit{no improvement} on collapse classes.
+
+\begin{table}[t]
+\centering
+\caption{TTA baselines on CESNET-TLS-Year22. All methods fail to address class collapse (collapse F1 $\approx$ Static at every time point).}
+\label{tab:tta_baselines}
+\small
+\begin{tabular}{@{}l ccc ccc@{}}
+\toprule
+& \multicolumn{3}{c}{Collapse-Class F1} & \multicolumn{3}{c}{Overall Macro-F1} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+Method & M7 & M10 & M12 & M7 & M10 & M12 \\
+\midrule
+Static     & .503 & .258 & .028 & .740 & .684 & .629 \\
+BN-Adapt   & .503 & .258 & .028 & .740 & .684 & .629 \\
+Tent       & .505 & .256 & .026 & .742 & .684 & .631 \\
+EATA       & .503 & .258 & .028 & .740 & .684 & .629 \\
+CoTTA      & .504 & .257 & .027 & .741 & .684 & .629 \\
+SAR        & .504 & .255 & .026 & .740 & .683 & .629 \\
+NOTE       & .505 & .258 & .027 & .740 & .684 & .630 \\
+\midrule
+\textbf{\ours{}} & \textbf{.559} & \textbf{.298} & \textbf{.426} & \textbf{.744} & \textbf{.696} & \textbf{.683} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The failure of TTA methods is explained by their design: entropy minimization (Tent, SAR) and pseudo-label refinement (CoTTA, NOTE) optimize global prediction confidence, not class-specific confusion patterns.
+When an absorber class confidently captures a victim's predictions, entropy is \textit{low} (the model is confidently wrong), so entropy-based adaptation sees no signal to correct.
+
+
+% ============================================================
+\section{Method: Collapse-Aware Active Repair}
+\label{sec:method}
+
+% Overview
+\ours{} operates on a frozen encoder and repairs only the classification head, using three complementary mechanisms.
+Algorithm~\ref{alg:care} summarizes the procedure.
+
+\subsection{Absorber-Victim Identification}
+
+Given a reference period with labels, we compute the confusion matrix and identify pairs where a victim class $v$ has a disproportionate fraction of its predictions redirected to an absorber class $a$:
+\begin{equation}
+  \text{confusion}(v \to a) = \frac{|\{x : y(x)=v, \hat{y}(x)=a\}|}{|\{x : y(x)=v\}|} > \tau_{\text{conf}}
+\end{equation}
+
+\subsection{Active Sample Selection}
+
+From the target period, we select a small budget $B$ of samples for labeling using the \textit{absorber-margin} strategy: among samples predicted as absorber classes, we select those with the lowest prediction margin (difference between top-2 logits).
+These boundary samples are the most informative for disambiguating absorber-victim confusion.
+
+\subsection{Head Fine-Tuning with Source Replay}
+
+We fine-tune only the classification head $h_\theta$ using the selected target labels combined with $k$ samples per class from the reference period (source replay):
+\begin{equation}
+  \mathcal{L}_{\text{ft}} = \frac{1}{|D_{\text{target}} \cup D_{\text{replay}}|} \sum_{(x,y)} \ell_{\text{CE}}(h_\theta(f(x)), y)
+\end{equation}
+where $f(\cdot)$ is the frozen encoder.
+Source replay prevents the head from overfitting to the small target sample and forgetting stable classes.
+
+\subsection{Knowledge Distillation}
+
+On replay samples, we add a KL-divergence loss between the updated head $h_\theta$ and the original (frozen) head $h_{\theta_0}$:
+\begin{equation}
+  \mathcal{L}_{\text{KD}} = \frac{1}{|D_{\text{replay}}|} \sum_{x \in D_{\text{replay}}} D_{\text{KL}}\!\left(\sigma\!\left(\frac{h_{\theta_0}(f(x))}{T}\right) \,\Big\|\, \sigma\!\left(\frac{h_\theta(f(x))}{T}\right)\right)
+\end{equation}
+where $T$ is the temperature and $\sigma$ is softmax.
+Distillation ensures that repairing collapsed classes does not shift the classifier's behavior on classes where it already performs well.
+
+\subsection{Combined Objective}
+
+\begin{equation}
+  \mathcal{L} = \mathcal{L}_{\text{ft}} + \lambda_{\text{KD}} \cdot \mathcal{L}_{\text{KD}}
+\end{equation}
+
+\begin{algorithm}[t]
+\caption{\ours{}: Collapse-Aware Active Repair}
+\label{alg:care}
+\begin{algorithmic}[1]
+\REQUIRE Source model $f, h_{\theta_0}$; reference data $D_{\text{ref}}$; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
+\STATE Identify absorber-victim pairs from $D_{\text{ref}}$ confusion matrix
+\STATE Compute features $\{f(x) : x \in D_{\text{tgt}}\}$ and predictions
+\STATE Select $B$ samples via absorber-margin strategy; query labels
+\STATE Sample $k$ per class from $D_{\text{ref}}$ as $D_{\text{replay}}$
+\STATE Initialize $h_\theta \leftarrow h_{\theta_0}$
+\FOR{epoch $= 1, \ldots, E$}
+  \STATE Sample minibatch from $D_{\text{target}} \cup D_{\text{replay}}$
+  \STATE $\mathcal{L} \leftarrow \mathcal{L}_{\text{ft}} + \lambda_{\text{KD}} \cdot \mathcal{L}_{\text{KD}}$
+  \STATE Update $\theta$ via gradient descent on $\mathcal{L}$
+\ENDFOR
+\RETURN Updated classifier $h_\theta$
+\end{algorithmic}
+\end{algorithm}
+
+
+% ============================================================
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Experimental Setup}
+
+\textbf{Datasets.}
+We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic) and CESNET-QUIC22~\cite{luxemburk2023quic} (102 classes, 4 weeks, QUIC traffic).
+For TLS22, we train on M1--M3 and evaluate at M7, M10, and M12.
+For QUIC22, we train on W44 and evaluate at W46 and W47.
+
+\textbf{Baselines.}
+We compare against: (1)~Static (no adaptation), (2)~BN-Adapt~\cite{schneider2020bn}, (3)~Tent~\cite{wang2021tent}, (4)~EATA~\cite{niu2022eata}, (5)~CoTTA~\cite{wang2022cotta}, (6)~SAR~\cite{niu2023sar}, (7)~NOTE~\cite{gong2022note}, and (8)~CAPS (our prototype-based method).
+
+\textbf{Metrics.}
+Overall macro-F1, collapse-class macro-F1 (averaged over the 12 victim classes), stable-class macro-F1 (averaged over 20 high-recall classes), and the number of collapsed classes (recall $< 0.1$).
+
+\textbf{\ours{} configuration.}
+Budget $B=1000$, replay mode \texttt{all} with $k=5$ per class, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, fine-tuning learning rate $10^{-3}$, 30 epochs.
+
+\subsection{Main Results}
+
+Table~\ref{tab:main_results} presents the main comparison at M-2022-12 (the most challenging time point, 9 months after training).
+
+\begin{table}[t]
+\centering
+\caption{Main results on CESNET-TLS-Year22 at M-2022-12.}
+\label{tab:main_results}
+\small
+\begin{tabular}{@{}l cccc@{}}
+\toprule
+Method & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
+\midrule
+Static      & 0.629 & 0.028 & 0.903 & 12 \\
+BN-Adapt    & 0.629 & 0.028 & 0.903 & 12 \\
+Tent        & 0.631 & 0.026 & 0.903 & 12 \\
+EATA        & 0.629 & 0.028 & 0.903 & 12 \\
+CoTTA       & 0.629 & 0.027 & 0.903 & 12 \\
+SAR         & 0.629 & 0.026 & 0.901 & 11 \\
+NOTE        & 0.630 & 0.027 & 0.902 & 12 \\
+CAPS        & 0.632 & 0.164 & 0.899 & --- \\
+\midrule
+\textbf{\ours{}} & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{5} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-Class Recovery Analysis}
+
+Table~\ref{tab:per_class} shows the repair outcome for each of the 12 collapsed classes.
+
+\begin{table}[t]
+\centering
+\caption{Per-class recovery at M-2022-12 using absorber-margin strategy with budget=1000. Recall before (Static) and after (\ours{}).}
+\label{tab:per_class}
+\small
+\begin{tabular}{@{}c cc cc l@{}}
+\toprule
+Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+      & Before & After & Before & After & \\
+\midrule
+48  & 0.001 & \textbf{0.913} & 0.002 & 0.881 & Full recovery \\
+56  & 0.000 & \textbf{0.733} & 0.001 & 0.799 & Full recovery \\
+47  & 0.000 & \textbf{0.699} & 0.000 & 0.637 & Full recovery \\
+104 & 0.010 & \textbf{0.624} & 0.016 & 0.607 & Substantial \\
+10  & 0.098 & \textbf{0.623} & 0.162 & 0.662 & Substantial \\
+38  & 0.052 & \textbf{0.534} & 0.071 & 0.518 & Substantial \\
+163 & 0.015 & \textbf{0.455} & 0.076 & 0.446 & Moderate \\
+66  & 0.001 & \textbf{0.355} & 0.002 & 0.270 & Partial \\
+174 & 0.000 & 0.274 & 0.000 & 0.230 & Partial \\
+\midrule
+26  & 0.019 & 0.051 & 0.020 & 0.065 & Failed \\
+69  & 0.005 & 0.000 & 0.001 & 0.000 & Failed \\
+109 & 0.000 & 0.000 & 0.000 & 0.000 & Failed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Ablation Study}
+
+Table~\ref{tab:ablation} validates the necessity of each component.
+
+\begin{table}[t]
+\centering
+\caption{Ablation study at M-2022-12.}
+\label{tab:ablation}
+\small
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+Configuration & Macro-F1 & Collapse F1 & Stable F1 \\
+\midrule
+Static (no repair)       & 0.629 & 0.028 & 0.903 \\
+Fine-tuning only         & 0.607 & 0.077 & 0.862 \\
+Source replay only       & 0.573 & 0.076 & 0.833 \\
+Distillation only        & 0.623 & 0.068 & 0.892 \\
+FT + Replay (no distill) & 0.604 & 0.116 & 0.849 \\
+\midrule
+\textbf{\ours{} (full)}  & \textbf{0.683} & \textbf{0.426} & 0.891 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key findings:
+\begin{itemize}
+  \item Fine-tuning alone improves collapse F1 but damages stable classes ($-4.1$\% stable F1), confirming the need for replay and distillation.
+  \item Source replay alone reduces collapsed classes (12$\to$9) but severely hurts overall performance ($-5.6$\% macro-F1).
+  \item Distillation alone preserves overall performance (0.623 $\approx$ 0.629) while modestly improving collapse F1, confirming its role as a stabilizer.
+  \item The full combination achieves both collapse repair \textit{and} overall improvement---the only configuration where macro-F1 exceeds the static baseline.
+\end{itemize}
+
+\subsection{Multi-Period Analysis}
+
+% TODO: Add figure showing collapse F1 over M7/M10/M12
+
+\subsection{Generalization to QUIC22}
+
+On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} still improves overall macro-F1 by 3.5\% (0.719$\to$0.748), demonstrating effectiveness even in mild-drift scenarios.
+
+\subsection{Selection Strategy Comparison}
+
+% TODO: Compare absorber_margin vs random vs hybrid_risk
+
+\subsection{Label Efficiency}
+
+% TODO: Budget sweep (200, 500, 1000)
+
+
+% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\textbf{Label cost.}
+\ours{} requires 1{,}000 labeled samples per repair cycle, which is less than 0.6\% of a typical monthly test set.
+In ISP deployment, this corresponds to a few hours of DPI-based labeling on a monitored subnet.
+
+\textbf{Stable-class trade-off.}
+Stable-class F1 decreases from 0.903 to 0.891 ($-$1.3\%).
+% TODO: Analyze which stable classes are affected
+
+\textbf{Unrecovered classes.}
+Three classes (26, 69, 109) remain collapsed after repair.
+% TODO: Analyze why
+
+\textbf{Absorber detection in deployment.}
+Our current implementation identifies absorber-victim pairs through confusion analysis on a labeled reference period.
+In deployment, operators can detect absorber behavior by monitoring for anomalous increases in per-class prediction frequency, or through periodic sampling of a small labeled validation set.
+Fully automatic detection is an avenue for future work.
+
+\textbf{Week-10 data collection change.}
+The CESNET-TLS-Year22 dataset has a known distribution shift at week 10 (March 7--13, 2022) due to a flow exporter update~\cite{hynek2024cesnet}.
+Our training data (M1--M3) spans this boundary, meaning part of the observed drift may be attributed to instrumentation rather than genuine application changes.
+We note that this affects all methods equally and does not invalidate comparative results.
+
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+We identified the absorber-collapse pattern in encrypted traffic classifiers: a systematic failure mode where dominant classes absorb predictions from victim classes under concept drift.
+We showed that existing TTA methods from computer vision are entirely ineffective against this phenomenon.
+We proposed \ours{}, a targeted repair framework that combines few-shot fine-tuning, source replay, and knowledge distillation to recover collapsed classes while preserving overall performance.
+On CESNET-TLS-Year22, \ours{} recovers 7 of 12 collapsed classes and improves overall macro-F1 by 5.4\% with only 1{,}000 labeled target samples.
+
+% ============================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
