@@ -79,7 +79,8 @@ def group_f1(labels, preds, class_ids):
     mask = np.isin(labels, class_ids)
     if mask.sum() == 0:
         return 0.0
-    return float(f1_score(labels[mask], preds[mask], average="macro",
+    return float(f1_score(labels[mask], preds[mask],
+                          labels=class_ids, average="macro",
                           zero_division=0))
 
 
