@@ -52,7 +52,8 @@ def fig_collapse_timeline(output_dir):
         return
 
     rows = read_csv(timeline_path)
-    periods = sorted(set(r["period"] for r in rows))
+    periods = sorted(set(r["period"] for r in rows),
+                     key=lambda p: int(p.split("-")[-1]))
     period_labels = [p.replace("M-2022-", "M") for p in periods]
 
     fig, ax = plt.subplots(figsize=(8, 4))
