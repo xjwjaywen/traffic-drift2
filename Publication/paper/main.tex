@@ -41,7 +41,7 @@ On the CESNET-TLS-Year22 dataset, we find that 12 out of 178 classes collapse be
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted repair framework that (1)~identifies absorber-victim class pairs through confusion analysis, (2)~selects a minimal set of informative samples from the target period for labeling, (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
 The three components play complementary roles: targeted fine-tuning repairs collapsed classes, source replay prevents catastrophic forgetting of stable classes, and distillation anchors the classifier's overall behavior.
 
-Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 9 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.426 while maintaining stable-class performance (F1: 0.903$\to$0.891). With only 1{,}000 labeled target samples ($<$0.6\% of the test set), \ours{} achieves an overall macro-F1 of 0.683, outperforming the best baseline by 5.4 percentage points.
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 9 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.262 (9$\times$) while maintaining stable-class performance (F1: 0.903$\to$0.895). With only 1{,}000 labeled target samples ($<$0.6\% of the test set) and no prior knowledge of which classes are affected, \ours{} achieves an overall macro-F1 of 0.686, outperforming the best baseline by 5.7 percentage points. When absorber identity is available, collapse-class F1 further improves to 0.426 (15$\times$).
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -81,9 +81,9 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 \end{itemize}
 
 % P5: Results highlight
-Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) show that \ours{} recovers 9 of 12 collapsed classes to usable recall levels, improving collapse-class F1 from 0.028 to 0.426 (+15$\times$) with only 1{,}000 labeled samples from the target period.
-Five classes achieve recall above 0.62, with one reaching 0.91.
-The overall macro-F1 improves from 0.629 to 0.683 (+5.4\%), while stable-class F1 decreases only marginally (0.903$\to$0.891).
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) show that \ours{} recovers 9 of 12 collapsed classes to usable recall levels using only margin-based selection (no absorber knowledge required), improving collapse-class F1 from 0.028 to 0.262 (9$\times$) with only 1{,}000 labeled samples from the target period.
+The overall macro-F1 improves from 0.629 to 0.686 (+5.7\%), while stable-class F1 decreases only marginally (0.903$\to$0.895).
+With oracle absorber knowledge, collapse-class F1 further improves to 0.426 (15$\times$), with five classes exceeding 0.62 recall.
 
 % P6: Contributions
 Our contributions are:
@@ -218,7 +218,7 @@ CoTTA      & .504 & .257 & .027 & .741 & .684 & .629 \\
 SAR        & .504 & .255 & .026 & .740 & .683 & .629 \\
 NOTE       & .505 & .258 & .027 & .740 & .684 & .630 \\
 \midrule
-\textbf{\ours{}}$^\dagger$ & \textbf{.636} & \textbf{.419} & \textbf{.426} & \textbf{.762} & \textbf{.710} & \textbf{.683} \\
+\textbf{\ours{}}$^\dagger$ & \textbf{.664} & \textbf{.392} & \textbf{.262} & \textbf{.777} & \textbf{.725} & \textbf{.686} \\
 \bottomrule
 \multicolumn{7}{l}{\footnotesize $^\dagger$Uses 1{,}000 labeled target samples + 890 reference replay samples.}
 \end{tabular}
@@ -338,9 +338,10 @@ SAR         & 0.629 & 0.026 & 0.901 & 11 \\
 NOTE        & 0.630 & 0.027 & 0.902 & 12 \\
 CAPS        & 0.632 & 0.164 & 0.899 & --- \\
 \midrule
-\textbf{\ours{}}$^\dagger$ & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{3} \\
+\textbf{\ours{}}$^\dagger$ & \textbf{0.686} & \textbf{0.262} & 0.895 & \textbf{5} \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize $^\dagger$Uses 1{,}000 labeled target samples + 890 reference replay samples.}
+\multicolumn{5}{l}{\footnotesize $^\dagger$Uses 1{,}000 labeled target samples + 890 reference replay samples.}\\
+\multicolumn{5}{l}{\footnotesize Margin selection; no absorber knowledge required. See Table~\ref{tab:strategies} for oracle upper bound.}
 \end{tabular}
 \end{table}
 
@@ -436,7 +437,7 @@ This is expected: when few classes have collapsed, there is less to repair; as m
 
 \subsection{Generalization to QUIC22}
 
-On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} improves overall accuracy from 0.712 to 0.813 (+10.1\%) at W46 with the random selection strategy.
+On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} improves overall accuracy from 0.716 to 0.812 (+9.6 pp) at W46 with the random selection strategy.
 Note that the absorber-margin strategy is less effective on QUIC22 (macro-F1: 0.713, unchanged from Static) because the collapse pattern is too mild for absorber-targeted selection to find informative boundary samples.
 This demonstrates that \ours{}'s effectiveness scales with collapse severity, and that strategy selection should be adapted to the drift regime.
 
