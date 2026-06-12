@@ -714,14 +714,17 @@ def main():
                         "class_id": c,
                         "selected_count": count,
                     })
+            def _fmt(v, fmt=".4f"):
+                return f"{v:{fmt}}" if v is not None else "N/A"
+
             print(
                 f"{strategy:<22} budget={int(idx.numel()):4d} "
-                f"strict: macro={strict_summary['overall_macro_f1']:.4f} "
-                f"collapse={strict_summary['bad_macro_f1']:.4f} "
-                f"stable={strict_summary['stable_macro_f1']:.4f} "
-                f"collapsed={strict_summary['collapsed_count']} | "
-                f"full: macro={full_summary['overall_macro_f1']:.4f} "
-                f"collapse={full_summary['bad_macro_f1']:.4f} "
+                f"strict: macro={_fmt(strict_summary['overall_macro_f1'])} "
+                f"collapse={_fmt(strict_summary['bad_macro_f1'])} "
+                f"stable={_fmt(strict_summary['stable_macro_f1'])} "
+                f"collapsed={strict_summary.get('collapsed_count', 0)} | "
+                f"full: macro={_fmt(full_summary['overall_macro_f1'])} "
+                f"collapse={_fmt(full_summary['bad_macro_f1'])} "
                 f"sel_collapse={selected_collapse}"
             )
 
@@ -755,24 +758,31 @@ def main():
         json.dump(summary, f, indent=2)
 
     active_rows = [r for r in rows if r["method"] != "static"]
-    best = max(
-        active_rows,
-        key=lambda r: (r["strict_bad_macro_f1"], r["strict_overall_macro_f1"]),
-    )
+    def _safe(v):
+        return f"{v:.4f}" if v is not None else "N/A"
+
+    if active_rows:
+        best = max(
+            active_rows,
+            key=lambda r: (r.get("strict_bad_macro_f1") or 0, r.get("strict_overall_macro_f1") or 0),
+        )
+    else:
+        best = None
     print("\n=== Collapse Active Maintenance Summary (strict: queried excluded) ===")
     print(
-        f"static macro={static_summary['overall_macro_f1']:.4f} "
-        f"collapse={static_summary['bad_macro_f1']:.4f} "
-        f"stable={static_summary['stable_macro_f1']:.4f} "
-        f"collapsed={static_summary['collapsed_count']}"
+        f"static macro={_safe(static_summary['overall_macro_f1'])} "
+        f"collapse={_safe(static_summary['bad_macro_f1'])} "
+        f"stable={_safe(static_summary['stable_macro_f1'])} "
+        f"collapsed={static_summary.get('collapsed_count', 0)}"
     )
-    print(
-        f"best strategy={best['strategy']} budget={best['budget']} "
-        f"strict: macro={best['strict_overall_macro_f1']:.4f} "
-        f"collapse={best['strict_bad_macro_f1']:.4f} "
-        f"stable={best['strict_stable_macro_f1']:.4f} "
-        f"collapsed={best['strict_collapsed_count']}"
-    )
+    if best:
+        print(
+            f"best strategy={best['strategy']} budget={best['budget']} "
+            f"strict: macro={_safe(best.get('strict_overall_macro_f1'))} "
+            f"collapse={_safe(best.get('strict_bad_macro_f1'))} "
+            f"stable={_safe(best.get('strict_stable_macro_f1'))} "
+            f"collapsed={best.get('strict_collapsed_count', 0)}"
+        )
     print(f"Saved outputs to: {args.output_dir}")
 
 
