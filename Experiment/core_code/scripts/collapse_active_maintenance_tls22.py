@@ -539,7 +539,8 @@ def main():
         "replay_samples": int(replay_idx.numel()),
         "selected_collapse_labels": 0,
         "selected_absorber_preds": 0,
-        **static_summary,
+        **{f"strict_{k}": v for k, v in static_summary.items()},
+        **{f"full_{k}": v for k, v in static_summary.items()},
     })
 
     for strategy in strategies:
@@ -582,7 +583,19 @@ def main():
                 distill_temperature=args.distill_temperature,
             )
             preds = predict_head(head, features, device)
-            summary, report = summarize(labels, preds, collapse_classes, stable_classes, thresholds)
+
+            # --- Strict evaluation: exclude queried samples ---
+            eval_mask = np.ones(len(labels), dtype=bool)
+            eval_mask[idx.numpy()] = False
+            strict_labels = labels[eval_mask]
+            strict_preds = preds[eval_mask]
+            strict_summary, strict_report = summarize(
+                strict_labels, strict_preds, collapse_classes, stable_classes, thresholds
+            )
+            # Full evaluation (includes queried, for reference)
+            full_summary, full_report = summarize(
+                labels, preds, collapse_classes, stable_classes, thresholds
+            )
 
             selected_collapse = int(np.isin(selected_labels, collapse_classes).sum())
             selected_absorber = int(np.isin(selected_preds, absorber_classes).sum())
@@ -600,17 +613,22 @@ def main():
                 "selected_collapse_labels": selected_collapse,
                 "selected_absorber_preds": selected_absorber,
                 "selected_mean_proto_distance": float(selected_distance.mean()) if selected_distance.size else "",
-                **summary,
+                **{f"strict_{k}": v for k, v in strict_summary.items()},
+                **{f"full_{k}": v for k, v in full_summary.items()},
             })
             for c in collapse_classes:
-                item = report.get(str(c), {})
+                s_item = strict_report.get(str(c), {})
+                f_item = full_report.get(str(c), {})
                 per_class_rows.append({
                     "strategy": strategy,
                     "budget": int(idx.numel()),
                     "class_id": c,
-                    "support": int(item.get("support", 0)),
-                    "recall": float(item.get("recall", 0.0)),
-                    "f1": float(item.get("f1-score", 0.0)),
+                    "strict_support": int(s_item.get("support", 0)),
+                    "strict_recall": float(s_item.get("recall", 0.0)),
+                    "strict_f1": float(s_item.get("f1-score", 0.0)),
+                    "full_support": int(f_item.get("support", 0)),
+                    "full_recall": float(f_item.get("recall", 0.0)),
+                    "full_f1": float(f_item.get("f1-score", 0.0)),
                 })
             for c in range(num_classes):
                 count = int((selected_labels == c).sum())
@@ -623,13 +641,13 @@ def main():
                     })
             print(
                 f"{strategy:<22} budget={int(idx.numel()):4d} "
-                f"macro={summary['overall_macro_f1']:.4f} "
-                f"collapse={summary['bad_macro_f1']:.4f} "
-                f"stable={summary['stable_macro_f1']:.4f} "
-                f"collapsed={summary['collapsed_count']} "
-                f"sel_collapse={selected_collapse} "
-                f"replay={int(replay_idx.numel())} "
-                f"distill={args.replay_distill_weight:g}"
+                f"strict: macro={strict_summary['overall_macro_f1']:.4f} "
+                f"collapse={strict_summary['bad_macro_f1']:.4f} "
+                f"stable={strict_summary['stable_macro_f1']:.4f} "
+                f"collapsed={strict_summary['collapsed_count']} | "
+                f"full: macro={full_summary['overall_macro_f1']:.4f} "
+                f"collapse={full_summary['bad_macro_f1']:.4f} "
+                f"sel_collapse={selected_collapse}"
             )
 
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), rows)
@@ -661,11 +679,12 @@ def main():
     with open(os.path.join(args.output_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
+    active_rows = [r for r in rows if r["method"] != "static"]
     best = max(
-        [r for r in rows if r["method"] != "static"],
-        key=lambda r: (r["bad_macro_f1"], r["overall_macro_f1"]),
+        active_rows,
+        key=lambda r: (r["strict_bad_macro_f1"], r["strict_overall_macro_f1"]),
     )
-    print("\n=== Collapse Active Maintenance Summary ===")
+    print("\n=== Collapse Active Maintenance Summary (strict: queried excluded) ===")
     print(
         f"static macro={static_summary['overall_macro_f1']:.4f} "
         f"collapse={static_summary['bad_macro_f1']:.4f} "
@@ -674,10 +693,10 @@ def main():
     )
     print(
         f"best strategy={best['strategy']} budget={best['budget']} "
-        f"macro={best['overall_macro_f1']:.4f} "
-        f"collapse={best['bad_macro_f1']:.4f} "
-        f"stable={best['stable_macro_f1']:.4f} "
-        f"collapsed={best['collapsed_count']}"
+        f"strict: macro={best['strict_overall_macro_f1']:.4f} "
+        f"collapse={best['strict_bad_macro_f1']:.4f} "
+        f"stable={best['strict_stable_macro_f1']:.4f} "
+        f"collapsed={best['strict_collapsed_count']}"
     )
     print(f"Saved outputs to: {args.output_dir}")
 
