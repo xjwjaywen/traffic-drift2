@@ -1,0 +1,12 @@
+{
+  "experiment": "H0_CNN_smoke_diagnostic",
+  "seed": 42,
+  "best_epoch": 5,
+  "best_val_f1": 0.39197112924911737,
+  "test_accuracy": 0.675888140533881,
+  "test_macro_f1": 0.3955320298322577,
+  "test_weighted_f1": 0.6655318860244737,
+  "num_classes": 102,
+  "train_seconds": 70.11358734796522,
+  "device": "cuda"
+}

@@ -1,0 +1,10 @@
+method,method_key,M-2022-7_macro_f1,M-2022-10_macro_f1,M-2022-12_macro_f1,M-2022-12_bad_macro_f1,M-2022-12_stable_macro_f1
+Static,static,0.7402,0.6836,0.6286,0.1544,0.9028
+BN-Adapt,bn_adapt,0.7402,0.6836,0.6286,,
+Tent,tent,0.7265,0.6558,0.5915,,
+EATA,eata,0.7402,0.6837,0.6288,,
+CoTTA,cotta,0.7407,0.6843,0.6299,,
+SAR,sar,0.7397,0.6815,0.6288,,
+NOTE,note,0.7291,0.6572,0.5891,,
+TTA-TC,tta_tc,0.7410,0.6852,0.6308,,
+CAPS,caps,0.7404,0.6861,0.6319,0.1639,0.8994

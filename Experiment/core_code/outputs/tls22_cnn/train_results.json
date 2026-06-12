@@ -1,7 +1,7 @@
 {
-  "best_epoch": 29,
-  "best_val_f1": 0.8899186050854195,
-  "test_accuracy": 0.8818787747366006,
-  "test_macro_f1": 0.8347595605945192,
+  "best_epoch": 27,
+  "best_val_f1": 0.8918412701138994,
+  "test_accuracy": 0.8812899347693764,
+  "test_macro_f1": 0.8390738459291812,
   "num_classes": 178
 }

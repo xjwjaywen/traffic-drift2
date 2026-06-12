@@ -1,0 +1,30 @@
+{
+  "method": "temporal_proto",
+  "best_epoch": 2,
+  "best_val_macro_f1": 0.003165764102782699,
+  "test_mean_macro_f1": 0.0024567843780417447,
+  "test_mean_collapse_macro_f1": 0.0,
+  "test_mean_stable_macro_f1": 0.0,
+  "final_period": "M-2022-12",
+  "final_macro_f1": 0.002767665844057981,
+  "final_collapse_macro_f1": 0.0,
+  "final_stable_macro_f1": 0.0,
+  "final_collapsed_count": 12,
+  "final_severe_collapsed_count": 12,
+  "train_periods": [
+    "M-2022-1",
+    "M-2022-2",
+    "M-2022-3",
+    "M-2022-4",
+    "M-2022-5",
+    "M-2022-6"
+  ],
+  "test_periods": [
+    "M-2022-7",
+    "M-2022-8",
+    "M-2022-9",
+    "M-2022-10",
+    "M-2022-11",
+    "M-2022-12"
+  ]
+}

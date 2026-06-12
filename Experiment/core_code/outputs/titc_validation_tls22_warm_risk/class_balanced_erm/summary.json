@@ -1,0 +1,30 @@
+{
+  "method": "class_balanced_erm",
+  "best_epoch": 1,
+  "best_val_macro_f1": 0.8306962552698287,
+  "test_mean_macro_f1": 0.6518564253431696,
+  "test_mean_collapse_macro_f1": 0.26645612659121704,
+  "test_mean_stable_macro_f1": 0.8505677557575656,
+  "final_period": "M-2022-12",
+  "final_macro_f1": 0.5977521491782045,
+  "final_collapse_macro_f1": 0.08738086189521882,
+  "final_stable_macro_f1": 0.8606677246001185,
+  "final_collapsed_count": 9,
+  "final_severe_collapsed_count": 6,
+  "train_periods": [
+    "M-2022-1",
+    "M-2022-2",
+    "M-2022-3",
+    "M-2022-4",
+    "M-2022-5",
+    "M-2022-6"
+  ],
+  "test_periods": [
+    "M-2022-7",
+    "M-2022-8",
+    "M-2022-9",
+    "M-2022-10",
+    "M-2022-11",
+    "M-2022-12"
+  ]
+}
