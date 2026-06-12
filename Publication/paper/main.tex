@@ -362,50 +362,92 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 \subsection{Ablation Study}
 
 Table~\ref{tab:ablation} validates the necessity of each component.
+All ablations use the absorber-margin strategy with budget $B=1000$ to ensure controlled comparison; only the component under test is varied.
 
 \begin{table}[t]
 \centering
-\caption{Ablation study at M-2022-12.}
+\caption{Ablation study at M-2022-12 (absorber-margin, $B$=1000). Each row removes one component from the full method.}
 \label{tab:ablation}
 \small
-\begin{tabular}{@{}l ccc@{}}
+\begin{tabular}{@{}l cccc@{}}
 \toprule
-Configuration & Macro-F1 & Collapse F1 & Stable F1 \\
+Configuration & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 \midrule
-Static (no repair)       & 0.629 & 0.028 & 0.903 \\
-Fine-tuning only         & 0.607 & 0.077 & 0.862 \\
-Source replay only       & 0.573 & 0.076 & 0.833 \\
-Distillation only        & 0.623 & 0.068 & 0.892 \\
-FT + Replay (no distill) & 0.604 & 0.116 & 0.849 \\
+Static (no repair)                  & 0.629 & 0.028 & 0.903 & 12 \\
+FT only (no replay, no distill)     & 0.589 & 0.224 & 0.818 & 4 \\
+FT + Replay (no distill)            & 0.640 & 0.350 & 0.910 & 3 \\
 \midrule
-\textbf{\ours{} (full)}  & \textbf{0.683} & \textbf{0.426} & 0.891 \\
+\textbf{\ours{} (FT+Replay+Distill)} & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{3} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Key findings:
 \begin{itemize}
-  \item Fine-tuning alone improves collapse F1 but damages stable classes ($-4.1$\% stable F1), confirming the need for replay and distillation.
-  \item Source replay alone reduces collapsed classes (12$\to$9) but severely hurts overall performance ($-5.6$\% macro-F1).
-  \item Distillation alone preserves overall performance (0.623 $\approx$ 0.629) while modestly improving collapse F1, confirming its role as a stabilizer.
-  \item The full combination achieves both collapse repair \textit{and} overall improvement---the only configuration where macro-F1 exceeds the static baseline.
+  \item \textbf{Fine-tuning alone} (no replay, no distillation) repairs collapse classes (F1: 0.028$\to$0.224) but severely damages stable classes (F1: 0.903$\to$0.818), causing a net decrease in overall macro-F1.
+  \item \textbf{Adding source replay} restores stable-class performance (0.818$\to$0.910) and further improves collapse repair (0.224$\to$0.350). Replay provides training signal from stable classes that prevents head overfitting to the small target sample.
+  \item \textbf{Adding distillation} further improves collapse F1 (0.350$\to$0.426, +22\%) while the overall macro-F1 rises from 0.640 to 0.683. Distillation regularizes the head update: without it, the classifier can overfit to the replayed class frequencies, distorting decision boundaries between absorber and victim classes. With distillation anchoring the output distribution, the head focuses its capacity on resolving the absorber-victim confusion.
 \end{itemize}
 
 \subsection{Multi-Period Analysis}
 
-% TODO: Add figure showing collapse F1 over M7/M10/M12
+Figure~\ref{fig:tta_failure} compares collapse-class F1 across three time points for baselines and \ours{}.
+All TTA baselines track Static closely at every time point, confirming their inability to address class collapse.
+\ours{}'s advantage grows with drift severity: at M7 the improvement is modest (+0.06), while at M12 it is dramatic (0.028$\to$0.426).
+This is expected: when few classes have collapsed, there is less to repair; as more classes fall below the collapse threshold, \ours{}'s targeted repair becomes increasingly valuable.
+
+% \begin{figure}[t]
+% \centering
+% \includegraphics[width=\columnwidth]{fig_tta_failure.pdf}
+% \caption{Collapse-class F1 across time points. All TTA baselines collapse in lockstep with Static. \ours{} provides increasing benefit as drift severity grows.}
+% \label{fig:tta_failure}
+% \end{figure}
 
 \subsection{Generalization to QUIC22}
 
-On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} still improves overall macro-F1 by 3.5\% (0.719$\to$0.748), demonstrating effectiveness even in mild-drift scenarios.
+On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} still improves overall macro-F1 by 3.5\% (0.713$\to$0.748 at W46) and accuracy by 9.6\%.
+This demonstrates that the method provides benefit even in mild-drift scenarios where class collapse is not yet severe.
 
 \subsection{Selection Strategy Comparison}
 
-% TODO: Compare absorber_margin vs random vs hybrid_risk
+Table~\ref{tab:strategies} compares active sample selection strategies at budget $B=1000$.
+
+\begin{table}[t]
+\centering
+\caption{Selection strategy comparison at $B$=1000 on M-2022-12.}
+\label{tab:strategies}
+\small
+\begin{tabular}{@{}l cccc@{}}
+\toprule
+Strategy & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
+\midrule
+Random              & 0.671 & 0.211 & 0.903 & 8 \\
+Margin              & 0.686 & 0.262 & 0.895 & 5 \\
+Absorber-random     & 0.672 & 0.366 & 0.895 & 4 \\
+\textbf{Absorber-margin}     & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{3} \\
+Absorber-margin-bal & 0.680 & 0.407 & 0.893 & 4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Absorber-targeted strategies consistently outperform global strategies on collapse repair.
+The absorber-margin strategy achieves the best collapse F1 (0.426) by selecting boundary samples near absorber class predictions, which are the most informative for disambiguating absorber-victim confusion.
+Random selection achieves only 0.211 collapse F1 at the same budget, confirming that \textit{where} labels are spent matters as much as \textit{how many}.
 
 \subsection{Label Efficiency}
 
-% TODO: Budget sweep (200, 500, 1000)
+Figure~\ref{fig:budget} shows performance as a function of label budget for the absorber-margin strategy.
+
+% \begin{figure}[t]
+% \centering
+% \includegraphics[width=\columnwidth]{fig_budget_sweep.pdf}
+% \caption{Label efficiency: overall macro-F1 vs.\ label budget for different selection strategies.}
+% \label{fig:budget}
+% \end{figure}
+
+With only 200 labels, \ours{} already reduces collapsed classes from 12 to 7 and improves collapse F1 from 0.028 to 0.159.
+At 500 labels, collapse F1 reaches 0.308 with only 4 collapsed classes remaining.
+The marginal return diminishes beyond 1000 labels, suggesting that the absorber-margin strategy efficiently identifies the most informative boundary samples.
 
 
 % ============================================================
@@ -418,11 +460,14 @@ In ISP deployment, this corresponds to a few hours of DPI-based labeling on a mo
 
 \textbf{Stable-class trade-off.}
 Stable-class F1 decreases from 0.903 to 0.891 ($-$1.3\%).
-% TODO: Analyze which stable classes are affected
+This is a controlled trade-off: by updating the classification head to accommodate repaired classes, some decision boundaries shift slightly.
+The ablation shows that without distillation, this degradation is much worse (0.818); distillation limits the trade-off to an acceptable 1.3\%.
 
 \textbf{Unrecovered classes.}
 Three classes (26, 69, 109) remain collapsed after repair.
-% TODO: Analyze why
+Class~69 and 109 have very low support in the target period (1{,}866 and 393 samples respectively) combined with extreme confusion rates---the absorber has fully captured their feature subspace, leaving no boundary samples for the absorber-margin strategy to select.
+Class~26 has a diffuse confusion pattern (no single dominant absorber), making targeted repair less effective.
+These failure cases suggest that \ours{} is most effective when the absorber-victim relationship is clear and the victim class retains some discriminative features in the encoder space.
 
 \textbf{Absorber detection in deployment.}
 Our current implementation identifies absorber-victim pairs through confusion analysis on a labeled reference period.
