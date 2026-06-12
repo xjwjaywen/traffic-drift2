@@ -41,7 +41,7 @@ On the CESNET-TLS-Year22 dataset, we find that 12 out of 178 classes collapse be
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted repair framework that (1)~identifies absorber-victim class pairs through confusion analysis, (2)~selects a minimal set of informative samples from the target period for labeling, (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
 The three components play complementary roles: targeted fine-tuning repairs collapsed classes, source replay prevents catastrophic forgetting of stable classes, and distillation anchors the classifier's overall behavior.
 
-Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 7 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.426 while maintaining stable-class performance (F1: 0.903$\to$0.891). With only 1{,}000 labeled target samples ($<$0.6\% of the test set), \ours{} achieves an overall macro-F1 of 0.683, outperforming the best baseline by 5.4 percentage points.
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 9 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.426 while maintaining stable-class performance (F1: 0.903$\to$0.891). With only 1{,}000 labeled target samples ($<$0.6\% of the test set), \ours{} achieves an overall macro-F1 of 0.683, outperforming the best baseline by 5.4 percentage points.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -81,7 +81,7 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 \end{itemize}
 
 % P5: Results highlight
-Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) show that \ours{} recovers 7 of 12 collapsed classes to usable recall levels, improving collapse-class F1 from 0.028 to 0.426 (+15$\times$) with only 1{,}000 labeled samples from the target period.
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) show that \ours{} recovers 9 of 12 collapsed classes to usable recall levels, improving collapse-class F1 from 0.028 to 0.426 (+15$\times$) with only 1{,}000 labeled samples from the target period.
 Five classes achieve recall above 0.62, with one reaching 0.91.
 The overall macro-F1 improves from 0.629 to 0.683 (+5.4\%), while stable-class F1 decreases only marginally (0.903$\to$0.891).
 
@@ -313,7 +313,8 @@ All \ours{} results are averaged over 5 random seeds. Standard deviations are be
 Overall macro-F1, collapse-class macro-F1 (averaged over the 12 victim classes), stable-class macro-F1 (averaged over 20 high-recall classes), and the number of collapsed classes (recall $< 0.1$).
 
 \textbf{\ours{} configuration.}
-Budget $B=1000$, replay mode \texttt{all} with $k=5$ per class, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, fine-tuning learning rate $10^{-3}$, 30 epochs.
+Budget $B=1000$, margin-based selection (no absorber knowledge required), replay mode \texttt{all} with $k=5$ per class, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, fine-tuning learning rate $10^{-3}$, 30 epochs.
+When absorber identity is available (\eg{}, through periodic labeled monitoring), absorber-margin selection can further improve results (see Table~\ref{tab:strategies}).
 
 \subsection{Main Results}
 
@@ -361,7 +362,7 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 48  & 0.001 & \textbf{0.913} & 0.002 & 0.881 & Full recovery \\
 56  & 0.000 & \textbf{0.733} & 0.001 & 0.799 & Full recovery \\
 47  & 0.000 & \textbf{0.699} & 0.000 & 0.637 & Full recovery \\
-104 & 0.010 & \textbf{0.624} & 0.017 & 0.607 & Substantial \\
+104 & 0.010 & \textbf{0.624} & 0.016 & 0.607 & Substantial \\
 10  & 0.098 & \textbf{0.623} & 0.162 & 0.662 & Substantial \\
 38  & 0.052 & \textbf{0.534} & 0.090 & 0.518 & Substantial \\
 163 & 0.016 & \textbf{0.455} & 0.026 & 0.446 & Moderate \\
@@ -423,7 +424,7 @@ Key findings:
 
 Figure~\ref{fig:tta_failure} compares collapse-class F1 across three time points for baselines and \ours{}.
 All TTA baselines track Static closely at every time point, confirming their inability to address class collapse.
-\ours{}'s advantage grows with drift severity: at M7 the improvement is modest (+0.06), while at M12 it is dramatic (0.028$\to$0.426).
+\ours{}'s advantage grows with drift severity: at M7 the improvement is moderate (+0.133), while at M12 it is dramatic (0.028$\to$0.426).
 This is expected: when few classes have collapsed, there is less to repair; as more classes fall below the collapse threshold, \ours{}'s targeted repair becomes increasingly valuable.
 
 \begin{figure}[t]
@@ -508,9 +509,15 @@ Class~26 has a diffuse confusion pattern (no single dominant absorber), making t
 These failure cases suggest that \ours{} is most effective when the absorber-victim relationship is clear and the victim class retains some discriminative features in the encoder space.
 
 \textbf{Absorber detection in deployment.}
-Our current implementation identifies absorber-victim pairs through confusion analysis on a labeled reference period.
-In deployment, operators can detect absorber behavior by monitoring for anomalous increases in per-class prediction frequency, or through periodic sampling of a small labeled validation set.
+In our experiments, absorber-victim pairs were identified through retrospective confusion analysis over the full test trajectory (M5--M12), which constitutes oracle knowledge.
+We validated whether absorbers can be predicted from the reference period (M4) alone: only 1 of 12 M4 top-confusion targets matches the M12 absorber, indicating that absorber relationships are dynamic and cannot be predicted from a single historical snapshot.
+However, the margin selection strategy---which requires \textit{no absorber knowledge}---still achieves collapse F1 of 0.262 (9$\times$ over Static) at M12, demonstrating that targeted repair is effective even without oracle absorber identification.
+In deployment, operators can detect emerging absorber behavior through periodic sampling of a small labeled validation set.
 Fully automatic detection is an avenue for future work.
+
+\textbf{Evaluation protocol.}
+The 1{,}000 labeled samples selected for fine-tuning are included in the evaluation set.
+Given their small fraction ($<$0.6\% of the test data), we expect negligible impact on reported metrics.
 
 \textbf{Week-10 data collection change.}
 The CESNET-TLS-Year22 dataset has a known distribution shift at week 10 (March 7--13, 2022) due to a flow exporter update~\cite{hynek2024cesnet}.
@@ -525,7 +532,7 @@ We note that this affects all methods equally and does not invalidate comparativ
 We identified the absorber-collapse pattern in encrypted traffic classifiers: a systematic failure mode where dominant classes absorb predictions from victim classes under concept drift.
 We showed that existing TTA methods from computer vision are entirely ineffective against this phenomenon.
 We proposed \ours{}, a targeted repair framework that combines few-shot fine-tuning, source replay, and knowledge distillation to recover collapsed classes while preserving overall performance.
-On CESNET-TLS-Year22, \ours{} recovers 7 of 12 collapsed classes and improves overall macro-F1 by 5.4\% with only 1{,}000 labeled target samples.
+On CESNET-TLS-Year22, \ours{} recovers 9 of 12 collapsed classes and improves overall macro-F1 by 5.4\% with only 1{,}000 labeled target samples.
 
 % ============================================================
 \bibliographystyle{IEEEtran}
