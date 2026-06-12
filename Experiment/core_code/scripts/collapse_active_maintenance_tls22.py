@@ -154,6 +154,69 @@ def build_head_training_set(
     return torch.cat(feature_parts, dim=0), torch.cat(label_parts, dim=0)
 
 
+def greedy_coreset(features, budget, seed):
+    """Greedy k-center coreset selection in feature space."""
+    n = features.shape[0]
+    budget = min(budget, n)
+    feat = features.numpy() if isinstance(features, torch.Tensor) else features
+    gen = np.random.RandomState(seed)
+    selected = [gen.randint(n)]
+    min_dist = np.full(n, np.inf)
+    for _ in range(budget - 1):
+        last = feat[selected[-1]]
+        dist = np.linalg.norm(feat - last[None, :], axis=1)
+        min_dist = np.minimum(min_dist, dist)
+        min_dist[selected] = -1
+        selected.append(int(np.argmax(min_dist)))
+    return torch.tensor(selected, dtype=torch.long)
+
+
+def badge_selection(features, logits, num_classes, budget, seed):
+    """BADGE: Batch Active learning by Diverse Gradient Embeddings.
+
+    Approximates gradient embeddings as (pred_prob - one_hot) ⊗ features,
+    then runs k-means++ initialization for diverse selection.
+    """
+    n = features.shape[0]
+    budget = min(budget, n)
+    probs = F.softmax(logits, dim=1)
+    preds = probs.argmax(dim=1)
+    one_hot = torch.zeros_like(probs)
+    one_hot.scatter_(1, preds.unsqueeze(1), 1.0)
+    grad_coeff = probs - one_hot  # [n, C]
+
+    feat_np = features.numpy() if isinstance(features, torch.Tensor) else features
+    coeff_np = grad_coeff.numpy()
+    # gradient embedding: outer product approximation, use top-k classes to limit memory
+    top_k = min(10, num_classes)
+    top_indices = np.argsort(np.abs(coeff_np), axis=1)[:, -top_k:]
+    grad_embed = np.zeros((n, top_k * feat_np.shape[1]), dtype=np.float32)
+    for i in range(top_k):
+        col = top_indices[:, i]
+        coeff_col = coeff_np[np.arange(n), col]
+        grad_embed[:, i * feat_np.shape[1]:(i + 1) * feat_np.shape[1]] = (
+            feat_np * coeff_col[:, None]
+        )
+
+    # k-means++ initialization
+    gen = np.random.RandomState(seed)
+    selected = [gen.randint(n)]
+    min_dist = np.full(n, np.inf)
+    for _ in range(budget - 1):
+        last = grad_embed[selected[-1]]
+        dist = np.sum((grad_embed - last[None, :]) ** 2, axis=1)
+        min_dist = np.minimum(min_dist, dist)
+        min_dist[selected] = 0
+        total = min_dist.sum()
+        if total <= 0:
+            remaining = np.setdiff1d(np.arange(n), selected)
+            selected.append(remaining[gen.randint(len(remaining))])
+        else:
+            p = min_dist / total
+            selected.append(gen.choice(n, p=p))
+    return torch.tensor(selected, dtype=torch.long)
+
+
 def select_indices(
     strategy,
     logits,
@@ -165,6 +228,7 @@ def select_indices(
     seed,
     nearest_distance=None,
     nearest_proto=None,
+    features=None,
 ):
     n = logits.shape[0]
     budget = min(int(budget), n)
@@ -222,6 +286,16 @@ def select_indices(
 
     if strategy == "confidence_low":
         return torch.argsort(confidence)[:budget]
+
+    if strategy == "coreset":
+        if features is None:
+            raise ValueError("coreset requires features")
+        return greedy_coreset(features, budget, seed)
+
+    if strategy == "badge":
+        if features is None:
+            raise ValueError("badge requires features")
+        return badge_selection(features, logits, num_classes, budget, seed)
 
     if strategy in {
         "absorber_random",
@@ -556,6 +630,7 @@ def main():
                 args.seed,
                 nearest_distance=nearest_distance,
                 nearest_proto=nearest_proto,
+                features=features,
             )
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
