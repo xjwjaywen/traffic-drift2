@@ -82,7 +82,7 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 
 % P5: Results highlight
 Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) show that \ours{} recovers 7 of 12 collapsed classes to usable recall levels, improving collapse-class F1 from 0.028 to 0.426 (+15$\times$) with only 1{,}000 labeled samples from the target period.
-Three classes achieve recall above 0.62, with one reaching 0.91.
+Five classes achieve recall above 0.62, with one reaching 0.91.
 The overall macro-F1 improves from 0.629 to 0.683 (+5.4\%), while stable-class F1 decreases only marginally (0.903$\to$0.891).
 
 % P6: Contributions
@@ -122,7 +122,9 @@ CoTTA~\cite{wang2022cotta} uses augmentation-averaged pseudo-labels with stochas
 NOTE~\cite{gong2022note} handles non-i.i.d.\ test streams with prediction-balanced sampling.
 
 These methods were designed for image corruption benchmarks (ImageNet-C) and assume BatchNorm-based architectures.
-As we show in Section~\ref{sec:tta_eval}, they are ineffective for traffic classification, where drift manifests as systematic class confusion rather than global distribution shift.
+Our classifier uses GroupNorm for stability under non-i.i.d.\ traffic batches; consequently, BN-Adapt (which updates BatchNorm statistics) is a no-op, and NOTE's Instance-Aware BatchNorm component is non-functional.
+We include both for completeness, noting that their results are identical or near-identical to the Static baseline.
+As we show in Section~\ref{sec:tta_eval}, even TTA methods that do function on GroupNorm architectures (Tent, EATA, SAR, CoTTA) are ineffective, because drift manifests as systematic class confusion rather than global distribution shift.
 
 \subsection{Continual Learning for Traffic Classification}
 
@@ -216,8 +218,9 @@ CoTTA      & .504 & .257 & .027 & .741 & .684 & .629 \\
 SAR        & .504 & .255 & .026 & .740 & .683 & .629 \\
 NOTE       & .505 & .258 & .027 & .740 & .684 & .630 \\
 \midrule
-\textbf{\ours{}} & \textbf{.559} & \textbf{.298} & \textbf{.426} & \textbf{.744} & \textbf{.696} & \textbf{.683} \\
+\textbf{\ours{}}$^\dagger$ & \textbf{.636} & \textbf{.419} & \textbf{.426} & \textbf{.762} & \textbf{.710} & \textbf{.683} \\
 \bottomrule
+\multicolumn{7}{l}{\footnotesize $^\dagger$Uses 1{,}000 labeled target samples + 890 reference replay samples.}
 \end{tabular}
 \end{table}
 
@@ -334,8 +337,9 @@ SAR         & 0.629 & 0.026 & 0.901 & 11 \\
 NOTE        & 0.630 & 0.027 & 0.902 & 12 \\
 CAPS        & 0.632 & 0.164 & 0.899 & --- \\
 \midrule
-\textbf{\ours{}} & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{5} \\
+\textbf{\ours{}}$^\dagger$ & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{3} \\
 \bottomrule
+\multicolumn{5}{l}{\footnotesize $^\dagger$Uses 1{,}000 labeled target samples + 890 reference replay samples.}
 \end{tabular}
 \end{table}
 
@@ -357,15 +361,15 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 48  & 0.001 & \textbf{0.913} & 0.002 & 0.881 & Full recovery \\
 56  & 0.000 & \textbf{0.733} & 0.001 & 0.799 & Full recovery \\
 47  & 0.000 & \textbf{0.699} & 0.000 & 0.637 & Full recovery \\
-104 & 0.010 & \textbf{0.624} & 0.016 & 0.607 & Substantial \\
+104 & 0.010 & \textbf{0.624} & 0.017 & 0.607 & Substantial \\
 10  & 0.098 & \textbf{0.623} & 0.162 & 0.662 & Substantial \\
-38  & 0.052 & \textbf{0.534} & 0.071 & 0.518 & Substantial \\
-163 & 0.015 & \textbf{0.455} & 0.076 & 0.446 & Moderate \\
+38  & 0.052 & \textbf{0.534} & 0.090 & 0.518 & Substantial \\
+163 & 0.016 & \textbf{0.455} & 0.026 & 0.446 & Moderate \\
 66  & 0.001 & \textbf{0.355} & 0.002 & 0.270 & Partial \\
 174 & 0.000 & 0.274 & 0.000 & 0.230 & Partial \\
 \midrule
-26  & 0.019 & 0.051 & 0.020 & 0.065 & Failed \\
-69  & 0.005 & 0.000 & 0.001 & 0.000 & Failed \\
+26  & 0.022 & 0.051 & 0.025 & 0.065 & Failed \\
+69  & 0.005 & 0.000 & 0.008 & 0.000 & Failed \\
 109 & 0.000 & 0.000 & 0.000 & 0.000 & Failed \\
 \bottomrule
 \end{tabular}
@@ -374,7 +378,7 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_per_class_recovery.pdf}
-\caption{Per-class recall before (Static) and after (\ours{}) repair at M-2022-12. Seven of 12 collapsed classes recover above the 0.1 threshold, with three exceeding 0.62 recall.}
+\caption{Per-class recall before (Static) and after (\ours{}) repair at M-2022-12. Nine of 12 collapsed classes recover above the 0.1 threshold, with five exceeding 0.62 recall.}
 \label{fig:per_class_recovery}
 \end{figure}
 
@@ -394,7 +398,7 @@ Configuration & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 \midrule
 Static (no repair)                  & 0.629 & 0.028 & 0.903 & 12 \\
 FT only (no replay, no distill)     & 0.589 & 0.224 & 0.818 & 4 \\
-FT + Replay (no distill)            & 0.640 & 0.350 & 0.910 & 3 \\
+FT + Replay (no distill)            & 0.640 & 0.350 & 0.856 & 3 \\
 \midrule
 \textbf{\ours{} (FT+Replay+Distill)} & \textbf{0.683} & \textbf{0.426} & 0.891 & \textbf{3} \\
 \bottomrule
@@ -404,7 +408,7 @@ FT + Replay (no distill)            & 0.640 & 0.350 & 0.910 & 3 \\
 Key findings:
 \begin{itemize}
   \item \textbf{Fine-tuning alone} (no replay, no distillation) repairs collapse classes (F1: 0.028$\to$0.224) but severely damages stable classes (F1: 0.903$\to$0.818), causing a net decrease in overall macro-F1.
-  \item \textbf{Adding source replay} restores stable-class performance (0.818$\to$0.910) and further improves collapse repair (0.224$\to$0.350). Replay provides training signal from stable classes that prevents head overfitting to the small target sample.
+  \item \textbf{Adding source replay} partially restores stable-class performance (0.818$\to$0.856) and further improves collapse repair (0.224$\to$0.350). Replay provides training signal from stable classes that prevents head overfitting to the small target sample.
   \item \textbf{Adding distillation} further improves collapse F1 (0.350$\to$0.426, +22\%) while the overall macro-F1 rises from 0.640 to 0.683. Distillation regularizes the head update: without it, the classifier can overfit to the replayed class frequencies, distorting decision boundaries between absorber and victim classes. With distillation anchoring the output distribution, the head focuses its capacity on resolving the absorber-victim confusion.
 \end{itemize}
 
@@ -431,8 +435,9 @@ This is expected: when few classes have collapsed, there is less to repair; as m
 
 \subsection{Generalization to QUIC22}
 
-On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} still improves overall macro-F1 by 3.5\% (0.713$\to$0.748 at W46) and accuracy by 9.6\%.
-This demonstrates that the method provides benefit even in mild-drift scenarios where class collapse is not yet severe.
+On CESNET-QUIC22, where only one class collapses (class~71 at W47), \ours{} improves overall accuracy from 0.712 to 0.813 (+10.1\%) at W46 with the random selection strategy.
+Note that the absorber-margin strategy is less effective on QUIC22 (macro-F1: 0.713, unchanged from Static) because the collapse pattern is too mild for absorber-targeted selection to find informative boundary samples.
+This demonstrates that \ours{}'s effectiveness scales with collapse severity, and that strategy selection should be adapted to the drift regime.
 
 \subsection{Selection Strategy Comparison}
 
@@ -494,7 +499,7 @@ In ISP deployment, this corresponds to a few hours of DPI-based labeling on a mo
 \textbf{Stable-class trade-off.}
 Stable-class F1 decreases from 0.903 to 0.891 ($-$1.3\%).
 This is a controlled trade-off: by updating the classification head to accommodate repaired classes, some decision boundaries shift slightly.
-The ablation shows that without distillation, this degradation is much worse (0.818); distillation limits the trade-off to an acceptable 1.3\%.
+The ablation shows that without replay and distillation, this degradation is much worse (0.818); adding replay brings it to 0.856, and adding distillation further improves to 0.891, limiting the trade-off to an acceptable 1.3\%.
 
 \textbf{Unrecovered classes.}
 Three classes (26, 69, 109) remain collapsed after repair.
