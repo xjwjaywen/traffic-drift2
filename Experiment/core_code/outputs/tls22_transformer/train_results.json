@@ -1,0 +1,9 @@
+{
+  "best_epoch": 30,
+  "best_val_f1": 0.9342880133283354,
+  "test_accuracy": 0.9173823609957024,
+  "test_macro_f1": 0.8899902641377858,
+  "num_classes": 178,
+  "base_ssl_loss": 1.1021693543293998,
+  "causal_dims": 128
+}
