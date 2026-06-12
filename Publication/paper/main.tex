@@ -41,7 +41,7 @@ On the CESNET-TLS-Year22 dataset, we find that 12 out of 178 classes collapse be
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted repair framework that (1)~identifies absorber-victim class pairs through confusion analysis, (2)~selects a minimal set of informative samples from the target period for labeling, (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
 The three components play complementary roles: targeted fine-tuning repairs collapsed classes, source replay prevents catastrophic forgetting of stable classes, and distillation anchors the classifier's overall behavior.
 
-Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 9 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.262 (9$\times$) while maintaining stable-class performance (F1: 0.903$\to$0.895). With only 1{,}000 labeled target samples ($<$0.6\% of the test set) and no prior knowledge of which classes are affected, \ours{} achieves an overall macro-F1 of 0.686, outperforming the best baseline by 5.8 percentage points. When absorber identity is available, collapse-class F1 further improves to 0.426 (15$\times$).
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) demonstrate that \ours{} recovers 7 out of 12 collapsed classes, improving collapse-class F1 from 0.028 to 0.262 (9$\times$) while maintaining stable-class performance (F1: 0.903$\to$0.895). With only 1{,}000 labeled target samples ($<$0.6\% of the test set) and no prior knowledge of which classes are affected, \ours{} achieves an overall macro-F1 of 0.686, outperforming the best baseline by 5.8 percentage points. When absorber identity is available, collapse-class F1 further improves to 0.426 (15$\times$).
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -533,7 +533,7 @@ We note that this affects all methods equally and does not invalidate comparativ
 We identified the absorber-collapse pattern in encrypted traffic classifiers: a systematic failure mode where dominant classes absorb predictions from victim classes under concept drift.
 We showed that existing TTA methods from computer vision are entirely ineffective against this phenomenon.
 We proposed \ours{}, a targeted repair framework that combines few-shot fine-tuning, source replay, and knowledge distillation to recover collapsed classes while preserving overall performance.
-On CESNET-TLS-Year22, \ours{} recovers 7 of 12 collapsed classes and improves overall macro-F1 by 5.4\% with only 1{,}000 labeled target samples.
+On CESNET-TLS-Year22, \ours{} recovers 7 of 12 collapsed classes and improves overall macro-F1 by 5.8\% with only 1{,}000 labeled target samples.
 
 % ============================================================
 \bibliographystyle{IEEEtran}
