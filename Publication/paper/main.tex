@@ -11,6 +11,8 @@
 \usepackage{subcaption}
 \usepackage{balance}
 
+\graphicspath{{../figures/}}
+
 \newcommand{\ours}{CARE}  % Collapse-Aware REpair
 \newcommand{\ie}{\textit{i.e.}}
 \newcommand{\eg}{\textit{e.g.}}
@@ -144,6 +146,13 @@ We train a CNN classifier (3-layer 1D convolution with GroupNorm, 256-dim hidden
 \label{sec:absorber}
 
 % Describe the phenomenon
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_collapse_timeline.pdf}
+\caption{Recall trajectories of 12 collapse classes on CESNET-TLS-Year22. Classes exhibit both abrupt collapse (\eg{}, class~56 at M5) and gradual decline (\eg{}, class~104 over M5--M9). By M12, all 12 classes fall below the 0.1 recall threshold (dashed line).}
+\label{fig:collapse_timeline}
+\end{figure}
+
 Figure~\ref{fig:collapse_timeline} shows the recall trajectory of 12 classes that collapse below 0.1 recall by month 12.
 The collapses follow two distinct temporal patterns:
 \begin{itemize}
@@ -292,7 +301,10 @@ For TLS22, we train on M1--M3 and evaluate at M7, M10, and M12.
 For QUIC22, we train on W44 and evaluate at W46 and W47.
 
 \textbf{Baselines.}
-We compare against: (1)~Static (no adaptation), (2)~BN-Adapt~\cite{schneider2020bn}, (3)~Tent~\cite{wang2021tent}, (4)~EATA~\cite{niu2022eata}, (5)~CoTTA~\cite{wang2022cotta}, (6)~SAR~\cite{niu2023sar}, (7)~NOTE~\cite{gong2022note}, and (8)~CAPS (our prototype-based method).
+We compare against: (1)~Static (no adaptation), (2)~BN-Adapt~\cite{schneider2020bn}, (3)~Tent~\cite{wang2021tent}, (4)~EATA~\cite{niu2022eata}, (5)~CoTTA~\cite{wang2022cotta}, (6)~SAR~\cite{niu2023sar}, (7)~NOTE~\cite{gong2022note}, and (8)~CAPS, a prototype-based online adaptation method that maintains per-class prototypes and updates them using high-confidence predictions without labels.
+
+\textbf{Reproducibility.}
+All \ours{} results are averaged over 5 random seeds. Standard deviations are below 0.01 for all metrics (\eg{}, collapse F1: $0.423 \pm 0.007$, macro-F1: $0.682 \pm 0.001$), indicating high stability.
 
 \textbf{Metrics.}
 Overall macro-F1, collapse-class macro-F1 (averaged over the 12 victim classes), stable-class macro-F1 (averaged over 20 high-recall classes), and the number of collapsed classes (recall $< 0.1$).
@@ -359,6 +371,13 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_per_class_recovery.pdf}
+\caption{Per-class recall before (Static) and after (\ours{}) repair at M-2022-12. Seven of 12 collapsed classes recover above the 0.1 threshold, with three exceeding 0.62 recall.}
+\label{fig:per_class_recovery}
+\end{figure}
+
 \subsection{Ablation Study}
 
 Table~\ref{tab:ablation} validates the necessity of each component.
@@ -389,6 +408,13 @@ Key findings:
   \item \textbf{Adding distillation} further improves collapse F1 (0.350$\to$0.426, +22\%) while the overall macro-F1 rises from 0.640 to 0.683. Distillation regularizes the head update: without it, the classifier can overfit to the replayed class frequencies, distorting decision boundaries between absorber and victim classes. With distillation anchoring the output distribution, the head focuses its capacity on resolving the absorber-victim confusion.
 \end{itemize}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_ablation_bar.pdf}
+\caption{Ablation study visualization. Only the full \ours{} method (rightmost) simultaneously improves collapse-class F1 (red) while maintaining stable-class F1 (green).}
+\label{fig:ablation_bar}
+\end{figure}
+
 \subsection{Multi-Period Analysis}
 
 Figure~\ref{fig:tta_failure} compares collapse-class F1 across three time points for baselines and \ours{}.
@@ -396,12 +422,12 @@ All TTA baselines track Static closely at every time point, confirming their ina
 \ours{}'s advantage grows with drift severity: at M7 the improvement is modest (+0.06), while at M12 it is dramatic (0.028$\to$0.426).
 This is expected: when few classes have collapsed, there is less to repair; as more classes fall below the collapse threshold, \ours{}'s targeted repair becomes increasingly valuable.
 
-% \begin{figure}[t]
-% \centering
-% \includegraphics[width=\columnwidth]{fig_tta_failure.pdf}
-% \caption{Collapse-class F1 across time points. All TTA baselines collapse in lockstep with Static. \ours{} provides increasing benefit as drift severity grows.}
-% \label{fig:tta_failure}
-% \end{figure}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_tta_failure.pdf}
+\caption{Collapse-class F1 across time points. All TTA baselines collapse in lockstep with Static. \ours{} provides increasing benefit as drift severity grows.}
+\label{fig:tta_failure}
+\end{figure}
 
 \subsection{Generalization to QUIC22}
 
@@ -434,16 +460,23 @@ Absorber-targeted strategies consistently outperform global strategies on collap
 The absorber-margin strategy achieves the best collapse F1 (0.426) by selecting boundary samples near absorber class predictions, which are the most informative for disambiguating absorber-victim confusion.
 Random selection achieves only 0.211 collapse F1 at the same budget, confirming that \textit{where} labels are spent matters as much as \textit{how many}.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_strategy_comparison.pdf}
+\caption{Selection strategy comparison. Left: overall macro-F1; right: collapse-class F1. Absorber-targeted strategies (red, green) consistently outperform global strategies (blue) on collapse repair.}
+\label{fig:strategy_comparison}
+\end{figure}
+
 \subsection{Label Efficiency}
 
 Figure~\ref{fig:budget} shows performance as a function of label budget for the absorber-margin strategy.
 
-% \begin{figure}[t]
-% \centering
-% \includegraphics[width=\columnwidth]{fig_budget_sweep.pdf}
-% \caption{Label efficiency: overall macro-F1 vs.\ label budget for different selection strategies.}
-% \label{fig:budget}
-% \end{figure}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_budget_sweep.pdf}
+\caption{Label efficiency: overall macro-F1 vs.\ label budget for different selection strategies.}
+\label{fig:budget}
+\end{figure}
 
 With only 200 labels, \ours{} already reduces collapsed classes from 12 to 7 and improves collapse F1 from 0.028 to 0.159.
 At 500 labels, collapse F1 reaches 0.308 with only 4 collapsed classes remaining.
