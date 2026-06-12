@@ -1,0 +1,193 @@
+{
+  "reference_period": "M-2022-4",
+  "final_period": "M-2022-12",
+  "collapse_recall_threshold": 0.1,
+  "severe_recall_threshold": 0.01,
+  "min_support": 50,
+  "num_classes": 178,
+  "num_ever_collapsed_classes": 15,
+  "num_final_collapsed_classes": 12,
+  "period_summary": [
+    {
+      "period": "M-2022-4",
+      "supported_classes": 177,
+      "collapsed_classes": 0,
+      "severely_collapsed_classes": 0,
+      "collapsed_fraction": 0.0,
+      "mean_recall_supported": 0.8589281427763562,
+      "median_recall_supported": 0.9079016221873365
+    },
+    {
+      "period": "M-2022-5",
+      "supported_classes": 178,
+      "collapsed_classes": 2,
+      "severely_collapsed_classes": 0,
+      "collapsed_fraction": 0.011235955056179775,
+      "mean_recall_supported": 0.8352809973278437,
+      "median_recall_supported": 0.8967590992591082
+    },
+    {
+      "period": "M-2022-6",
+      "supported_classes": 176,
+      "collapsed_classes": 2,
+      "severely_collapsed_classes": 1,
+      "collapsed_fraction": 0.011363636363636364,
+      "mean_recall_supported": 0.8076056331281666,
+      "median_recall_supported": 0.8721104567609286
+    },
+    {
+      "period": "M-2022-7",
+      "supported_classes": 174,
+      "collapsed_classes": 5,
+      "severely_collapsed_classes": 2,
+      "collapsed_fraction": 0.028735632183908046,
+      "mean_recall_supported": 0.768457665439434,
+      "median_recall_supported": 0.8522361482778427
+    },
+    {
+      "period": "M-2022-8",
+      "supported_classes": 173,
+      "collapsed_classes": 6,
+      "severely_collapsed_classes": 4,
+      "collapsed_fraction": 0.03468208092485549,
+      "mean_recall_supported": 0.7477888261632325,
+      "median_recall_supported": 0.8250805742748315
+    },
+    {
+      "period": "M-2022-9",
+      "supported_classes": 175,
+      "collapsed_classes": 8,
+      "severely_collapsed_classes": 3,
+      "collapsed_fraction": 0.045714285714285714,
+      "mean_recall_supported": 0.7062171503791382,
+      "median_recall_supported": 0.8089244851258581
+    },
+    {
+      "period": "M-2022-10",
+      "supported_classes": 176,
+      "collapsed_classes": 7,
+      "severely_collapsed_classes": 4,
+      "collapsed_fraction": 0.03977272727272727,
+      "mean_recall_supported": 0.6943678913398373,
+      "median_recall_supported": 0.7809130050031656
+    },
+    {
+      "period": "M-2022-11",
+      "supported_classes": 177,
+      "collapsed_classes": 10,
+      "severely_collapsed_classes": 6,
+      "collapsed_fraction": 0.05649717514124294,
+      "mean_recall_supported": 0.6604817703837125,
+      "median_recall_supported": 0.7493564993564994
+    },
+    {
+      "period": "M-2022-12",
+      "supported_classes": 175,
+      "collapsed_classes": 12,
+      "severely_collapsed_classes": 8,
+      "collapsed_fraction": 0.06857142857142857,
+      "mean_recall_supported": 0.6495954778730056,
+      "median_recall_supported": 0.7318702290076335
+    }
+  ],
+  "top_final_collapsed_classes": [
+    {
+      "class_id": 56,
+      "final_recall": 0.00041196341764851283,
+      "final_f1": 0.0007871536523929471,
+      "first_collapse_period": "M-2022-5",
+      "final_top_confusion_target": 96,
+      "final_top_confusion_rate": 0.25236878965147896
+    },
+    {
+      "class_id": 163,
+      "final_recall": 0.015508328546812177,
+      "final_f1": 0.025738798856053385,
+      "first_collapse_period": "M-2022-5",
+      "final_top_confusion_target": 46,
+      "final_top_confusion_rate": 0.41815048822515793
+    },
+    {
+      "class_id": 174,
+      "final_recall": 0.0,
+      "final_f1": 0.0,
+      "first_collapse_period": "M-2022-7",
+      "final_top_confusion_target": 2,
+      "final_top_confusion_rate": 0.291970802919708
+    },
+    {
+      "class_id": 48,
+      "final_recall": 0.0008925914906277894,
+      "final_f1": 0.0017709563164108619,
+      "first_collapse_period": "M-2022-7",
+      "final_top_confusion_target": 14,
+      "final_top_confusion_rate": 0.389764950907468
+    },
+    {
+      "class_id": 38,
+      "final_recall": 0.05181347150259067,
+      "final_f1": 0.08968609865470852,
+      "first_collapse_period": "M-2022-8",
+      "final_top_confusion_target": 45,
+      "final_top_confusion_rate": 0.46113989637305697
+    },
+    {
+      "class_id": 69,
+      "final_recall": 0.00482315112540193,
+      "final_f1": 0.008430913348946136,
+      "first_collapse_period": "M-2022-9",
+      "final_top_confusion_target": 105,
+      "final_top_confusion_rate": 0.3767416934619507
+    },
+    {
+      "class_id": 104,
+      "final_recall": 0.00974770642201835,
+      "final_f1": 0.016456921587608905,
+      "first_collapse_period": "M-2022-9",
+      "final_top_confusion_target": 2,
+      "final_top_confusion_rate": 0.2121559633027523
+    },
+    {
+      "class_id": 47,
+      "final_recall": 0.0,
+      "final_f1": 0.0,
+      "first_collapse_period": "M-2022-11",
+      "final_top_confusion_target": 5,
+      "final_top_confusion_rate": 0.45145631067961167
+    },
+    {
+      "class_id": 66,
+      "final_recall": 0.0010230179028132991,
+      "final_f1": 0.001658374792703151,
+      "first_collapse_period": "M-2022-11",
+      "final_top_confusion_target": 71,
+      "final_top_confusion_rate": 0.13861892583120206
+    },
+    {
+      "class_id": 10,
+      "final_recall": 0.09760956175298804,
+      "final_f1": 0.16184971098265896,
+      "first_collapse_period": "M-2022-11",
+      "final_top_confusion_target": 156,
+      "final_top_confusion_rate": 0.3645418326693227
+    },
+    {
+      "class_id": 109,
+      "final_recall": 0.0,
+      "final_f1": 0.0,
+      "first_collapse_period": "M-2022-12",
+      "final_top_confusion_target": 71,
+      "final_top_confusion_rate": 0.24936386768447838
+    },
+    {
+      "class_id": 26,
+      "final_recall": 0.022304832713754646,
+      "final_f1": 0.024539877300613498,
+      "first_collapse_period": "M-2022-12",
+      "final_top_confusion_target": 13,
+      "final_top_confusion_rate": 0.21561338289962825
+    }
+  ],
+  "per_class_csv": "outputs/class_conditional_drift_tls22_monthly/per_class_metrics.csv",
+  "confusion_csv": "outputs/class_conditional_drift_tls22_monthly/confusion_pairs.csv"
+}

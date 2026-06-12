@@ -1,0 +1,51 @@
+{
+  "reference_period": "W-2022-45",
+  "final_period": "W-2022-47",
+  "collapse_recall_threshold": 0.1,
+  "severe_recall_threshold": 0.01,
+  "min_support": 50,
+  "num_classes": 102,
+  "num_ever_collapsed_classes": 1,
+  "num_final_collapsed_classes": 1,
+  "period_summary": [
+    {
+      "period": "W-2022-45",
+      "supported_classes": 102,
+      "collapsed_classes": 0,
+      "severely_collapsed_classes": 0,
+      "collapsed_fraction": 0.0,
+      "mean_recall_supported": 0.756981702303596,
+      "median_recall_supported": 0.8163996237777824
+    },
+    {
+      "period": "W-2022-46",
+      "supported_classes": 102,
+      "collapsed_classes": 0,
+      "severely_collapsed_classes": 0,
+      "collapsed_fraction": 0.0,
+      "mean_recall_supported": 0.7046123804610952,
+      "median_recall_supported": 0.7951939110825029
+    },
+    {
+      "period": "W-2022-47",
+      "supported_classes": 102,
+      "collapsed_classes": 1,
+      "severely_collapsed_classes": 0,
+      "collapsed_fraction": 0.00980392156862745,
+      "mean_recall_supported": 0.7096024914899013,
+      "median_recall_supported": 0.8053452811740871
+    }
+  ],
+  "top_final_collapsed_classes": [
+    {
+      "class_id": 71,
+      "final_recall": 0.06689895470383275,
+      "final_f1": 0.11815384615384615,
+      "first_collapse_period": "W-2022-47",
+      "final_top_confusion_target": 98,
+      "final_top_confusion_rate": 0.3205574912891986
+    }
+  ],
+  "per_class_csv": "outputs/class_conditional_drift_quic22/per_class_metrics.csv",
+  "confusion_csv": "outputs/class_conditional_drift_quic22/confusion_pairs.csv"
+}

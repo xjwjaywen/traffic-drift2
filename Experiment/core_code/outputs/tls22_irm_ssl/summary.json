@@ -1,0 +1,30 @@
+{
+  "method": "irm_ssl",
+  "best_epoch": 28,
+  "best_val_macro_f1": 0.7110090595733038,
+  "test_mean_macro_f1": 0.5537226148236872,
+  "test_mean_collapse_macro_f1": 0.30098300282961077,
+  "test_mean_stable_macro_f1": 0.772932277135569,
+  "final_period": "M-2022-12",
+  "final_macro_f1": 0.4755377991399989,
+  "final_collapse_macro_f1": 0.04890749341629321,
+  "final_stable_macro_f1": 0.8016239514439196,
+  "final_collapsed_count": 10,
+  "final_severe_collapsed_count": 9,
+  "train_periods": [
+    "M-2022-1",
+    "M-2022-2",
+    "M-2022-3"
+  ],
+  "test_periods": [
+    "M-2022-4",
+    "M-2022-5",
+    "M-2022-6",
+    "M-2022-7",
+    "M-2022-8",
+    "M-2022-9",
+    "M-2022-10",
+    "M-2022-11",
+    "M-2022-12"
+  ]
+}

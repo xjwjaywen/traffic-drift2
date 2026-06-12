@@ -1,0 +1,91 @@
+{
+  "config": "configs/eval_tls22.yaml",
+  "checkpoint": "outputs/tls22_cnn/best_model.pt",
+  "periods": [
+    "M-2022-4",
+    "M-2022-7",
+    "M-2022-10",
+    "M-2022-12"
+  ],
+  "reference_period": "M-2022-4",
+  "final_period": "M-2022-12",
+  "num_classes": 178,
+  "min_support": 100,
+  "top_k": 20,
+  "group_summary": {
+    "bad_class_ids": [
+      5,
+      6,
+      10,
+      11,
+      12,
+      14,
+      26,
+      28,
+      38,
+      47,
+      48,
+      56,
+      66,
+      69,
+      104,
+      109,
+      118,
+      139,
+      164,
+      174
+    ],
+    "stable_class_ids": [
+      8,
+      15,
+      44,
+      57,
+      59,
+      62,
+      64,
+      76,
+      94,
+      98,
+      99,
+      107,
+      113,
+      119,
+      128,
+      130,
+      131,
+      132,
+      144,
+      145
+    ],
+    "bad_means_input": {
+      "size_sum_w1": 12051.557315868386,
+      "direction_front_0_9_sum_w1": 2.3501393650956226,
+      "ipt_tail_20_29_sum_w1": 791.8473142963752,
+      "total_norm_w1": 18963677999.856663,
+      "total_log_w1": 33.11713243304966,
+      "delta_f1_from_ref": -0.38929437702983444
+    },
+    "stable_means_input": {
+      "size_sum_w1": 4433.25390005471,
+      "direction_front_0_9_sum_w1": 1.0133492271616664,
+      "ipt_tail_20_29_sum_w1": 288.48864262104365,
+      "total_norm_w1": 789716225.3050977,
+      "total_log_w1": 14.330448509462768,
+      "delta_f1_from_ref": -0.011284076491169748
+    },
+    "bad_means_feature": {
+      "centroid_shift_from_ref": 3.4121926778927447,
+      "delta_radius_from_ref": 0.14215598851442338,
+      "delta_nearest_distance_from_ref": -0.09471432268619537,
+      "delta_margin_from_ref": -0.23687031120061874,
+      "delta_current_partner_distance_from_ref": -0.4742460012435913
+    },
+    "stable_means_feature": {
+      "centroid_shift_from_ref": 1.3904490265995264,
+      "delta_radius_from_ref": -0.40074216946959496,
+      "delta_nearest_distance_from_ref": 0.19999885261058808,
+      "delta_margin_from_ref": 0.600741022080183,
+      "delta_current_partner_distance_from_ref": 0.2915414422750473
+    }
+  }
+}

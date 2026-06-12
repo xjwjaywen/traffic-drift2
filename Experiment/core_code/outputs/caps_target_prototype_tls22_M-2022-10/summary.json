@@ -1,0 +1,86 @@
+{
+  "method": "CAPS prototype-only MVP",
+  "online_protocol": "predict with current prototypes, then update for future batches",
+  "reference_period": "M-2022-4",
+  "target_period": "M-2022-10",
+  "checkpoint": "outputs/tls22_cnn/best_model.pt",
+  "config": "configs/eval_tls22.yaml",
+  "alphas": [
+    2.0,
+    5.0
+  ],
+  "tau_confs": [
+    0.8,
+    0.9
+  ],
+  "momentums": [
+    0.9
+  ],
+  "tau_margin": 0.0,
+  "tau_entropy": null,
+  "require_proto_agreement": true,
+  "batch_size": 1024,
+  "best_alpha_by_bad_macro_f1": 2.0,
+  "best_tau_conf_by_bad_macro_f1": 0.8,
+  "best_momentum_by_bad_macro_f1": 0.9,
+  "best_metrics": {
+    "overall_accuracy": 0.7888938734681492,
+    "overall_macro_f1": 0.6861482873986695,
+    "bad_accuracy": 0.34383903396761195,
+    "bad_macro_f1": 0.35990248968481964,
+    "bad_support": 67741,
+    "stable_accuracy": 0.9497808708553357,
+    "stable_macro_f1": 0.9108379053160315,
+    "stable_support": 204902
+  },
+  "best_update_stats": {
+    "accepted_total": 835039,
+    "accepted_rate": 0.4041085515538579,
+    "num_updated_classes": 174
+  },
+  "bad_classes": [
+    5,
+    6,
+    10,
+    11,
+    12,
+    14,
+    26,
+    28,
+    38,
+    47,
+    48,
+    56,
+    66,
+    69,
+    104,
+    109,
+    118,
+    139,
+    164,
+    174
+  ],
+  "stable_classes": [
+    8,
+    15,
+    44,
+    57,
+    59,
+    62,
+    64,
+    76,
+    94,
+    98,
+    99,
+    107,
+    113,
+    119,
+    128,
+    130,
+    131,
+    132,
+    144,
+    145
+  ],
+  "num_classes": 178
+}
