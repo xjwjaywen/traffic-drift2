@@ -25,7 +25,7 @@
 \author{
   Junwei Xiao,~\IEEEmembership{}
   and Xiaobo Jin,~\IEEEmembership{}
-  \thanks{Manuscript received June 2026; revised xxx.}
+  \thanks{Manuscript received June 2026.}
   \thanks{J.~Xiao and X.~Jin are with the School of Advanced Technology, Xi'an Jiaotong-Liverpool University, Suzhou, China. E-mail: Junwei.Xiao@xjtlu.edu.cn, Xiaobo.Jin@xjtlu.edu.cn}
 }
 
@@ -40,8 +40,8 @@ On the CESNET-TLS-Year22 dataset, we find that 12 out of 178 classes collapse be
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework that (1)~discovers absorber-victim class pairs from a small labeled probe set in a preceding time period, (2)~selects informative samples via margin-based active selection, and (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
 These components play complementary roles verified through ablation: fine-tuning repairs collapsed classes, replay prevents catastrophic forgetting, and distillation anchors overall behavior.
 
-Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) with strict evaluation (queried samples excluded from test set, 5 random seeds) demonstrate that \ours{} improves collapse-class F1 from $0.028$ to $0.233{\pm}0.002$ ($8\times$) and overall macro-F1 from $0.629$ to $0.673{\pm}0.001$ using only 1{,}000 labeled target samples ($<$0.3\% of the test set) and no oracle knowledge of which classes are affected.
-\ours{} is effective across time points (M7--M12), architectures (CNN and Transformer), and supports exemplar-free deployment via prototype-based replay with $<$1\% performance loss.
+Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) with strict evaluation (queried samples excluded from test set, 5 random seeds) demonstrate that \ours{} improves collapse-class F1 from $0.028$ to $0.233{\pm}0.002$ ($8\times$) and overall macro-F1 from $0.629$ to $0.673{\pm}0.001$ using 1{,}000 labeled target samples ($<$0.3\% of the test set) plus a small labeled probe set from a preceding period, without requiring an oracle list of affected classes.
+The \ours{} framework is effective across time points (M7--M12), architectures (CNN and Transformer), and selection strategies (margin for stability, BADGE for maximum recovery). It further supports exemplar-free deployment via prototype-based replay with $<$1\% performance loss.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -70,7 +70,7 @@ Through systematic confusion analysis on the CESNET-TLS-Year22 dataset~\cite{hyn
 Instead, a small number of dominant ``absorber'' classes systematically attract predictions away from ``victim'' classes, causing the victims to collapse to near-zero recall.
 For example, class~56 (a popular web service) is misclassified as class~96 (its absorber) at a rate of 25.2\%, while class~163 loses 41.8\% of its predictions to class~46.
 This pattern affects 12 out of 178 classes within 9 months, rendering them effectively undetectable.
-Critically, we show that all seven evaluated TTA methods---including state-of-the-art approaches like SAR~\cite{niu2023sar} and NOTE~\cite{gong2022note}---produce collapse-class F1 scores below 0.03, offering no improvement over a static (non-adapted) baseline.
+Critically, we show that all five evaluated TTA methods---including state-of-the-art approaches like SAR~\cite{niu2023sar} and NOTE~\cite{gong2022note}---produce collapse-class F1 scores below 0.03, offering no improvement over a static (non-adapted) baseline.
 
 % P4: Our solution
 We propose \ours{}, a collapse-aware repair framework with three complementary components:
@@ -217,7 +217,7 @@ The two mechanisms have implications for repair: feature-drift collapse can be a
 \subsection{Why General TTA Methods Fail}
 \label{sec:tta_eval}
 
-We evaluate seven TTA methods from computer vision on the same setup.
+We evaluate five TTA methods from computer vision on the same setup (Tent, EATA, SAR, CoTTA, NOTE; BN-Adapt is excluded as it is a no-op on GroupNorm architectures).
 Table~\ref{tab:tta_baselines} reports results at three time points.
 All methods maintain stable-class F1 near 0.90 but provide \textit{no improvement} on collapse classes.
 
@@ -329,7 +329,7 @@ We compare against: (1)~Static (no adaptation), (2)~Tent~\cite{wang2021tent}, (3
 
 \textbf{Evaluation protocol.}
 All \ours{} results use \textit{strict evaluation}: the labeled samples selected for fine-tuning are \textit{excluded} from the test set before computing metrics, eliminating any possibility of train-test leakage.
-Results are averaged over 5 random seeds with standard deviations reported.
+Main results, ablation, and BADGE comparisons are averaged over 5 random seeds; extension studies (multi-period, prototype replay, architecture comparison) use 3 seeds as noted in each table.
 
 \textbf{Metrics.}
 Overall macro-F1, collapse-class macro-F1 (averaged over classes with recall $<0.1$ in the static model), stable-class macro-F1 (averaged over 20 consistently high-recall classes), and the number of collapsed classes (recall $< 0.1$).
