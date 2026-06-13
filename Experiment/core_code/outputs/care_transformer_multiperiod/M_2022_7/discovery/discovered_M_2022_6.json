@@ -1,0 +1,23 @@
+{
+  "probe_period": "M-2022-6",
+  "recall_threshold": 0.1,
+  "top_k_absorbers": 10,
+  "collapse_classes": [
+    7
+  ],
+  "absorber_classes": [
+    5,
+    6,
+    53,
+    2
+  ],
+  "collapse_details": {
+    "7": 0.06666666666666667
+  },
+  "absorber_details": {
+    "5": 22,
+    "6": 4,
+    "53": 1,
+    "2": 1
+  }
+}
