@@ -155,7 +155,7 @@ Our experiments show that standard active learning strategies (entropy, coreset)
 We use the CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, which contains 507.7M TLS flows across 12 months of 2022 from a university network.
 We use the \texttt{size=S} split provided by the CESNET DataZoo API, yielding approximately 330K test samples per monthly period across 178 application classes.
 Each flow is represented by Per-Packet Information (PPI): packet sizes, directions, and inter-packet times for the first 30 packets.
-We train a CNN classifier (3-layer 1D convolution with GroupNorm, 256-dim hidden layer, 178 classes) on March 2022 (M-2022-3) and evaluate on M4--M12.
+We train a CNN classifier (3-layer 1D convolution with GroupNorm, 256-dim hidden layer, 178 classes) on a single month---March 2022 (M-2022-3, not January--March)---and evaluate on M4--M12, giving a minimum time gap of one month and maximum of nine months.
 
 \subsection{The Absorber-Collapse Pattern}
 \label{sec:absorber}
@@ -381,7 +381,7 @@ BADGE~\cite{ash2020badge}  & .688$\pm$.006 & .318$\pm$.037 & .889 & 4.4 \\
 \bottomrule
 \multicolumn{5}{l}{\footnotesize $^a$Head-only FT, margin selection; $^b$Full-model FT, margin selection.}\\
 \multicolumn{5}{l}{\footnotesize Active methods use \ours{} components (replay + distillation); 5 seeds, strict eval.}\\
-\multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest variance ($\sigma{=}.001$), $<$1s compute vs.\ ${\sim}$20min BADGE.}
+\multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest macro-F1 variance ($\sigma_{\text{macro}}{=}.001$), $<$1s compute vs.\ ${\sim}$20min BADGE.}
 \end{tabular}
 \end{table}
 
@@ -473,8 +473,10 @@ A natural question is whether standard active learning (AL) strategies~\cite{set
 Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.601 (vs.\ Static 0.629) and coreset achieves 0.621. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
 
 Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries.
-BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.037$) but with 6$\times$ higher variance than margin ($\sigma=0.006$ vs.\ $0.001$ on macro-F1) and substantially higher computation cost (PCA-accelerated BADGE requires ${\sim}20$ minutes per seed vs.\ seconds for margin on 330K samples).
-We recommend margin as the default deployable strategy due to its stability and efficiency; BADGE is a viable alternative when compute budget permits and variance can be managed through ensembling.
+BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.037$)---36\% higher than margin ($0.233{\pm}0.002$)---and also the highest macro-F1 ($0.688$ vs.\ $0.673$).
+BADGE is thus the \textit{strongest} selection strategy for collapse repair within the \ours{} framework.
+However, it comes with two practical trade-offs: (1)~higher variance ($\sigma_{\text{macro}}{=}0.006$ vs.\ $0.001$), and (2)~substantially higher computation (PCA-accelerated BADGE requires ${\sim}$20 minutes vs.\ seconds for margin on 330K samples).
+For monthly repair cycles where 20 minutes is acceptable, BADGE is the recommended strategy; for latency-sensitive or resource-constrained deployments, margin provides a reliable and near-instant alternative.
 
 \begin{figure}[t]
 \centering
@@ -517,7 +519,7 @@ Margin (no absorber info) & \textbf{.673$\pm$.001} & .233$\pm$.002 & 5.2 \\
 \end{tabular}
 \end{table}
 
-Auto-discovered absorbers from M11 are partially effective (collapse F1: 0.289 vs.\ oracle 0.377), confirming that absorber relationships evolve over time. Notably, the margin strategy---which uses \textit{no} absorber information---achieves the highest macro-F1 (0.673) because it is not restricted to absorber-predicted samples. We therefore recommend margin as the default deployable strategy.
+Auto-discovered absorbers from M11 are partially effective (collapse F1: 0.289 vs.\ oracle 0.377), confirming that absorber relationships evolve over time. Notably, the margin strategy---which uses \textit{no} absorber information---achieves the highest macro-F1 (0.673), surpassing even oracle absorber-margin (0.657). This seemingly paradoxical result arises because absorber-margin restricts selection to absorber-predicted samples, reducing sample diversity. While this improves collapse repair, it reduces coverage of non-absorber confusion patterns that also contribute to overall macro-F1. Margin, by contrast, samples boundary cases across all class pairs, achieving a better macro-F1 / collapse-F1 trade-off in practice.
 
 \subsection{Multi-Period Analysis}
 
@@ -542,7 +544,8 @@ M12 (severe)& .629 & .031 & .674$\pm$.002 & .238 & +.045 \\
 \end{tabular}
 \end{table}
 
-\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.010; M12: +0.045). Collapse repair is most successful at M7, where the absorber-victim separation in feature space is still partially intact ($\text{collapse F1}=0.456$).
+\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.010; M12: +0.045). Collapse repair is most successful at M7, where the absorber-victim separation in feature space is still partially intact (collapse F1 = 0.456 vs.\ 0.238 at M12).
+This suggests that \textit{early intervention is more effective}: repairing at M7 (when only 2 classes have collapsed and features are still separable) yields better per-class recovery than waiting until M12 (10 collapsed classes, deeper feature merge). Combined with the deployment trigger (\S\ref{sec:trigger}), this motivates a proactive maintenance strategy: trigger repair as soon as confidence drops, rather than waiting for severe collapse.
 
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
@@ -567,6 +570,7 @@ Prototype (exemplar-free) & .664$\pm$.001 & .219$\pm$.003 & .878$\pm$.002 \\
 \end{table}
 
 Prototype replay achieves 98.7\% of real replay's macro-F1 (0.664 vs.\ 0.673), demonstrating that \ours{} can operate in an exemplar-free setting with minimal performance loss.
+The Gaussian noise model is a simplification: real class-conditional feature distributions may be multi-modal or skewed. Nevertheless, the small performance gap suggests that for head-only fine-tuning, approximate replay provides sufficient regularization. More sophisticated generative models (\eg{}, class-conditional VAEs) could further close this gap if needed.
 
 \subsection{Architecture Independence}
 
