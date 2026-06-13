@@ -212,6 +212,7 @@ def badge_selection(features, logits, num_classes, budget, seed):
 
     Approximates gradient embeddings as (pred_prob - one_hot) ⊗ features,
     then runs k-means++ initialization for diverse selection.
+    Optimized: uses top-3 classes + PCA to 50 dims for scalability.
     """
     n = features.shape[0]
     budget = min(budget, n)
@@ -223,8 +224,7 @@ def badge_selection(features, logits, num_classes, budget, seed):
 
     feat_np = features.numpy() if isinstance(features, torch.Tensor) else features
     coeff_np = grad_coeff.numpy()
-    # gradient embedding: outer product approximation, use top-k classes to limit memory
-    top_k = min(10, num_classes)
+    top_k = min(3, num_classes)
     top_indices = np.argsort(np.abs(coeff_np), axis=1)[:, -top_k:]
     grad_embed = np.zeros((n, top_k * feat_np.shape[1]), dtype=np.float32)
     for i in range(top_k):
@@ -234,15 +234,21 @@ def badge_selection(features, logits, num_classes, budget, seed):
             feat_np * coeff_col[:, None]
         )
 
+    # PCA to reduce dimensionality for fast k-means++
+    pca_dim = min(50, grad_embed.shape[1])
+    if grad_embed.shape[1] > pca_dim:
+        from sklearn.decomposition import PCA
+        grad_embed = PCA(n_components=pca_dim, random_state=seed).fit_transform(grad_embed)
+
     # k-means++ initialization
     gen = np.random.RandomState(seed)
     selected = [gen.randint(n)]
-    min_dist = np.full(n, np.inf)
-    for _ in range(budget - 1):
+    min_dist = np.full(n, np.inf, dtype=np.float32)
+    for step in range(budget - 1):
         last = grad_embed[selected[-1]]
         dist = np.sum((grad_embed - last[None, :]) ** 2, axis=1)
         min_dist = np.minimum(min_dist, dist)
-        min_dist[selected] = 0
+        min_dist[selected[-1]] = 0
         total = min_dist.sum()
         if total <= 0:
             remaining = np.setdiff1d(np.arange(n), selected)
