@@ -54,10 +54,10 @@ Encrypted traffic classification, concept drift, class collapse, test-time adapt
 \label{sec:intro}
 
 % P1: Problem - drift in traffic classifiers
-Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{luxemburk2023quic, lin2022etbert, zhao2023yatc}.
+Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{luxemburk2023quic, lin2022etbert, zhao2023yatc, pacheco2019towards, wang2022survey}.
 However, a growing body of evidence shows that these classifiers degrade rapidly after deployment.
 Luxemburk and Hynek~\cite{luxemburk2023quic} report a 13.5\% accuracy drop within one week on the CESNET-QUIC22 dataset, while Malekghaini~\etal{}~\cite{malekghaini2023drift} observe F1 declining from 0.95 to 0.60 over several months on ISP-scale data.
-The causes are diverse: application version updates alter protocol behavior, TLS certificate rotations change handshake fingerprints, and CDN migrations shift IP ranges and packet size distributions~\cite{soukup2025drift}.
+The causes are diverse: application version updates alter protocol behavior, TLS certificate rotations change handshake fingerprints, and CDN migrations shift IP ranges and packet size distributions~\cite{soukup2025drift, lu2019learning, gama2014survey}.
 
 % P2: Existing solutions and their limitations
 Existing approaches to this problem fall into two categories.
@@ -133,6 +133,7 @@ ILETC~\cite{zhu2023iletc} addresses class-incremental learning using WGAN-GP gen
 MEMENTO~\cite{cerasuolo2024memento} combines knowledge distillation, memory replay, and rectification for learning new application classes without forgetting old ones.
 CPN~\cite{cai2024cpn} uses contrastive prototype networks with exemplar-based replay for incremental encrypted traffic classification.
 PRIME~\cite{prime2025} detects plasticity loss and expands the model via Net2Net without storing exemplars.
+In the broader continual learning literature~\cite{delange2022continual}, EWC~\cite{kirkpatrick2017ewc} and LwF~\cite{li2017lwf} address catastrophic forgetting through parameter regularization and distillation respectively.
 While these works share individual technical components with our approach (replay, distillation, prototypes), they address a fundamentally different problem: adding \textit{new} classes to the classifier.
 Our problem---repairing \textit{existing} classes that have collapsed due to drift---is complementary and, to our knowledge, previously unstudied.
 
@@ -223,26 +224,25 @@ All methods maintain stable-class F1 near 0.90 but provide \textit{no improvemen
 
 \begin{table}[t]
 \centering
-\caption{TTA baselines on CESNET-TLS-Year22. All methods fail to address class collapse (collapse F1 $\approx$ Static at every time point).}
+\caption{TTA baselines on CESNET-TLS-Year22. All TTA methods fail to address class collapse. \ours{} uses strict evaluation (queried excluded, 3 seeds).}
 \label{tab:tta_baselines}
 \small
 \begin{tabular}{@{}l ccc ccc@{}}
 \toprule
 & \multicolumn{3}{c}{Collapse-Class F1} & \multicolumn{3}{c}{Overall Macro-F1} \\
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
-Method & M7 & M10 & M12 & M7 & M10 & M12 \\
+Method & M7 & M9 & M12 & M7 & M9 & M12 \\
 \midrule
-Static     & .503 & .258 & .028 & .740 & .684 & .629 \\
-BN-Adapt   & .503 & .258 & .028 & .740 & .684 & .629 \\
-Tent       & .505 & .256 & .026 & .742 & .684 & .631 \\
-EATA       & .503 & .258 & .028 & .740 & .684 & .629 \\
-CoTTA      & .504 & .257 & .027 & .741 & .684 & .629 \\
-SAR        & .504 & .255 & .026 & .740 & .683 & .629 \\
-NOTE       & .505 & .258 & .027 & .740 & .684 & .630 \\
+Static     & .023 & .055 & .028 & .740 & .691 & .629 \\
+Tent       & .025 & .053 & .026 & .742 & .691 & .631 \\
+EATA       & .023 & .055 & .028 & .740 & .691 & .629 \\
+SAR        & .024 & .054 & .026 & .740 & .690 & .629 \\
+CoTTA      & .024 & .054 & .027 & .741 & .691 & .629 \\
+NOTE       & .024 & .055 & .027 & .740 & .691 & .630 \\
 \midrule
-\textbf{\ours{}}$^\dagger$ & \textbf{.664} & \textbf{.392} & \textbf{.262} & \textbf{.777} & \textbf{.725} & \textbf{.686} \\
+\textbf{\ours{}}$^\dagger$ & \textbf{.456} & \textbf{.159} & \textbf{.238} & \textbf{.750} & \textbf{.722} & \textbf{.674} \\
 \bottomrule
-\multicolumn{7}{l}{\footnotesize $^\dagger$Uses 1{,}000 labeled target samples + 890 reference replay samples.}
+\multicolumn{7}{l}{\footnotesize $^\dagger$Margin selection, $B$=1000, auto-discovered absorbers, strict eval.}
 \end{tabular}
 \end{table}
 
@@ -267,8 +267,8 @@ Given a reference period with labels, we compute the confusion matrix and identi
 
 \subsection{Active Sample Selection}
 
-From the target period, we select a small budget $B$ of samples for labeling using the \textit{absorber-margin} strategy: among samples predicted as absorber classes, we select those with the lowest prediction margin (difference between top-2 logits).
-These boundary samples are the most informative for disambiguating absorber-victim confusion.
+From the target period, we select a budget $B$ of samples for labeling. We evaluate multiple strategies (\S\ref{sec:al_baselines}) and find that \textit{margin sampling}---selecting samples with the smallest gap between top-two logits---is the most effective deployable strategy. These boundary samples naturally concentrate on absorber-victim decision boundaries where labels are most informative.
+When absorber identity is known, \textit{absorber-margin} restricts selection to absorber-predicted samples, further improving collapse repair at the cost of requiring oracle or auto-discovered absorber lists (\S\ref{sec:auto_absorber}).
 
 \subsection{Head Fine-Tuning with Source Replay}
 
@@ -281,7 +281,7 @@ Source replay prevents the head from overfitting to the small target sample and 
 
 \subsection{Knowledge Distillation}
 
-On replay samples, we add a KL-divergence loss between the updated head $h_\theta$ and the original (frozen) head $h_{\theta_0}$:
+On replay samples, we add a KL-divergence loss~\cite{hinton2015distilling} between the updated head $h_\theta$ and the original (frozen) head $h_{\theta_0}$:
 \begin{equation}
   \mathcal{L}_{\text{KD}} = \frac{1}{|D_{\text{replay}}|} \sum_{x \in D_{\text{replay}}} D_{\text{KL}}\!\left(\sigma\!\left(\frac{h_{\theta_0}(f(x))}{T}\right) \,\Big\|\, \sigma\!\left(\frac{h_\theta(f(x))}{T}\right)\right)
 \end{equation}
@@ -298,11 +298,11 @@ Distillation ensures that repairing collapsed classes does not shift the classif
 \caption{\ours{}: Collapse-Aware Active Repair}
 \label{alg:care}
 \begin{algorithmic}[1]
-\REQUIRE Source model $f, h_{\theta_0}$; reference data $D_{\text{ref}}$; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
-\STATE Identify absorber-victim pairs from $D_{\text{ref}}$ confusion matrix
-\STATE Compute features $\{f(x) : x \in D_{\text{tgt}}\}$ and predictions
-\STATE Select $B$ samples via absorber-margin strategy; query labels
-\STATE Sample $k$ per class from $D_{\text{ref}}$ as $D_{\text{replay}}$
+\REQUIRE Source model $f, h_{\theta_0}$; class prototypes $\mathbf{P}$; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
+\STATE \textbf{Trigger:} Monitor mean confidence; activate if $\Delta_{\text{conf}} < \tau$
+\STATE Compute features $\{f(x) : x \in D_{\text{tgt}}\}$ and logits
+\STATE Select $B$ samples via margin sampling; query labels
+\STATE Generate $D_{\text{replay}}$: $k$ synthetic samples per class from $\mathbf{P}$ + noise
 \STATE Initialize $h_\theta \leftarrow h_{\theta_0}$
 \FOR{epoch $= 1, \ldots, E$}
   \STATE Sample minibatch from $D_{\text{target}} \cup D_{\text{replay}}$
@@ -372,11 +372,11 @@ Random          & .655$\pm$.005 & .179$\pm$.030 & .890 & 8.0 \\
 
 \subsection{Per-Class Recovery Analysis}
 
-Table~\ref{tab:per_class} shows the repair outcome for each of the 12 collapsed classes.
+Table~\ref{tab:per_class} illustrates per-class repair outcomes when oracle absorber knowledge is available (absorber-margin strategy), representing the upper bound of \ours{}'s repair capability.
 
 \begin{table}[t]
 \centering
-\caption{Per-class recovery at M-2022-12 using absorber-margin strategy with budget=1000. Recall before (Static) and after (\ours{}).}
+\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list). This represents the diagnostic upper bound; the deployable margin strategy achieves aggregate collapse F1 of $0.233{\pm}0.002$.}
 \label{tab:per_class}
 \small
 \begin{tabular}{@{}c cc cc l@{}}
@@ -402,12 +402,7 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig_per_class_recovery.pdf}
-\caption{Per-class recall before (Static) and after (\ours{}) repair at M-2022-12. Nine of 12 collapsed classes recover above the 0.1 threshold, with five exceeding 0.62 recall.}
-\label{fig:per_class_recovery}
-\end{figure}
+Nine of 12 collapsed classes recover above the 0.1 recall threshold, with five exceeding 0.62 recall. The three failures share a common pattern: extremely low support or diffuse confusion without a clear absorber target.
 
 \subsection{Ablation Study}
 
@@ -448,24 +443,17 @@ Key findings:
 \label{fig:ablation_bar}
 \end{figure}
 
-\subsection{Multi-Period Analysis}
-
-Figure~\ref{fig:tta_failure} compares collapse-class F1 across three time points for baselines and \ours{}.
-All TTA baselines track Static closely at every time point, confirming their inability to address class collapse.
-\ours{}'s advantage grows with drift severity: at M7 the improvement is moderate (+0.133), while at M12 it is dramatic (0.028$\to$0.426).
-This is expected: when few classes have collapsed, there is less to repair; as more classes fall below the collapse threshold, \ours{}'s targeted repair becomes increasingly valuable.
-
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_tta_failure.pdf}
-\caption{Collapse-class F1 across time points. All TTA baselines collapse in lockstep with Static. \ours{} provides increasing benefit as drift severity grows.}
+\caption{Overall macro-F1 across time points. All TTA baselines track Static closely. \ours{} provides increasing benefit as drift severity grows.}
 \label{fig:tta_failure}
 \end{figure}
 
 \subsection{Active Learning Baseline Comparison}
 \label{sec:al_baselines}
 
-A natural question is whether standard active learning (AL) strategies suffice for collapse repair. Table~\ref{tab:main_results} includes entropy sampling and greedy coreset~\cite{sener2018coreset} as AL baselines, both using the same CARE components (replay + distillation) to isolate the effect of selection strategy.
+A natural question is whether standard active learning (AL) strategies~\cite{settles2009active} suffice for collapse repair. Table~\ref{tab:main_results} includes entropy sampling and greedy coreset~\cite{sener2018coreset} as AL baselines, both using the same CARE components (replay + distillation) to isolate the effect of selection strategy.
 
 Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.601 (vs.\ Static 0.629) and coreset achieves 0.621. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
 
@@ -548,7 +536,7 @@ Prototype replay achieves 98.7\% of real replay's macro-F1 (0.664 vs.\ 0.673), d
 
 \subsection{Architecture Independence}
 
-To verify that \ours{} is not architecture-specific, we train a Transformer backbone (4-layer, 4-head, 256-dim) on the same data and apply CARE.
+To verify that \ours{} is not architecture-specific, we train a Transformer backbone~\cite{vaswani2017attention} (4-layer, 4-head, 256-dim) on the same data and apply CARE.
 
 \begin{table}[t]
 \centering
