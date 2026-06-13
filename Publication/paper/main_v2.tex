@@ -326,7 +326,7 @@ For TLS22, we train on M-2022-3 (March 2022) and evaluate at M7, M9, M11, and M1
 For QUIC22, we train on W44 and evaluate at W46 and W47.
 
 \textbf{Baselines.}
-We compare against: (1)~Static (no adaptation), (2)~BN-Adapt~\cite{schneider2020bn}, (3)~Tent~\cite{wang2021tent}, (4)~EATA~\cite{niu2022eata}, (5)~CoTTA~\cite{wang2022cotta}, (6)~SAR~\cite{niu2023sar}, (7)~NOTE~\cite{gong2022note}, and (8)~CAPS, a prototype-based online adaptation method that maintains per-class prototypes and updates them using high-confidence predictions without labels.
+We compare against: (1)~Static (no adaptation), (2)~Tent~\cite{wang2021tent}, (3)~EATA~\cite{niu2022eata}, (4)~CoTTA~\cite{wang2022cotta}, (5)~SAR~\cite{niu2023sar}, (6)~NOTE~\cite{gong2022note} as TTA baselines; and (7)~entropy sampling, (8)~greedy coreset~\cite{sener2018coreset}, (9)~random sampling as active learning baselines, all using the same CARE repair components to isolate the effect of selection strategy.
 
 \textbf{Evaluation protocol.}
 All \ours{} results use \textit{strict evaluation}: the labeled samples selected for fine-tuning are \textit{excluded} from the test set before computing metrics, eliminating any possibility of train-test leakage.
@@ -407,7 +407,7 @@ Nine of 12 collapsed classes recover above the 0.1 recall threshold, with five e
 \subsection{Ablation Study}
 
 Table~\ref{tab:ablation} validates the necessity of each component.
-All ablations use the absorber-margin strategy with budget $B=1000$ to ensure controlled comparison; only the component under test is varied.
+All ablations use margin selection with budget $B=1000$ and strict evaluation (5 seeds); only the repair component is varied.
 
 \begin{table}[t]
 \centering
@@ -458,6 +458,23 @@ A natural question is whether standard active learning (AL) strategies~\cite{set
 Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.601 (vs.\ Static 0.629) and coreset achieves 0.621. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
 
 Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries. This confirms that class collapse is not a generic active learning problem but requires selection strategies aware of the confusion structure.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_strategy_comparison.pdf}
+\caption{Selection strategy comparison across label budgets (strict evaluation). Margin consistently outperforms entropy and coreset, which fall below the Static baseline. }
+\label{fig:strategy_comparison}
+\end{figure}
+
+Figure~\ref{fig:budget_sweep} shows performance as a function of label budget with error bars from 5 seeds.
+With only 200 labels, margin already improves macro-F1 to 0.637; at 1{,}000 labels, it reaches $0.673{\pm}0.001$ with diminishing returns beyond.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_budget_sweep.pdf}
+\caption{Label efficiency with error bars (5 seeds). Margin selection provides consistent improvement across all budgets.}
+\label{fig:budget_sweep}
+\end{figure}
 
 \subsection{Automatic Absorber Discovery}
 \label{sec:auto_absorber}
