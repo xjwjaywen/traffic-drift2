@@ -37,7 +37,7 @@ Deep learning-based encrypted traffic classifiers suffer significant performance
 We identify a previously unstudied failure mode that we term the \textit{absorber-collapse pattern}: a small number of dominant classes systematically absorb predictions from other classes, causing those victim classes to collapse to near-zero recall.
 On the CESNET-TLS-Year22 dataset, we find that 12 out of 178 classes collapse below 0.1 recall within 9 months, while existing test-time adaptation methods (Tent, EATA, SAR, CoTTA, NOTE) and standard active learning strategies (entropy sampling, coreset) provide no relief.
 
-We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework that (1)~automatically discovers absorber-victim class pairs from a preceding time period, (2)~selects informative samples via margin-based active selection, and (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
+We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework that (1)~discovers absorber-victim class pairs from a small labeled probe set in a preceding time period, (2)~selects informative samples via margin-based active selection, and (3)~fine-tunes only the classification head using the selected labels combined with source-domain replay and knowledge distillation.
 These components play complementary roles verified through ablation: fine-tuning repairs collapsed classes, replay prevents catastrophic forgetting, and distillation anchors overall behavior.
 
 Experiments on CESNET-TLS-Year22 (178 classes, 12 months) and CESNET-QUIC22 (102 classes, 4 weeks) with strict evaluation (queried samples excluded from test set, 5 random seeds) demonstrate that \ours{} improves collapse-class F1 from $0.028$ to $0.233{\pm}0.002$ ($8\times$) and overall macro-F1 from $0.629$ to $0.673{\pm}0.001$ using only 1{,}000 labeled target samples ($<$0.3\% of the test set) and no oracle knowledge of which classes are affected.
@@ -90,7 +90,7 @@ Our contributions are:
 \begin{enumerate}
   \item We identify and formalize the \textit{absorber-collapse pattern} in encrypted traffic classifiers---a systematic failure mode where dominant classes absorb predictions from victim classes under concept drift (\S\ref{sec:analysis}).
   \item We show that both general-purpose TTA methods and standard active learning strategies (entropy, coreset) fail on this task, establishing class collapse as a distinct problem requiring domain-aware solutions (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item We propose \ours{}, a deployable repair framework with automatic absorber discovery, prototype-based replay (no source data storage required), and a confidence-based trigger mechanism, validated through comprehensive experiments across time points, architectures, and datasets (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item We propose the \ours{} framework for collapse repair, combining active selection, source replay, and knowledge distillation. We evaluate multiple selection strategies, recommending \ours{}-Margin as the deployable default (lowest variance, sub-second compute) while showing that BADGE~\cite{ash2020badge} achieves higher collapse recovery at the cost of stability. We further demonstrate prototype-based replay for exemplar-free deployment and a confidence-based trigger mechanism (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
 
 
@@ -362,11 +362,13 @@ NOTE            & .630 & .027 & .902 & 12 \\
 Entropy         & .601$\pm$.004 & .074$\pm$.013 & .883 & 9.8 \\
 Coreset         & .621$\pm$.005 & .124$\pm$.010 & .877 & 8.8 \\
 Random          & .655$\pm$.005 & .179$\pm$.030 & .890 & 8.0 \\
-Margin (\ours{}) & .673$\pm$.001 & .233$\pm$.002 & .885 & 5.2 \\
-BADGE~\cite{ash2020badge}  & \textbf{.688$\pm$.006} & \textbf{.318$\pm$.037} & \textbf{.889} & \textbf{4.4} \\
+BADGE~\cite{ash2020badge}  & .688$\pm$.006 & .318$\pm$.037 & .889 & 4.4 \\
+\midrule
+\textbf{\ours{}-Margin}$^\star$ & \textbf{.673$\pm$.001} & .233$\pm$.002 & .885 & 5.2 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize All active methods use CARE components (replay + distillation).}\\
-\multicolumn{5}{l}{\footnotesize BADGE achieves highest F1 but with 6$\times$ higher variance than margin.}
+\multicolumn{5}{l}{\footnotesize All methods use \ours{} components (replay + distillation); only selection differs.}\\
+\multicolumn{5}{l}{\footnotesize All results: 5 seeds, strict evaluation. BADGE from dedicated run (badge\_5seeds\_strict/).}\\
+\multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest variance ($\sigma{=}.001$) and $<$1s compute vs.\ ${\sim}$20min for BADGE.}
 \end{tabular}
 \end{table}
 
@@ -600,9 +602,9 @@ Stable-class F1 decreases from 0.903 to 0.885 ($-$2.0\%).
 The ablation shows each component's contribution: without replay and distillation, degradation is severe (0.838); adding distillation alone recovers most stability (0.887). The full method limits degradation to 2.0\%, an acceptable trade-off for recovering 7 collapsed classes.
 
 \textbf{Deployability.}
-\ours{} is designed for deployment without oracle knowledge:
-(1)~absorber-victim pairs are discovered automatically from a probe period (\S\ref{sec:auto_absorber});
-(2)~margin selection requires no absorber information and achieves the highest macro-F1;
+\ours{} is designed for deployment without oracle knowledge of the \textit{target} period:
+(1)~absorber-victim pairs are discovered from a labeled probe period (\S\ref{sec:auto_absorber}), requiring the same labeled data already available for CARE's active selection;
+(2)~margin selection requires no absorber information and achieves the most stable macro-F1;
 (3)~prototype replay eliminates source data storage (\S\ref{sec:proto_replay});
 (4)~a confidence-based trigger determines when repair is needed (\S\ref{sec:trigger}).
 The complete pipeline requires only stored prototypes (178~KB) and a small labeled budget.
@@ -630,7 +632,7 @@ We identified and formalized the absorber-collapse pattern in encrypted traffic 
 We showed that both test-time adaptation methods and standard active learning strategies fail on this task, establishing class collapse as a distinct problem.
 We proposed \ours{}, a deployable repair framework combining margin-based active selection, source replay, and knowledge distillation.
 Under strict evaluation with 5 random seeds, \ours{} improves collapse-class F1 from 0.028 to $0.233{\pm}0.002$ and macro-F1 from 0.629 to $0.673{\pm}0.001$ using only 1{,}000 labels ($<$0.3\% of test data), with consistent gains across time points (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode via prototype replay.
-The complete pipeline---automatic absorber discovery, confidence-based trigger, and targeted repair---operates without oracle knowledge, making \ours{} practical for real-world encrypted traffic monitoring.
+The complete pipeline---probe-based absorber discovery, confidence-based trigger, and targeted repair---requires only a small labeled probe set and 1{,}000 target labels per repair cycle, making \ours{} practical for real-world encrypted traffic monitoring.
 
 % ============================================================
 \bibliographystyle{IEEEtran}

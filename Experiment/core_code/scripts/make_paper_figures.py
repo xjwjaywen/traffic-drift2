@@ -118,7 +118,27 @@ def fig_strategy_comparison(output_dir):
 
     colors = {"random": "#2196F3", "entropy": "#FF9800", "margin": "#F44336",
               "coreset": "#9C27B0", "badge": "#4CAF50"}
-    for s_name in ["entropy", "coreset", "random", "margin"]:
+    markers = {"random": "o", "entropy": "v", "margin": "s",
+               "coreset": "^", "badge": "D"}
+    # Also try to load BADGE from dedicated directory
+    badge_path = "outputs/badge_5seeds_strict/aggregated_mean_std.csv"
+    if os.path.exists(badge_path):
+        badge_rows = read_csv(badge_path)
+        for r in badge_rows:
+            if r["method"] == "static" or r["strategy"] != "badge":
+                continue
+            s = "badge"
+            b = int(r["budget"])
+            if s not in strategies:
+                strategies[s] = {"budgets": [], "macro_f1": [], "collapse_f1": [],
+                                 "macro_std": [], "collapse_std": []}
+            strategies[s]["budgets"].append(b)
+            strategies[s]["macro_f1"].append(float(r["strict_overall_macro_f1_mean"]))
+            strategies[s]["collapse_f1"].append(float(r["strict_bad_macro_f1_mean"]))
+            strategies[s]["macro_std"].append(float(r.get("strict_overall_macro_f1_std", 0)))
+            strategies[s]["collapse_std"].append(float(r.get("strict_bad_macro_f1_std", 0)))
+
+    for s_name in ["entropy", "coreset", "random", "badge", "margin"]:
         if s_name not in strategies:
             continue
         data = strategies[s_name]
@@ -127,9 +147,10 @@ def fig_strategy_comparison(output_dir):
         macro = np.array(data["macro_f1"])[idx]
         collapse = np.array(data["collapse_f1"])[idx]
         color = colors.get(s_name, "gray")
+        mk = markers.get(s_name, "o")
         lw = 2.0 if s_name == "margin" else 1.2
-        ax1.plot(budgets, macro, marker="o", label=s_name, color=color, linewidth=lw)
-        ax2.plot(budgets, collapse, marker="o", label=s_name, color=color, linewidth=lw)
+        ax1.plot(budgets, macro, marker=mk, label=s_name, color=color, linewidth=lw)
+        ax2.plot(budgets, collapse, marker=mk, label=s_name, color=color, linewidth=lw)
 
     for ax, baseline, ylabel, title in [
         (ax1, static_macro, "Overall Macro-F1", "Overall Performance"),
