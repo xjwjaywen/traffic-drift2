@@ -231,30 +231,34 @@ def fig_budget_sweep(output_dir):
 # Figure 4: Ablation bar chart
 # ============================================================
 def fig_ablation(output_dir):
-    # Strict evaluation, 5-seed mean, margin@1000
+    # Strict evaluation, 5-seed mean±std, margin@1000
     configs = [
-        ("Static",     0.629, 0.028, 0.903),
-        ("FT only",    0.638, 0.134, 0.838),
-        ("FT+Replay",  0.620, 0.224, 0.840),
-        ("FT+Distill", 0.670, 0.152, 0.887),
-        ("CARE (full)", 0.673, 0.233, 0.885),
+        #  (name,       macro, collapse, stable, m_std, c_std, s_std)
+        ("Static",     0.629, 0.028, 0.903, 0, 0, 0),
+        ("FT only",    0.638, 0.134, 0.838, 0.001, 0.001, 0.001),
+        ("FT+Replay",  0.620, 0.224, 0.840, 0.001, 0.002, 0.004),
+        ("FT+Distill", 0.670, 0.152, 0.887, 0.000, 0.007, 0.003),
+        ("CARE (full)", 0.673, 0.233, 0.885, 0.001, 0.002, 0.004),
     ]
 
     names = [c[0] for c in configs]
     macro = [c[1] for c in configs]
     collapse = [c[2] for c in configs]
     stable = [c[3] for c in configs]
+    m_std = [c[4] for c in configs]
+    c_std = [c[5] for c in configs]
+    s_std = [c[6] for c in configs]
 
     x = np.arange(len(names))
     width = 0.25
 
     fig, ax = plt.subplots(figsize=(9, 4.5))
-    bars1 = ax.bar(x - width, macro, width, label="Overall Macro-F1",
-                   color="#2196F3", alpha=0.85)
-    bars2 = ax.bar(x, collapse, width, label="Collapse-Class F1",
-                   color="#F44336", alpha=0.85)
-    bars3 = ax.bar(x + width, stable, width, label="Stable-Class F1",
-                   color="#4CAF50", alpha=0.85)
+    bars1 = ax.bar(x - width, macro, width, yerr=m_std, capsize=2,
+                   label="Overall Macro-F1", color="#2196F3", alpha=0.85)
+    bars2 = ax.bar(x, collapse, width, yerr=c_std, capsize=2,
+                   label="Collapse-Class F1", color="#F44336", alpha=0.85)
+    bars3 = ax.bar(x + width, stable, width, yerr=s_std, capsize=2,
+                   label="Stable-Class F1", color="#4CAF50", alpha=0.85)
 
     ax.set_xticks(x)
     ax.set_xticklabels(names, rotation=20, ha="right")

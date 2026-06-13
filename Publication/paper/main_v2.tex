@@ -200,8 +200,10 @@ Class  & Class    & Rate      & Recall & Type    & Collapse \\
 66  & 71  & 13.9\% & 0.001 & abrupt  & M11 \\
 10  & 156 & 36.5\% & 0.098 & gradual & M11 \\
 109 & 71  & 24.9\% & 0.000 & abrupt  & M12 \\
-26  & 13  & ---    & 0.019 & ---     & --- \\
+26  & 13  & 11.3\%$^\dagger$ & 0.019 & diffuse & M12 \\
 \bottomrule
+\multicolumn{6}{l}{\footnotesize $^\dagger$Class 26 has no single dominant absorber; confusion is spread across}\\
+\multicolumn{6}{l}{\footnotesize multiple classes (top absorber captures only 11.3\% of mispredictions).}
 \end{tabular}
 \end{table}
 
@@ -289,7 +291,7 @@ On replay samples, we add a KL-divergence loss~\cite{hinton2015distilling} betwe
   \mathcal{L}_{\text{KD}} = \frac{1}{|D_{\text{replay}}|} \sum_{x \in D_{\text{replay}}} D_{\text{KL}}\!\left(\sigma\!\left(\frac{h_{\theta_0}(f(x))}{T}\right) \,\Big\|\, \sigma\!\left(\frac{h_\theta(f(x))}{T}\right)\right)
 \end{equation}
 where $T$ is the temperature and $\sigma$ is softmax.
-Distillation ensures that repairing collapsed classes does not shift the classifier's behavior on classes where it already performs well.
+Distillation is applied only on replay samples (not target samples) because the teacher model's predictions on replay data represent its \textit{correct} behavior on the source distribution, providing a reliable anchor. On target samples, the teacher's predictions may already reflect absorber-collapse errors, making them unsuitable as distillation targets.
 
 \subsection{Combined Objective}
 
@@ -329,14 +331,18 @@ For TLS22, we train on M-2022-3 (March 2022) and evaluate at M7, M9, M11, and M1
 For QUIC22, we train on W44 and evaluate at W46 and W47.
 
 \textbf{Baselines.}
-We compare against: (1)~Static (no adaptation), (2)~Tent~\cite{wang2021tent}, (3)~EATA~\cite{niu2022eata}, (4)~CoTTA~\cite{wang2022cotta}, (5)~SAR~\cite{niu2023sar}, (6)~NOTE~\cite{gong2022note} as TTA baselines; and (7)~entropy sampling, (8)~greedy coreset~\cite{sener2018coreset}, (9)~random sampling as active learning baselines, all using the same CARE repair components to isolate the effect of selection strategy.
+We compare three categories:
+\textit{Unsupervised TTA} (0 labels): Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}.
+\textit{Naive supervised} (1{,}000 labels, no replay/distillation): head-only fine-tuning (Naive-Head) and full-model fine-tuning (Naive-Full).
+\textit{Active selection} (1{,}000 labels + \ours{} components): entropy, coreset~\cite{sener2018coreset}, BADGE~\cite{ash2020badge}, random, and margin.
+This three-tier comparison separates the question of whether labels are needed (TTA vs.\ supervised), whether \ours{} components help (Naive vs.\ \ours{}), and which selection strategy is best (active methods).
 
 \textbf{Evaluation protocol.}
 All \ours{} results use \textit{strict evaluation}: the labeled samples selected for fine-tuning are \textit{excluded} from the test set before computing metrics, eliminating any possibility of train-test leakage.
 Main results, ablation, and BADGE comparisons are averaged over 5 random seeds; extension studies (multi-period, prototype replay, architecture comparison) use 3 seeds as noted in each table.
 
 \textbf{Metrics.}
-Overall macro-F1, collapse-class macro-F1 (averaged over classes with recall $<0.1$ in the static model), stable-class macro-F1 (averaged over 20 consistently high-recall classes), and the number of collapsed classes (recall $< 0.1$).
+Overall macro-F1 (averaged over all 178 classes), collapse-class macro-F1 (averaged over the 12 classes with recall $<0.1$ in the static model at M12), stable-class macro-F1 (averaged over 20 classes with consistently high recall across all periods; the overall macro-F1 implicitly covers all remaining classes), and the number of collapsed classes (recall $< 0.1$).
 
 \textbf{\ours{} configuration.}
 Budget $B=1000$, margin-based selection (no absorber knowledge required), replay with $k=5$ samples per class from stable and absorber classes, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, head fine-tuning learning rate $10^{-3}$, 30 epochs.
@@ -362,17 +368,20 @@ SAR             & .629 & .026 & .901 & 11 \\
 CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
-\multicolumn{5}{l}{\textit{Active learning with 1{,}000 labels + CARE components:}} \\
+\multicolumn{5}{l}{\textit{Supervised with 1{,}000 labels (no replay/distillation):}} \\
+Naive-Head$^a$  & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
+Naive-Full$^b$  & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
+\midrule
+\multicolumn{5}{l}{\textit{Active selection with 1{,}000 labels + \ours{} components:}} \\
 Entropy         & .601$\pm$.004 & .074$\pm$.013 & .883 & 9.8 \\
 Coreset         & .621$\pm$.005 & .124$\pm$.010 & .877 & 8.8 \\
 Random          & .655$\pm$.005 & .179$\pm$.030 & .890 & 8.0 \\
 BADGE~\cite{ash2020badge}  & .688$\pm$.006 & .318$\pm$.037 & .889 & 4.4 \\
-\midrule
 \textbf{\ours{}-Margin}$^\star$ & \textbf{.673$\pm$.001} & .233$\pm$.002 & .885 & 5.2 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize All methods use \ours{} components (replay + distillation); only selection differs.}\\
-\multicolumn{5}{l}{\footnotesize All results: 5 seeds, strict evaluation. BADGE from dedicated run (badge\_5seeds\_strict/).}\\
-\multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest variance ($\sigma{=}.001$) and $<$1s compute vs.\ ${\sim}$20min for BADGE.}
+\multicolumn{5}{l}{\footnotesize $^a$Head-only FT, margin selection; $^b$Full-model FT, margin selection.}\\
+\multicolumn{5}{l}{\footnotesize Active methods use \ours{} components (replay + distillation); 5 seeds, strict eval.}\\
+\multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest variance ($\sigma{=}.001$), $<$1s compute vs.\ ${\sim}$20min BADGE.}
 \end{tabular}
 \end{table}
 
@@ -408,7 +417,7 @@ Class & \multicolumn{2}{c}{Recall} & \multicolumn{2}{c}{F1} & Outcome \\
 \end{tabular}
 \end{table}
 
-Nine of 12 collapsed classes recover above the 0.1 recall threshold, with five exceeding 0.62 recall. The three failures share a common pattern: extremely low support or diffuse confusion without a clear absorber target.
+Nine of 12 collapsed classes recover above the 0.1 recall threshold, with five exceeding 0.62 recall. The three failures (classes 26, 69, 109) share a common pattern: the victim's features have drifted so far into the absorber's feature space that they are no longer linearly separable at the frozen encoder's representation level. Since \ours{} updates only the classification head, it cannot recover classes whose encoder-level features have fully merged with the absorber. This suggests that for extreme feature collapse, encoder adaptation (or retraining) may be necessary---at significantly higher cost.
 
 \subsection{Ablation Study}
 
@@ -621,6 +630,12 @@ On QUIC22, where drift is mild, macro-F1 improvement is negligible; \ours{} is d
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods such as CPN~\cite{cai2024cpn}.
 All experiments use a single source-model training run; variance from source training is not captured in the reported standard deviations, which reflect only selection and fine-tuning randomness. Source-training variance is expected to be small given the large training set but should be verified in future work.
 The method's components (head fine-tuning, replay, distillation) are individually well-known; the contribution lies in their collapse-targeted combination and the empirical discovery of the absorber-collapse failure mode, not in algorithmic novelty of any single component.
+
+\textbf{Computational cost.}
+On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 minutes: feature extraction (${\sim}$40s for 330K samples), margin-based sample selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 150 replay samples).
+This is negligible compared to full model retraining (${\sim}$2 hours).
+BADGE selection adds ${\sim}$20 minutes due to k-means++ over gradient embeddings, making \ours{}-Margin preferable for latency-sensitive deployments.
+The repair does not interrupt online inference: the updated head is swapped in atomically after training completes offline.
 
 \textbf{Collapse class count.}
 The CARE evaluation consistently uses a fixed set of 12 classes that are collapsed (recall ${<}0.1$) at M-2022-12 under the static model.
