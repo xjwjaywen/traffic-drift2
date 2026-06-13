@@ -24,10 +24,9 @@
 
 \author{
   Junwei Xiao,~\IEEEmembership{}
-  Xiaobo Jin,~\IEEEmembership{}
-  % Add other authors
-  \thanks{Manuscript received xxx; revised xxx.}
-  \thanks{Authors are with xxx University. E-mail: xxx}
+  and Xiaobo Jin,~\IEEEmembership{}
+  \thanks{Manuscript received June 2026; revised xxx.}
+  \thanks{J.~Xiao and X.~Jin are with the School of Advanced Technology, Xi'an Jiaotong-Liverpool University, Suzhou, China. E-mail: Junwei.Xiao@xjtlu.edu.cn, Xiaobo.Jin@xjtlu.edu.cn}
 }
 
 \maketitle
@@ -609,6 +608,11 @@ The complete pipeline requires only stored prototypes (178~KB) and a small label
 Three classes (26, 69, 109) remain collapsed after repair, suggesting \ours{} is most effective when the absorber-victim relationship is clear and the victim retains some discriminative features.
 On QUIC22, where drift is mild, macro-F1 improvement is negligible.
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods such as CPN~\cite{cai2024cpn}.
+
+\textbf{Collapse class count.}
+The CARE evaluation consistently uses a fixed set of 12 classes that are collapsed (recall ${<}0.1$) at M-2022-12 under the static model.
+The deployment trigger analysis (\S\ref{sec:trigger}) instead counts \emph{all} classes with recall ${<}0.1$ at each period independently, without restricting to this fixed 12-class set; this broader definition yields 14 collapsed classes at M12 because two additional low-support classes intermittently fall below the threshold.
+The two counts are not contradictory but reflect different purposes: CARE targets a stable set for controlled evaluation, while the trigger monitors any class falling below the threshold as an early warning signal.
 
 \textbf{Week-10 data collection change.}
 CESNET-TLS-Year22 has a known distribution shift at week 10 due to a flow exporter update~\cite{hynek2024cesnet}.

@@ -10,7 +10,7 @@ We propose **CARE**, a targeted repair framework that identifies absorber-victim
 |--------|----------|-------------------|-------------------|
 | Static (no adaptation) | 0.629 | 0.028 | 12/178 |
 | SAR (best TTA) | 0.629 | 0.026 | 11/178 |
-| **CARE (ours)** | **0.683** | **0.426** | **5/178** |
+| **CARE (ours)** | **0.673±0.001** | **0.233±0.002** | **5/178** |
 
 All 7 evaluated TTA methods (Tent, EATA, SAR, CoTTA, NOTE, etc.) completely fail on class collapse (F1 < 0.03).
 
