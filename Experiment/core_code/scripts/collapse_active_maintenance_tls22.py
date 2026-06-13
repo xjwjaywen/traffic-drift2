@@ -38,7 +38,10 @@ DEFAULT_STABLE_CLASSES = [
     99, 107, 113, 119, 128, 130, 131, 132, 144, 145,
 ]
 DEFAULT_ABSORBER_CLASSES = [96, 46, 2, 14, 45, 105, 5, 71, 156, 13]
-REPLAY_MODES = {"none", "stable", "all", "absorber", "collapse", "stable_absorber"}
+REPLAY_MODES = {
+    "none", "stable", "all", "absorber", "collapse", "stable_absorber",
+    "proto_stable_absorber", "proto_all",
+}
 
 
 def parse_int_list(value, default=None):
@@ -108,14 +111,47 @@ def replay_class_set(mode, num_classes, collapse_classes, stable_classes, absorb
         return [c for c in absorber_classes if 0 <= c < num_classes]
     if mode == "collapse":
         return [c for c in collapse_classes if 0 <= c < num_classes]
-    if mode == "stable_absorber":
+    if mode in ("stable_absorber", "proto_stable_absorber"):
         return sorted({
             c for c in list(stable_classes) + list(absorber_classes)
             if 0 <= c < num_classes
         })
-    if mode == "all":
+    if mode in ("all", "proto_all"):
         return list(range(num_classes))
     raise ValueError(f"Unknown replay mode: {mode}")
+
+
+def generate_prototype_replay(prototypes, ref_features, ref_labels, classes, per_class, seed, num_classes):
+    """Generate synthetic replay features from class prototypes + Gaussian noise.
+
+    Uses per-class feature covariance estimated from reference data to generate
+    realistic synthetic samples, eliminating the need to store raw source data.
+    """
+    if per_class <= 0 or not classes:
+        return torch.empty(0, prototypes.shape[1]), np.array([], dtype=np.int64)
+    gen = torch.Generator()
+    gen.manual_seed(int(seed))
+    feat_dim = prototypes.shape[1]
+    all_features = []
+    all_labels = []
+    for c in classes:
+        if c < 0 or c >= num_classes:
+            continue
+        proto = prototypes[c]
+        # Estimate per-class std from reference data
+        mask = ref_labels == c
+        if mask.sum() > 1:
+            class_feats = ref_features[mask]
+            class_std = class_feats.std(dim=0).clamp(min=1e-6)
+        else:
+            class_std = torch.ones(feat_dim) * 0.01
+        noise = torch.randn(per_class, feat_dim, generator=gen) * class_std.unsqueeze(0)
+        synthetic = proto.unsqueeze(0) + noise
+        all_features.append(synthetic)
+        all_labels.extend([c] * per_class)
+    if not all_features:
+        return torch.empty(0, feat_dim), np.array([], dtype=np.int64)
+    return torch.cat(all_features, dim=0), np.array(all_labels, dtype=np.int64)
 
 
 def sample_replay_indices(labels, classes, per_class, seed):
@@ -564,18 +600,38 @@ def main():
         stable_classes,
         absorber_classes,
     )
-    replay_idx = sample_replay_indices(
-        ref_outputs["labels"],
-        replay_classes,
-        args.replay_per_class,
-        args.seed + 10007,
-    )
-    if replay_idx.numel() > 0:
-        print(
-            f"Using {int(replay_idx.numel())} replay samples from "
-            f"{len(replay_classes)} reference classes."
+    use_proto_replay = args.replay_mode.startswith("proto_")
+
+    if use_proto_replay:
+        replay_features, replay_labels_np = generate_prototype_replay(
+            prototypes,
+            ref_outputs["features"],
+            ref_outputs["labels"],
+            replay_classes,
+            args.replay_per_class,
+            args.seed + 10007,
+            num_classes,
         )
-    replay_features = ref_outputs["features"][replay_idx] if replay_idx.numel() > 0 else None
+        replay_idx = torch.arange(replay_features.shape[0]) if replay_features.shape[0] > 0 else torch.empty(0, dtype=torch.long)
+        if replay_features.shape[0] > 0:
+            print(
+                f"Using {replay_features.shape[0]} PROTOTYPE replay samples from "
+                f"{len(replay_classes)} classes (no source data stored)."
+            )
+    else:
+        replay_idx = sample_replay_indices(
+            ref_outputs["labels"],
+            replay_classes,
+            args.replay_per_class,
+            args.seed + 10007,
+        )
+        if replay_idx.numel() > 0:
+            print(
+                f"Using {int(replay_idx.numel())} replay samples from "
+                f"{len(replay_classes)} reference classes."
+            )
+        replay_features = ref_outputs["features"][replay_idx] if replay_idx.numel() > 0 else None
+
     replay_logits = None
     if replay_features is not None and args.replay_distill_weight > 0.0:
         with torch.no_grad():
@@ -635,14 +691,23 @@ def main():
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
             selected_distance = nearest_distance[idx].numpy()
-            train_features, train_labels = build_head_training_set(
-                features[idx],
-                selected_labels,
-                ref_outputs["features"],
-                ref_outputs["labels"],
-                replay_idx,
-                args.target_repeat,
-            )
+            if use_proto_replay and replay_features is not None and replay_features.shape[0] > 0:
+                target_repeat = max(1, int(args.target_repeat))
+                feat_parts = [features[idx]] * target_repeat
+                label_parts = [torch.as_tensor(selected_labels, dtype=torch.long)] * target_repeat
+                feat_parts.append(replay_features)
+                label_parts.append(torch.as_tensor(replay_labels_np, dtype=torch.long))
+                train_features = torch.cat(feat_parts, dim=0)
+                train_labels = torch.cat(label_parts, dim=0)
+            else:
+                train_features, train_labels = build_head_training_set(
+                    features[idx],
+                    selected_labels,
+                    ref_outputs["features"],
+                    ref_outputs["labels"],
+                    replay_idx,
+                    args.target_repeat,
+                )
             head = fit_head(
                 model,
                 train_features,
