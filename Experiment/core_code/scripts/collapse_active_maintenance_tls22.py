@@ -38,7 +38,10 @@ DEFAULT_STABLE_CLASSES = [
     99, 107, 113, 119, 128, 130, 131, 132, 144, 145,
 ]
 DEFAULT_ABSORBER_CLASSES = [96, 46, 2, 14, 45, 105, 5, 71, 156, 13]
-REPLAY_MODES = {"none", "stable", "all", "absorber", "collapse", "stable_absorber"}
+REPLAY_MODES = {
+    "none", "stable", "all", "absorber", "collapse", "stable_absorber",
+    "proto_stable_absorber", "proto_all",
+}
 
 
 def parse_int_list(value, default=None):
@@ -108,14 +111,47 @@ def replay_class_set(mode, num_classes, collapse_classes, stable_classes, absorb
         return [c for c in absorber_classes if 0 <= c < num_classes]
     if mode == "collapse":
         return [c for c in collapse_classes if 0 <= c < num_classes]
-    if mode == "stable_absorber":
+    if mode in ("stable_absorber", "proto_stable_absorber"):
         return sorted({
             c for c in list(stable_classes) + list(absorber_classes)
             if 0 <= c < num_classes
         })
-    if mode == "all":
+    if mode in ("all", "proto_all"):
         return list(range(num_classes))
     raise ValueError(f"Unknown replay mode: {mode}")
+
+
+def generate_prototype_replay(prototypes, ref_features, ref_labels, classes, per_class, seed, num_classes):
+    """Generate synthetic replay features from class prototypes + Gaussian noise.
+
+    Uses per-class feature covariance estimated from reference data to generate
+    realistic synthetic samples, eliminating the need to store raw source data.
+    """
+    if per_class <= 0 or not classes:
+        return torch.empty(0, prototypes.shape[1]), np.array([], dtype=np.int64)
+    gen = torch.Generator()
+    gen.manual_seed(int(seed))
+    feat_dim = prototypes.shape[1]
+    all_features = []
+    all_labels = []
+    for c in classes:
+        if c < 0 or c >= num_classes:
+            continue
+        proto = prototypes[c]
+        # Estimate per-class std from reference data
+        mask = ref_labels == c
+        if mask.sum() > 1:
+            class_feats = ref_features[mask]
+            class_std = class_feats.std(dim=0).clamp(min=1e-6)
+        else:
+            class_std = torch.ones(feat_dim) * 0.01
+        noise = torch.randn(per_class, feat_dim, generator=gen) * class_std.unsqueeze(0)
+        synthetic = proto.unsqueeze(0) + noise
+        all_features.append(synthetic)
+        all_labels.extend([c] * per_class)
+    if not all_features:
+        return torch.empty(0, feat_dim), np.array([], dtype=np.int64)
+    return torch.cat(all_features, dim=0), np.array(all_labels, dtype=np.int64)
 
 
 def sample_replay_indices(labels, classes, per_class, seed):
@@ -154,6 +190,69 @@ def build_head_training_set(
     return torch.cat(feature_parts, dim=0), torch.cat(label_parts, dim=0)
 
 
+def greedy_coreset(features, budget, seed):
+    """Greedy k-center coreset selection in feature space."""
+    n = features.shape[0]
+    budget = min(budget, n)
+    feat = features.numpy() if isinstance(features, torch.Tensor) else features
+    gen = np.random.RandomState(seed)
+    selected = [gen.randint(n)]
+    min_dist = np.full(n, np.inf)
+    for _ in range(budget - 1):
+        last = feat[selected[-1]]
+        dist = np.linalg.norm(feat - last[None, :], axis=1)
+        min_dist = np.minimum(min_dist, dist)
+        min_dist[selected] = -1
+        selected.append(int(np.argmax(min_dist)))
+    return torch.tensor(selected, dtype=torch.long)
+
+
+def badge_selection(features, logits, num_classes, budget, seed):
+    """BADGE: Batch Active learning by Diverse Gradient Embeddings.
+
+    Approximates gradient embeddings as (pred_prob - one_hot) ⊗ features,
+    then runs k-means++ initialization for diverse selection.
+    """
+    n = features.shape[0]
+    budget = min(budget, n)
+    probs = F.softmax(logits, dim=1)
+    preds = probs.argmax(dim=1)
+    one_hot = torch.zeros_like(probs)
+    one_hot.scatter_(1, preds.unsqueeze(1), 1.0)
+    grad_coeff = probs - one_hot  # [n, C]
+
+    feat_np = features.numpy() if isinstance(features, torch.Tensor) else features
+    coeff_np = grad_coeff.numpy()
+    # gradient embedding: outer product approximation, use top-k classes to limit memory
+    top_k = min(10, num_classes)
+    top_indices = np.argsort(np.abs(coeff_np), axis=1)[:, -top_k:]
+    grad_embed = np.zeros((n, top_k * feat_np.shape[1]), dtype=np.float32)
+    for i in range(top_k):
+        col = top_indices[:, i]
+        coeff_col = coeff_np[np.arange(n), col]
+        grad_embed[:, i * feat_np.shape[1]:(i + 1) * feat_np.shape[1]] = (
+            feat_np * coeff_col[:, None]
+        )
+
+    # k-means++ initialization
+    gen = np.random.RandomState(seed)
+    selected = [gen.randint(n)]
+    min_dist = np.full(n, np.inf)
+    for _ in range(budget - 1):
+        last = grad_embed[selected[-1]]
+        dist = np.sum((grad_embed - last[None, :]) ** 2, axis=1)
+        min_dist = np.minimum(min_dist, dist)
+        min_dist[selected] = 0
+        total = min_dist.sum()
+        if total <= 0:
+            remaining = np.setdiff1d(np.arange(n), selected)
+            selected.append(remaining[gen.randint(len(remaining))])
+        else:
+            p = min_dist / total
+            selected.append(gen.choice(n, p=p))
+    return torch.tensor(selected, dtype=torch.long)
+
+
 def select_indices(
     strategy,
     logits,
@@ -165,6 +264,7 @@ def select_indices(
     seed,
     nearest_distance=None,
     nearest_proto=None,
+    features=None,
 ):
     n = logits.shape[0]
     budget = min(int(budget), n)
@@ -222,6 +322,16 @@ def select_indices(
 
     if strategy == "confidence_low":
         return torch.argsort(confidence)[:budget]
+
+    if strategy == "coreset":
+        if features is None:
+            raise ValueError("coreset requires features")
+        return greedy_coreset(features, budget, seed)
+
+    if strategy == "badge":
+        if features is None:
+            raise ValueError("badge requires features")
+        return badge_selection(features, logits, num_classes, budget, seed)
 
     if strategy in {
         "absorber_random",
@@ -490,18 +600,38 @@ def main():
         stable_classes,
         absorber_classes,
     )
-    replay_idx = sample_replay_indices(
-        ref_outputs["labels"],
-        replay_classes,
-        args.replay_per_class,
-        args.seed + 10007,
-    )
-    if replay_idx.numel() > 0:
-        print(
-            f"Using {int(replay_idx.numel())} replay samples from "
-            f"{len(replay_classes)} reference classes."
+    use_proto_replay = args.replay_mode.startswith("proto_")
+
+    if use_proto_replay:
+        replay_features, replay_labels_np = generate_prototype_replay(
+            prototypes,
+            ref_outputs["features"],
+            ref_outputs["labels"],
+            replay_classes,
+            args.replay_per_class,
+            args.seed + 10007,
+            num_classes,
         )
-    replay_features = ref_outputs["features"][replay_idx] if replay_idx.numel() > 0 else None
+        replay_idx = torch.arange(replay_features.shape[0]) if replay_features.shape[0] > 0 else torch.empty(0, dtype=torch.long)
+        if replay_features.shape[0] > 0:
+            print(
+                f"Using {replay_features.shape[0]} PROTOTYPE replay samples from "
+                f"{len(replay_classes)} classes (no source data stored)."
+            )
+    else:
+        replay_idx = sample_replay_indices(
+            ref_outputs["labels"],
+            replay_classes,
+            args.replay_per_class,
+            args.seed + 10007,
+        )
+        if replay_idx.numel() > 0:
+            print(
+                f"Using {int(replay_idx.numel())} replay samples from "
+                f"{len(replay_classes)} reference classes."
+            )
+        replay_features = ref_outputs["features"][replay_idx] if replay_idx.numel() > 0 else None
+
     replay_logits = None
     if replay_features is not None and args.replay_distill_weight > 0.0:
         with torch.no_grad():
@@ -539,7 +669,8 @@ def main():
         "replay_samples": int(replay_idx.numel()),
         "selected_collapse_labels": 0,
         "selected_absorber_preds": 0,
-        **static_summary,
+        **{f"strict_{k}": v for k, v in static_summary.items()},
+        **{f"full_{k}": v for k, v in static_summary.items()},
     })
 
     for strategy in strategies:
@@ -555,18 +686,28 @@ def main():
                 args.seed,
                 nearest_distance=nearest_distance,
                 nearest_proto=nearest_proto,
+                features=features,
             )
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
             selected_distance = nearest_distance[idx].numpy()
-            train_features, train_labels = build_head_training_set(
-                features[idx],
-                selected_labels,
-                ref_outputs["features"],
-                ref_outputs["labels"],
-                replay_idx,
-                args.target_repeat,
-            )
+            if use_proto_replay and replay_features is not None and replay_features.shape[0] > 0:
+                target_repeat = max(1, int(args.target_repeat))
+                feat_parts = [features[idx]] * target_repeat
+                label_parts = [torch.as_tensor(selected_labels, dtype=torch.long)] * target_repeat
+                feat_parts.append(replay_features)
+                label_parts.append(torch.as_tensor(replay_labels_np, dtype=torch.long))
+                train_features = torch.cat(feat_parts, dim=0)
+                train_labels = torch.cat(label_parts, dim=0)
+            else:
+                train_features, train_labels = build_head_training_set(
+                    features[idx],
+                    selected_labels,
+                    ref_outputs["features"],
+                    ref_outputs["labels"],
+                    replay_idx,
+                    args.target_repeat,
+                )
             head = fit_head(
                 model,
                 train_features,
@@ -582,7 +723,19 @@ def main():
                 distill_temperature=args.distill_temperature,
             )
             preds = predict_head(head, features, device)
-            summary, report = summarize(labels, preds, collapse_classes, stable_classes, thresholds)
+
+            # --- Strict evaluation: exclude queried samples ---
+            eval_mask = np.ones(len(labels), dtype=bool)
+            eval_mask[idx.numpy()] = False
+            strict_labels = labels[eval_mask]
+            strict_preds = preds[eval_mask]
+            strict_summary, strict_report = summarize(
+                strict_labels, strict_preds, collapse_classes, stable_classes, thresholds
+            )
+            # Full evaluation (includes queried, for reference)
+            full_summary, full_report = summarize(
+                labels, preds, collapse_classes, stable_classes, thresholds
+            )
 
             selected_collapse = int(np.isin(selected_labels, collapse_classes).sum())
             selected_absorber = int(np.isin(selected_preds, absorber_classes).sum())
@@ -600,17 +753,22 @@ def main():
                 "selected_collapse_labels": selected_collapse,
                 "selected_absorber_preds": selected_absorber,
                 "selected_mean_proto_distance": float(selected_distance.mean()) if selected_distance.size else "",
-                **summary,
+                **{f"strict_{k}": v for k, v in strict_summary.items()},
+                **{f"full_{k}": v for k, v in full_summary.items()},
             })
             for c in collapse_classes:
-                item = report.get(str(c), {})
+                s_item = strict_report.get(str(c), {})
+                f_item = full_report.get(str(c), {})
                 per_class_rows.append({
                     "strategy": strategy,
                     "budget": int(idx.numel()),
                     "class_id": c,
-                    "support": int(item.get("support", 0)),
-                    "recall": float(item.get("recall", 0.0)),
-                    "f1": float(item.get("f1-score", 0.0)),
+                    "strict_support": int(s_item.get("support", 0)),
+                    "strict_recall": float(s_item.get("recall", 0.0)),
+                    "strict_f1": float(s_item.get("f1-score", 0.0)),
+                    "full_support": int(f_item.get("support", 0)),
+                    "full_recall": float(f_item.get("recall", 0.0)),
+                    "full_f1": float(f_item.get("f1-score", 0.0)),
                 })
             for c in range(num_classes):
                 count = int((selected_labels == c).sum())
@@ -621,15 +779,18 @@ def main():
                         "class_id": c,
                         "selected_count": count,
                     })
+            def _fmt(v, fmt=".4f"):
+                return f"{v:{fmt}}" if v is not None else "N/A"
+
             print(
                 f"{strategy:<22} budget={int(idx.numel()):4d} "
-                f"macro={summary['overall_macro_f1']:.4f} "
-                f"collapse={summary['bad_macro_f1']:.4f} "
-                f"stable={summary['stable_macro_f1']:.4f} "
-                f"collapsed={summary['collapsed_count']} "
-                f"sel_collapse={selected_collapse} "
-                f"replay={int(replay_idx.numel())} "
-                f"distill={args.replay_distill_weight:g}"
+                f"strict: macro={_fmt(strict_summary['overall_macro_f1'])} "
+                f"collapse={_fmt(strict_summary['bad_macro_f1'])} "
+                f"stable={_fmt(strict_summary['stable_macro_f1'])} "
+                f"collapsed={strict_summary.get('collapsed_count', 0)} | "
+                f"full: macro={_fmt(full_summary['overall_macro_f1'])} "
+                f"collapse={_fmt(full_summary['bad_macro_f1'])} "
+                f"sel_collapse={selected_collapse}"
             )
 
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), rows)
@@ -661,24 +822,32 @@ def main():
     with open(os.path.join(args.output_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    best = max(
-        [r for r in rows if r["method"] != "static"],
-        key=lambda r: (r["bad_macro_f1"], r["overall_macro_f1"]),
-    )
-    print("\n=== Collapse Active Maintenance Summary ===")
+    active_rows = [r for r in rows if r["method"] != "static"]
+    def _safe(v):
+        return f"{v:.4f}" if v is not None else "N/A"
+
+    if active_rows:
+        best = max(
+            active_rows,
+            key=lambda r: (r.get("strict_bad_macro_f1") or 0, r.get("strict_overall_macro_f1") or 0),
+        )
+    else:
+        best = None
+    print("\n=== Collapse Active Maintenance Summary (strict: queried excluded) ===")
     print(
-        f"static macro={static_summary['overall_macro_f1']:.4f} "
-        f"collapse={static_summary['bad_macro_f1']:.4f} "
-        f"stable={static_summary['stable_macro_f1']:.4f} "
-        f"collapsed={static_summary['collapsed_count']}"
+        f"static macro={_safe(static_summary['overall_macro_f1'])} "
+        f"collapse={_safe(static_summary['bad_macro_f1'])} "
+        f"stable={_safe(static_summary['stable_macro_f1'])} "
+        f"collapsed={static_summary.get('collapsed_count', 0)}"
     )
-    print(
-        f"best strategy={best['strategy']} budget={best['budget']} "
-        f"macro={best['overall_macro_f1']:.4f} "
-        f"collapse={best['bad_macro_f1']:.4f} "
-        f"stable={best['stable_macro_f1']:.4f} "
-        f"collapsed={best['collapsed_count']}"
-    )
+    if best:
+        print(
+            f"best strategy={best['strategy']} budget={best['budget']} "
+            f"strict: macro={_safe(best.get('strict_overall_macro_f1'))} "
+            f"collapse={_safe(best.get('strict_bad_macro_f1'))} "
+            f"stable={_safe(best.get('strict_stable_macro_f1'))} "
+            f"collapsed={best.get('strict_collapsed_count', 0)}"
+        )
     print(f"Saved outputs to: {args.output_dir}")
 
 
