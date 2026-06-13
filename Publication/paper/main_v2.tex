@@ -362,10 +362,11 @@ NOTE            & .630 & .027 & .902 & 12 \\
 Entropy         & .601$\pm$.004 & .074$\pm$.013 & .883 & 9.8 \\
 Coreset         & .621$\pm$.005 & .124$\pm$.010 & .877 & 8.8 \\
 Random          & .655$\pm$.005 & .179$\pm$.030 & .890 & 8.0 \\
-\textbf{Margin (\ours{})} & \textbf{.673$\pm$.001} & \textbf{.233$\pm$.002} & .886 & \textbf{5.2} \\
+Margin (\ours{}) & .673$\pm$.001 & .233$\pm$.002 & .885 & 5.2 \\
+BADGE~\cite{ash2020badge}  & \textbf{.688$\pm$.006} & \textbf{.318$\pm$.037} & \textbf{.889} & \textbf{4.4} \\
 \bottomrule
 \multicolumn{5}{l}{\footnotesize All active methods use CARE components (replay + distillation).}\\
-\multicolumn{5}{l}{\footnotesize Entropy and coreset perform \textit{worse} than Static on macro-F1.}
+\multicolumn{5}{l}{\footnotesize BADGE achieves highest F1 but with 6$\times$ higher variance than margin.}
 \end{tabular}
 \end{table}
 
@@ -456,7 +457,9 @@ A natural question is whether standard active learning (AL) strategies~\cite{set
 
 Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.601 (vs.\ Static 0.629) and coreset achieves 0.621. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
 
-Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries. This confirms that class collapse is not a generic active learning problem but requires selection strategies aware of the confusion structure.
+Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries.
+BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.037$) but with 6$\times$ higher variance than margin ($\sigma=0.006$ vs.\ $0.001$ on macro-F1) and substantially higher computation cost (PCA-accelerated BADGE requires ${\sim}20$ minutes per seed vs.\ seconds for margin on 330K samples).
+We recommend margin as the default deployable strategy due to its stability and efficiency; BADGE is a viable alternative when compute budget permits and variance can be managed through ensembling.
 
 \begin{figure}[t]
 \centering
