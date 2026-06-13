@@ -35,3 +35,7 @@ outputs/
 causalquic_phase0/data/
 causalquic_phase0/outputs/
 causalquic_phase0/reports/
+
+# Dr. Claw project metadata (not part of paper)
+instance.json
+.pipeline/
