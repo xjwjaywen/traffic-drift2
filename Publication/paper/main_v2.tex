@@ -297,11 +297,11 @@ Distillation ensures that repairing collapsed classes does not shift the classif
 \caption{\ours{}: Collapse-Aware Active Repair}
 \label{alg:care}
 \begin{algorithmic}[1]
-\REQUIRE Source model $f, h_{\theta_0}$; class prototypes $\mathbf{P}$; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
+\REQUIRE Source model $f, h_{\theta_0}$; reference data $D_{\text{ref}}$ (or prototypes $\mathbf{P}$); target data $D_{\text{tgt}}$ (unlabeled); budget $B$
 \STATE \textbf{Trigger:} Monitor mean confidence; activate if $\Delta_{\text{conf}} < \tau$
 \STATE Compute features $\{f(x) : x \in D_{\text{tgt}}\}$ and logits
 \STATE Select $B$ samples via margin sampling; query labels
-\STATE Generate $D_{\text{replay}}$: $k$ synthetic samples per class from $\mathbf{P}$ + noise
+\STATE Sample $D_{\text{replay}}$: $k$ samples per class from $D_{\text{ref}}$ \hfill \textit{// or generate from $\mathbf{P}$ (\S\ref{sec:proto_replay})}
 \STATE Initialize $h_\theta \leftarrow h_{\theta_0}$
 \FOR{epoch $= 1, \ldots, E$}
   \STATE Sample minibatch from $D_{\text{target}} \cup D_{\text{replay}}$
