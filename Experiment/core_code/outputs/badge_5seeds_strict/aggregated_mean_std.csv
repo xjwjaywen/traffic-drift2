@@ -1,0 +1,8 @@
+method,strategy,budget,n_seeds,strict_overall_macro_f1_mean,strict_overall_macro_f1_std,strict_bad_macro_f1_mean,strict_bad_macro_f1_std,strict_stable_macro_f1_mean,strict_stable_macro_f1_std,strict_collapsed_count_mean,strict_collapsed_count_std,full_overall_macro_f1_mean,full_overall_macro_f1_std,full_bad_macro_f1_mean,full_bad_macro_f1_std,full_stable_macro_f1_mean,full_stable_macro_f1_std,full_collapsed_count_mean,full_collapsed_count_std
+active_head_ft,badge,1000,5,0.6876,0.0063,0.3178,0.0365,0.8888,0.0041,4.4000,0.8000,0.6880,0.0063,0.3187,0.0365,0.8889,0.0042,4.2000,0.7483
+active_head_ft,badge,200,5,0.6362,0.0069,0.0917,0.0172,0.8839,0.0061,10.0000,0.8944,0.6363,0.0069,0.0919,0.0173,0.8839,0.0061,10.0000,0.8944
+active_head_ft,badge,500,5,0.6593,0.0022,0.2065,0.0253,0.8888,0.0064,6.6000,1.0198,0.6595,0.0022,0.2070,0.0252,0.8888,0.0064,6.6000,1.0198
+active_head_ft,margin,1000,5,0.6730,0.0005,0.2318,0.0030,0.8848,0.0029,5.2000,0.4000,0.6733,0.0005,0.2328,0.0030,0.8849,0.0029,5.2000,0.4000
+active_head_ft,margin,200,5,0.6373,0.0015,0.1163,0.0047,0.8759,0.0058,10.0000,0.0000,0.6374,0.0015,0.1164,0.0047,0.8759,0.0058,10.0000,0.0000
+active_head_ft,margin,500,5,0.6498,0.0013,0.1561,0.0097,0.8892,0.0042,7.0000,0.8944,0.6499,0.0013,0.1563,0.0097,0.8892,0.0042,7.0000,0.8944
+static,,0,5,0.6286,0.0000,0.0276,0.0000,0.9028,0.0000,12.0000,0.0000,0.6286,0.0000,0.0276,0.0000,0.9028,0.0000,12.0000,0.0000
