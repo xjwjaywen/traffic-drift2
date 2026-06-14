@@ -54,7 +54,7 @@ Encrypted traffic classification, concept drift, class collapse, label-efficient
 \label{sec:intro}
 
 % P1: Problem - drift in traffic classifiers
-Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{luxemburk2023quic, lin2022etbert, zhao2023yatc, pacheco2019towards, wang2022survey}.
+Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{luxemburk2023quic, lin2022etbert, zhao2023yatc, pacheco2019towards, wang2019survey}.
 However, a growing body of evidence shows that these classifiers degrade rapidly after deployment.
 Luxemburk and Hynek~\cite{luxemburk2023quic} report a 13.5\% accuracy drop within one week on the CESNET-QUIC22 dataset, while Malekghaini~\etal{}~\cite{malekghaini2023drift} observe F1 declining from 0.95 to 0.60 over several months on ISP-scale data.
 The causes are diverse: application version updates alter protocol behavior, TLS certificate rotations change handshake fingerprints, and CDN migrations shift IP ranges and packet size distributions~\cite{soukup2025drift, lu2019learning, gama2014survey}.
