@@ -10,6 +10,7 @@ import argparse
 import os
 import time
 import json
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -184,7 +185,16 @@ def main():
         default=0,
         help="Debug/smoke limit; 0 means use full epoch",
     )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
     args = parser.parse_args()
+
+    # Set random seed
+    import random
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
 
     cfg = load_config(args.config)
     output_dir = args.output_dir or cfg.get("output_dir", "outputs/train")
