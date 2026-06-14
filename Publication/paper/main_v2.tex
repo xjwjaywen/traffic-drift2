@@ -108,6 +108,7 @@ These features are inherently non-stationary: application updates change protoco
 
 % Prior drift work
 Luxemburk and Hynek~\cite{luxemburk2023quic} first quantified temporal degradation on the CESNET-QUIC22 dataset, reporting 13.5\% accuracy loss in one week.
+Jerabek~\etal{}~\cite{jerabek2025eval} further demonstrated that random train/test splitting inflates performance by at least 3.5 percentage points compared to realistic time-based evaluation on the same dataset.
 Malekghaini~\etal{}~\cite{malekghaini2023drift} studied drift on ISP data and proposed architectural best practices, noting that ``Web is the class most misclassified flows are confused with''---an early empirical observation of absorber-like behavior, though without further analysis or targeted remedy.
 Soukup~\etal{}~\cite{soukup2025drift} developed a drift stability benchmark for CESNET-TLS-Year22, identifying 28 classes with frequent drifts, but analyzed only per-class F1 trajectories without examining inter-class confusion dynamics.
 Chen~\etal{}~\cite{chen2025selfevolving} proposed self-evolving classification using high-confidence pseudo-labels for whole-model fine-tuning, but explicitly stated ``we will not specifically study the feature changes of a certain category.''
@@ -255,9 +256,31 @@ The failure of TTA methods is fundamental, not incidental: entropy minimization 
 When an absorber class confidently captures a victim's predictions, entropy is \textit{low} (the model is confidently wrong), so entropy-based adaptation sees no signal to correct.
 
 \textbf{Verification on BatchNorm architecture.}
-To confirm this failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm and re-evaluate all TTA methods.
-On the BN model at M12, BN-Adapt now functions (macro-F1: 0.622 vs.\ Static 0.613) but collapse F1 remains at 0.032---virtually unchanged from Static (0.030).
-Tent (0.027), SAR (0.026), and EATA (0.028) are similarly ineffective; NOTE catastrophically degrades performance (macro-F1: 0.042).
+To confirm this failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm and re-evaluate all TTA methods (Table~\ref{tab:bn_tta}).
+
+\begin{table}[t]
+\centering
+\caption{TTA on BatchNorm architecture (M-2022-12). BN-Adapt now functions but collapse F1 remains near zero. \ours{}-Margin uses 3 seeds, strict eval.}
+\label{tab:bn_tta}
+\small
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+Method & Macro-F1 & Collapse F1 & Collapsed \\
+\midrule
+Static (BN) & .613 & .030 & 11 \\
+BN-Adapt & .622 & .032 & 11 \\
+Tent & .619 & .027 & 12 \\
+EATA & .616 & .028 & 12 \\
+SAR & .605 & .026 & 12 \\
+CoTTA & .612 & .027 & 12 \\
+NOTE & .042 & .000 & 12 \\
+\midrule
+\textbf{\ours{}-Margin} & \textbf{.665$\pm$.001} & \textbf{.314$\pm$.004} & \textbf{7} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Even with functional BN-Adapt (macro +0.009), collapse F1 stays at 0.032. NOTE catastrophically degrades the BN model (macro-F1: 0.042).
 This confirms that TTA's inability to address class collapse is a \textit{problem-level} limitation, not an architecture artifact.
 
 This negative result motivates the shift from unsupervised adaptation to label-efficient targeted repair: some labeled supervision is necessary to break the absorber-victim confusion, but only a small amount suffices.
@@ -350,7 +373,7 @@ All \ours{} results use \textit{strict evaluation}: the labeled samples selected
 Main results, ablation, and BADGE comparisons are averaged over 5 random seeds; extension studies (multi-period, prototype replay, architecture comparison) use 3 seeds as noted in each table.
 
 \textbf{Metrics.}
-Overall macro-F1 (averaged over all 178 classes), collapse-class macro-F1 (averaged over the 12 classes with recall $<0.1$ in the static model at M12), stable-class macro-F1 (averaged over 20 classes with consistently high recall across all periods; the overall macro-F1 implicitly covers all remaining classes), and the number of collapsed classes (recall $< 0.1$).
+Overall macro-F1 (averaged over all 178 classes, thus implicitly covering the 146 classes that are neither collapsed nor in the stable set), collapse-class macro-F1 (averaged over the 12 classes with recall $<0.1$ in the static model at M12), stable-class macro-F1 (averaged over 20 classes with consistently high recall across all periods), and the number of collapsed classes (recall $< 0.1$).
 
 \textbf{\ours{} configuration.}
 Budget $B=1000$, margin-based selection (no absorber knowledge required), replay with $k=5$ samples per class from stable and absorber classes, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, head fine-tuning learning rate $10^{-3}$, 30 epochs.
@@ -454,7 +477,7 @@ FT + Distill            & .670$\pm$.000 & .152$\pm$.007 & .887 & 7.8 \\
 Key findings:
 \begin{itemize}
   \item \textbf{FT only}: Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.838).
-  \item \textbf{+ Replay}: Improves collapse repair (.134$\to$.224) but does not protect stable classes (.840).
+  \item \textbf{+ Replay}: Improves collapse repair (.134$\to$.224) but does not protect stable classes (.840). This is because replay uses only $k{=}5$ samples from stable/absorber classes (30 classes, 150 samples total)---too few to fully anchor 178-class decision boundaries. Distillation provides the missing regularization.
   \item \textbf{+ Distill}: Best stable-class preservation (.887, close to Static), but limited collapse repair (.152).
   \item \textbf{Full \ours{}}: Combines replay's collapse repair with distillation's stable protection---the only configuration that simultaneously improves collapse F1 and maintains stable F1 above 0.88.
 \end{itemize}
@@ -640,7 +663,7 @@ The complete pipeline requires only stored prototypes (178~KB) and a small label
 Three classes (26, 69, 109) remain collapsed after repair, suggesting \ours{} is most effective when the absorber-victim relationship is clear and the victim retains some discriminative features.
 On QUIC22, where drift is mild, macro-F1 improvement is negligible; \ours{} is designed for collapse-heavy regimes and provides limited benefit when drift is diffuse.
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods such as CPN~\cite{cai2024cpn}.
-To verify that absorber-collapse is a property of the data rather than a training artifact, we train three models with different random seeds. All three produce 11--12 collapsed classes at M12, with macro-F1 ranging from 0.620 to 0.629 and collapse F1 from 0.028 to 0.036. The collapse class sets overlap substantially, confirming that the absorber-collapse pattern is an inherent property of the dataset's temporal drift, not an artifact of a particular training run. The 5-seed standard deviations reported in our main results reflect selection and fine-tuning randomness only; source-training variance is small by comparison.
+To verify that absorber-collapse is a property of the data rather than a training artifact, we train three models with different random seeds. All three produce 11--12 collapsed classes at M12, with macro-F1 ranging from 0.620 to 0.629 and collapse F1 from 0.028 to 0.036. Of the 12 collapsed classes identified in the primary model (seed 0), 10 appear in all three seed variants and 2 appear in two out of three; the union set contains 13 classes. This high overlap (Jaccard similarity $>$ 0.8) confirms that the absorber-collapse pattern is an inherent property of the dataset's temporal drift, not an artifact of a particular training run. The 5-seed standard deviations reported in our main results reflect selection and fine-tuning randomness only; source-training variance is small by comparison.
 The method's components (head fine-tuning, replay, distillation) are individually well-known; the contribution lies in their collapse-targeted combination and the empirical discovery of the absorber-collapse failure mode, not in algorithmic novelty of any single component.
 
 \textbf{Computational cost.}
