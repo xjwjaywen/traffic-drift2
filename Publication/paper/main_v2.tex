@@ -404,9 +404,9 @@ Naive-Head$^a$  & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
 Naive-Full$^b$  & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
 \midrule
 \multicolumn{5}{l}{\textit{Active selection with 1{,}000 labels + \ours{} components:}} \\
-Entropy         & .601$\pm$.004 & .074$\pm$.013 & .883 & 9.8 \\
-Coreset         & .621$\pm$.005 & .124$\pm$.010 & .877 & 8.8 \\
-Random          & .655$\pm$.005 & .179$\pm$.030 & .890 & 8.0 \\
+Entropy         & .600$\pm$.004 & .073$\pm$.012 & .882 & 9.8 \\
+Coreset         & .618$\pm$.007 & .108$\pm$.034 & .878 & 9.2 \\
+Random          & .656$\pm$.005 & .183$\pm$.028 & .890 & 8.0 \\
 BADGE~\cite{ash2020badge}  & .688$\pm$.006 & .318$\pm$.037 & .889 & 4.4 \\
 \textbf{\ours{}-Margin}$^\star$ & \textbf{.673$\pm$.001} & .233$\pm$.002 & .885 & 5.2 \\
 \bottomrule
@@ -501,7 +501,7 @@ Key findings:
 
 A natural question is whether standard active learning (AL) strategies~\cite{settles2009active} suffice for collapse repair. Table~\ref{tab:main_results} includes entropy sampling and greedy coreset~\cite{sener2018coreset} as AL baselines, both using the same CARE components (replay + distillation) to isolate the effect of selection strategy.
 
-Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.601 (vs.\ Static 0.629) and coreset achieves 0.621. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
+Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.600 (vs.\ Static 0.629) and coreset achieves 0.618. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
 
 Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries.
 BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.037$)---36\% higher than margin ($0.233{\pm}0.002$)---and also the highest macro-F1 ($0.688$ vs.\ $0.673$).
