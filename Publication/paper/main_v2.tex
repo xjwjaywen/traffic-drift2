@@ -124,9 +124,10 @@ CoTTA~\cite{wang2022cotta} uses augmentation-averaged pseudo-labels with stochas
 NOTE~\cite{gong2022note} handles non-i.i.d.\ test streams with prediction-balanced sampling.
 
 These methods were designed for image corruption benchmarks (ImageNet-C) and assume BatchNorm-based architectures.
-Our classifier uses GroupNorm for stability under non-i.i.d.\ traffic batches; consequently, BN-Adapt (which updates BatchNorm statistics) is a no-op, and NOTE's Instance-Aware BatchNorm component is non-functional.
-We include both for completeness, noting that their results are identical or near-identical to the Static baseline.
-As we show in Section~\ref{sec:tta_eval}, even TTA methods that do function on GroupNorm architectures (Tent, EATA, SAR, CoTTA) are ineffective, because drift manifests as systematic class confusion rather than global distribution shift.
+Our primary classifier uses GroupNorm for stability under non-i.i.d.\ traffic batches, which limits BN-dependent methods.
+To disentangle ``TTA fails because of GroupNorm'' from ``TTA fails because of class collapse,'' we additionally train a BatchNorm variant and evaluate all TTA methods on it (\S\ref{sec:tta_eval}).
+The results confirm that TTA methods remain ineffective on both architectures: even with functional BN-Adapt (macro-F1: +0.009 on BN), collapse-class F1 stays below 0.032.
+This establishes that the failure is fundamental to class collapse, not an artifact of normalization choice.
 
 \subsection{Continual Learning for Traffic Classification}
 
@@ -252,6 +253,13 @@ NOTE       & .024 & .055 & .027 & .740 & .691 & .630 \\
 
 The failure of TTA methods is fundamental, not incidental: entropy minimization (Tent, SAR) and pseudo-label refinement (CoTTA, NOTE) optimize global prediction confidence, not class-specific confusion patterns.
 When an absorber class confidently captures a victim's predictions, entropy is \textit{low} (the model is confidently wrong), so entropy-based adaptation sees no signal to correct.
+
+\textbf{Verification on BatchNorm architecture.}
+To confirm this failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm and re-evaluate all TTA methods.
+On the BN model at M12, BN-Adapt now functions (macro-F1: 0.622 vs.\ Static 0.613) but collapse F1 remains at 0.032---virtually unchanged from Static (0.030).
+Tent (0.027), SAR (0.026), and EATA (0.028) are similarly ineffective; NOTE catastrophically degrades performance (macro-F1: 0.042).
+This confirms that TTA's inability to address class collapse is a \textit{problem-level} limitation, not an architecture artifact.
+
 This negative result motivates the shift from unsupervised adaptation to label-efficient targeted repair: some labeled supervision is necessary to break the absorber-victim confusion, but only a small amount suffices.
 
 
