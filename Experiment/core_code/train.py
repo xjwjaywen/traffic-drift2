@@ -319,7 +319,6 @@ def main():
     print(f"Test Macro-F1: {test_metrics['macro_f1']:.4f}")
 
     # Save baseline entropy for drift detection
-    import numpy as np
     val_metrics = evaluate(model, val_loader, device)
     val_logits = val_metrics["logits"]
     val_labels = val_metrics["labels"]
