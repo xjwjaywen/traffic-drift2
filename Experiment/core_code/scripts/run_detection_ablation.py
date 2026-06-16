@@ -46,7 +46,7 @@ ABLATION_CONFIGS = [
     },
     {
         "name": "5signal_full",
-        "label": "+ count normalization (5-signal, default)",
+        "label": "+ entropy (5-signal, default)",
         "weights": [0.40, 0.20, 0.15, 0.15, 0.10],
     },
 ]

@@ -83,7 +83,8 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 
 % P5: Results highlight
 We first establish that unsupervised TTA methods cannot address class collapse (all produce collapse-class F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
-Under strict evaluation (queried samples excluded, 5 seeds), \ours{} improves collapse-class F1 from 0.028 to $0.233{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.673{\pm}0.001$ using 1{,}000 labeled samples ($<$0.3\% of the test set) plus a labeled probe period.
+Under strict evaluation (queried samples excluded, 5 seeds), \ours{} improves collapse-class F1 from 0.028 to $0.233{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.673{\pm}0.001$ using only 1{,}000 labeled samples ($<$0.3\% of the test set).
+An autonomous variant replaces the labeled probe with unsupervised detection, achieving comparable performance ($0.674{\pm}0.001$ macro-F1) with no probe labels at all.
 \ours{} generalizes across architectures (CNN and Transformer), drift severity (M7--M12), and supports exemplar-free deployment.
 
 % P6: Contributions
@@ -711,7 +712,8 @@ The collapse-class F1 improves modestly ($0.305\to0.413$), confirming that \ours
 \label{sec:discussion}
 
 \textbf{Label cost and deployment model.}
-\ours{} requires two labeled inputs per repair cycle: (1)~a probe set from the preceding period for absorber discovery (the same reference period already used for replay), and (2)~1{,}000 target samples selected by the margin strategy.
+The labeled-probe variant of \ours{} requires two inputs per repair cycle: (1)~a labeled probe set from the preceding period for absorber discovery, and (2)~1{,}000 target samples selected by the margin strategy.
+The autonomous variant (\S\ref{sec:e2e}) replaces the labeled probe with unsupervised collapse detection, reducing the labeling requirement to only the 1{,}000 target samples---no probe labels are needed.
 The 1{,}000 samples represent $<$0.3\% of a monthly test set (${\sim}$330K flows).
 In ISP deployment, labels can be obtained through DPI-based labeling on a monitored subnet, SNI-based ground truth for TLS traffic, or periodic manual verification of a stratified sample.
 Repair is triggered only when confidence monitoring detects drift (\S\ref{sec:trigger}), so labeling cost is incurred only when needed---not continuously.
