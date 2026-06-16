@@ -57,6 +57,9 @@ def compute_per_class_signals(ref_features, ref_preds, ref_logits,
     ref_ent = (-(ref_probs * torch.log(ref_probs.clamp(min=1e-12))).sum(dim=1)).numpy()
     tgt_ent = (-(tgt_probs * torch.log(tgt_probs.clamp(min=1e-12))).sum(dim=1)).numpy()
 
+    ref_total = len(ref_preds)
+    tgt_total = len(tgt_preds)
+
     results = []
     for c in range(num_classes):
         ref_mask = ref_preds == c
@@ -64,13 +67,39 @@ def compute_per_class_signals(ref_features, ref_preds, ref_logits,
         ref_n = int(ref_mask.sum())
         tgt_n = int(tgt_mask.sum())
 
-        if ref_n < min_samples or tgt_n < min_samples:
+        # Normalize by total period size to handle different volumes
+        ref_frac = ref_n / max(ref_total, 1)
+        tgt_frac = tgt_n / max(tgt_total, 1)
+        count_ratio = tgt_frac / max(ref_frac, 1e-8)
+
+        if ref_n < min_samples and tgt_n < min_samples:
             results.append({
                 "class": c, "fd": None,
                 "ref_count": ref_n, "tgt_count": tgt_n,
-                "count_ratio": tgt_n / max(ref_n, 1),
+                "count_ratio": count_ratio,
                 "margin_drop": None, "conf_drop": None, "entropy_rise": None,
-                "status": "insufficient_samples",
+                "status": "both_insufficient",
+            })
+            continue
+
+        if tgt_n < min_samples:
+            # Near-zero predictions in target = strong collapse signal
+            results.append({
+                "class": c, "fd": None,
+                "ref_count": ref_n, "tgt_count": tgt_n,
+                "count_ratio": count_ratio,
+                "margin_drop": None, "conf_drop": None, "entropy_rise": None,
+                "status": "count_only",
+            })
+            continue
+
+        if ref_n < min_samples:
+            results.append({
+                "class": c, "fd": None,
+                "ref_count": ref_n, "tgt_count": tgt_n,
+                "count_ratio": count_ratio,
+                "margin_drop": None, "conf_drop": None, "entropy_rise": None,
+                "status": "ref_insufficient",
             })
             continue
 
@@ -93,7 +122,7 @@ def compute_per_class_signals(ref_features, ref_preds, ref_logits,
         results.append({
             "class": c, "fd": fd,
             "ref_count": ref_n, "tgt_count": tgt_n,
-            "count_ratio": tgt_n / max(ref_n, 1),
+            "count_ratio": count_ratio,
             "margin_drop": margin_drop,
             "conf_drop": conf_drop,
             "entropy_rise": entropy_rise,
@@ -147,8 +176,13 @@ def _robust_stats(values):
 
 def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.12):
     """Identify collapse and absorber candidates using multi-signal scoring."""
+    # Include count_only entries (near-zero predictions = strong collapse signal)
     valid = [r for r in fd_results if r["fd"] is not None]
-    if not valid:
+    count_only = [r for r in fd_results if r.get("status") == "count_only"]
+    for r in count_only:
+        r["collapse_score"] = 0.95  # near-certain collapse
+        r["fd_zscore"] = 0.0
+    if not valid and not count_only:
         return [], []
 
     fds = np.array([r["fd"] for r in valid])
@@ -179,6 +213,10 @@ def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.12):
         if r["count_ratio"] > 1.3:
             absorber_candidates.append(r)
 
+    # Add count_only entries (classes with near-zero target predictions)
+    for r in count_only:
+        collapse_candidates.append(r)
+
     collapse_candidates.sort(key=lambda x: x["collapse_score"], reverse=True)
     absorber_candidates.sort(key=lambda x: x["count_ratio"], reverse=True)
 
@@ -192,6 +230,11 @@ def main():
     parser.add_argument("--reference-period", default="M-2022-4")
     parser.add_argument("--target-period", default="M-2022-12")
     parser.add_argument("--min-samples", type=int, default=10)
+    parser.add_argument("--top-k", type=int, default=20)
+    parser.add_argument("--score-threshold", type=float, default=0.12,
+                        help="Collapse score threshold (not tuned on target labels)")
+    parser.add_argument("--weights", default="0.40,0.20,0.15,0.15,0.10",
+                        help="Weights for count_drop,fd,margin,conf,entropy")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
 
@@ -226,7 +269,9 @@ def main():
     )
 
     # Detect candidates
-    collapse_cands, absorber_cands = detect_collapse_candidates(fd_results)
+    collapse_cands, absorber_cands = detect_collapse_candidates(
+        fd_results, top_k=args.top_k, score_threshold=args.score_threshold
+    )
 
     # Ground truth: actual collapsed classes (using labels)
     actual_collapsed = []
