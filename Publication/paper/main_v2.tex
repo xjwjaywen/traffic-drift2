@@ -639,12 +639,12 @@ Pipeline & Macro-F1 & Collapse F1 & Collapsed & Probe? \\
 \midrule
 Static & .629 & .028 & 12 & --- \\
 Labeled probe (5s) & .673$\pm$.001 & .233$\pm$.003 & 5.0 & Yes \\
-\textbf{Autonomous (3s)} & \textbf{.674$\pm$.001} & \textbf{.233$\pm$.007} & \textbf{6.0} & \textbf{No} \\
+\textbf{Autonomous (3s)} & \textbf{.674$\pm$.001} & \textbf{.235$\pm$.003} & \textbf{5.7} & \textbf{No} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-When evaluated on the same 12-class set, the autonomous pipeline achieves comparable performance to the labeled-probe version (collapse F1: 0.233 vs.\ 0.233, macro-F1: 0.674 vs.\ 0.673), with slightly higher collapse-F1 variance ($\pm$0.007 vs.\ $\pm$0.003) due to noise in the detected class list.
+When evaluated on the same 12-class set, the autonomous pipeline achieves comparable performance to the labeled-probe version (collapse F1: 0.235 vs.\ 0.233, macro-F1: 0.674 vs.\ 0.673).
 This confirms that unsupervised detection successfully identifies the relevant collapse region, and CARE's margin selection operates effectively without exact collapse-class knowledge.
 The practical benefit is clear: the autonomous pipeline eliminates the labeled probe period entirely, reducing the total labeling requirement to only 1{,}000 target samples per repair cycle.
 
@@ -766,7 +766,7 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using only 1{,}000 target labels ($<$0.3\% of test data).
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
-Under strict evaluation, \ours{} improves macro-F1 from 0.629 to $0.673{\pm}0.001$ (5 seeds, labeled-probe) and to $0.674{\pm}0.001$ (3 seeds, autonomous pipeline with detected classes for repair, fixed 12 classes for evaluation), with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 model initializations), and an exemplar-free deployment mode.
+Under strict evaluation, \ours{} improves macro-F1 from 0.629 to $0.673{\pm}0.001$ (5 seeds, labeled-probe) and to $0.674{\pm}0.001$ (3 seeds, autonomous pipeline with detected classes for repair, fixed 12 classes for evaluation), with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations), and an exemplar-free deployment mode.
 
 % ============================================================
 \bibliographystyle{IEEEtran}
