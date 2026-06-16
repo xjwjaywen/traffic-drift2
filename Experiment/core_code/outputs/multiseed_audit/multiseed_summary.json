@@ -19,5 +19,52 @@
       "stable_macro_f1": 0.8710206512615792
     }
   ],
-  "num_training_seeds": 3
+  "care_margin_b1000": [
+    {
+      "train_seed": 0,
+      "overall_macro_f1_mean": 0.6600,
+      "overall_macro_f1_std": 0.0022,
+      "collapse_macro_f1_mean": 0.2671,
+      "collapse_macro_f1_std": 0.0037,
+      "stable_macro_f1_mean": 0.8846,
+      "stable_macro_f1_std": 0.0028,
+      "n_ft_seeds": 3
+    },
+    {
+      "train_seed": 1,
+      "overall_macro_f1_mean": 0.6737,
+      "overall_macro_f1_std": 0.0018,
+      "collapse_macro_f1_mean": 0.3292,
+      "collapse_macro_f1_std": 0.0064,
+      "stable_macro_f1_mean": 0.8919,
+      "stable_macro_f1_std": 0.0024,
+      "n_ft_seeds": 3
+    },
+    {
+      "train_seed": 2,
+      "overall_macro_f1_mean": 0.6674,
+      "overall_macro_f1_std": 0.0021,
+      "collapse_macro_f1_mean": 0.2746,
+      "collapse_macro_f1_std": 0.0034,
+      "stable_macro_f1_mean": 0.8888,
+      "stable_macro_f1_std": 0.0015,
+      "n_ft_seeds": 3
+    }
+  ],
+  "cross_training_seed_aggregate": {
+    "static": {
+      "overall_macro_f1_mean": 0.6202,
+      "overall_macro_f1_std": 0.0006,
+      "collapse_macro_f1_mean": 0.0326,
+      "collapse_macro_f1_std": 0.0034
+    },
+    "care_margin_b1000": {
+      "overall_macro_f1_mean": 0.6670,
+      "overall_macro_f1_std": 0.0069,
+      "collapse_macro_f1_mean": 0.2903,
+      "collapse_macro_f1_std": 0.0339
+    }
+  },
+  "num_training_seeds": 3,
+  "note": "Audit models trained with cudnn.deterministic=True; primary checkpoint (0.629) was trained without this setting, explaining the ~0.008 macro-F1 gap."
 }

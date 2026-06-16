@@ -815,6 +815,7 @@ def main():
         "reference_period": args.reference_period,
         "num_classes": num_classes,
         "collapse_classes": collapse_classes,
+        "eval_collapse_classes": eval_collapse_classes,
         "stable_classes": stable_classes,
         "absorber_classes": absorber_classes,
         "budgets": budgets,
