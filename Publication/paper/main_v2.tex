@@ -465,7 +465,7 @@ Table~\ref{tab:per_class} illustrates per-class repair outcomes when oracle abso
 
 \begin{table}[t]
 \centering
-\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list). This represents the diagnostic upper bound; the deployable margin strategy achieves aggregate collapse F1 of $0.233{\pm}0.002$.}
+\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list). This represents the diagnostic upper bound; the deployable margin strategy achieves aggregate collapse F1 of $0.233{\pm}0.003$.}
 \label{tab:per_class}
 \small
 \begin{tabular}{@{}c cc cc l@{}}
@@ -547,7 +547,7 @@ A natural question is whether standard active learning (AL) strategies~\cite{set
 Both standard AL methods perform \textit{worse} than the static baseline on macro-F1: entropy achieves 0.600 (vs.\ Static 0.629) and coreset achieves 0.618. The reason is that these methods select globally uncertain or representative samples, which are dominated by high-traffic classes. Entropy sampling is particularly harmful because absorber classes produce \textit{confident} mispredictions (low entropy), so entropy-based selection systematically avoids the collapse boundary---exactly where labels are most needed.
 
 Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries.
-BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.037$)---36\% higher than margin ($0.233{\pm}0.002$)---and also the highest macro-F1 ($0.688$ vs.\ $0.673$).
+BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.037$)---36\% higher than margin ($0.233{\pm}0.003$)---and also the highest macro-F1 ($0.688$ vs.\ $0.673$).
 BADGE is thus the \textit{strongest} selection strategy for collapse repair within the \ours{} framework.
 However, it comes with two practical trade-offs: (1)~higher variance ($\sigma_{\text{macro}}{=}0.006$ vs.\ $0.001$), and (2)~substantially higher computation (PCA-accelerated BADGE requires ${\sim}$20 minutes vs.\ seconds for margin on 330K samples).
 For monthly repair cycles where 20 minutes is acceptable, BADGE is the recommended strategy; for latency-sensitive or resource-constrained deployments, margin provides a reliable and near-instant alternative.
@@ -588,7 +588,7 @@ Absorber Source & Macro-F1 & Collapse F1 & Collapsed \\
 \midrule
 Oracle (M12 ground truth) & .657$\pm$.002 & .377$\pm$.008 & 3.0 \\
 Auto (M11$\to$M12) & .649$\pm$.002 & .289$\pm$.001 & 5.0 \\
-Margin (no absorber info) & \textbf{.673$\pm$.001} & .233$\pm$.002 & 5.2 \\
+Margin (no absorber info) & \textbf{.673$\pm$.001} & .233$\pm$.003 & 5.0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -636,7 +636,7 @@ Table~\ref{tab:e2e} compares the full autonomous pipeline (unsupervised detectio
 Pipeline & Macro-F1 & Collapse F1 & Collapsed & Probe? \\
 \midrule
 Static & .629 & .028 & 12 & --- \\
-Labeled probe (5s) & .673$\pm$.001 & .233$\pm$.002 & 5.2 & Yes \\
+Labeled probe (5s) & .673$\pm$.001 & .233$\pm$.003 & 5.0 & Yes \\
 \textbf{Autonomous (3s)} & \textbf{.674$\pm$.001} & \textbf{.233$\pm$.007} & \textbf{6.0} & \textbf{No} \\
 \bottomrule
 \end{tabular}
@@ -686,7 +686,7 @@ To verify that \ours{} is not architecture-specific, we train a Transformer back
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
 Backbone & Macro & Collapse & Macro & Collapse \\
 \midrule
-CNN & .629 & .028 & .673$\pm$.001 & .233$\pm$.002 \\
+CNN & .629 & .028 & .673$\pm$.001 & .233$\pm$.003 \\
 Transformer & .670 & .030 & \textbf{.767$\pm$.001} & \textbf{.401$\pm$.003} \\
 \bottomrule
 \end{tabular}

@@ -303,7 +303,7 @@ def main():
     for r in absorber_cands[:10]:
         print(f"  class {r['class']}: count_ratio={r['count_ratio']:.2f}, FD={r['fd']:.2f}")
 
-    print(f"\nTop-15 by Collapse Score (4-signal composite):")
+    print(f"\nTop-15 by Collapse Score (5-signal composite):")
     valid_scored = sorted([r for r in fd_results if r.get("collapse_score") is not None],
                           key=lambda x: x.get("collapse_score", 0), reverse=True)
     for r in valid_scored[:15]:
