@@ -91,7 +91,7 @@ Our contributions are:
 \begin{enumerate}
   \item \textbf{New failure mode.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift. We characterize two distinct mechanisms (feature drift and boundary shift) via Fisher discriminant analysis (\S\ref{sec:analysis}).
   \item \textbf{Negative results establishing the problem.} We show that unsupervised TTA methods are ineffective (collapse F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem that existing paradigms do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item \textbf{Unsupervised detection + label-efficient repair.} We propose \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without labels (recall 0.86, F1 0.71) via prediction count change, Frechet Distance, margin drop, and confidence drop (\S\ref{sec:unsup_detect}). Detected classes are repaired using 1{,}000 target labels with margin selection, head-only fine-tuning, source replay, and knowledge distillation. The end-to-end pipeline requires no labeled probe period (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item \textbf{Unsupervised detection + label-efficient repair.} We propose \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without labels (recall 0.86, F1 0.71) via five signals: prediction count change, Frechet Distance, margin drop, confidence drop, and entropy rise (\S\ref{sec:unsup_detect}). Detected classes are repaired using 1{,}000 target labels with margin selection, head-only fine-tuning, source replay, and knowledge distillation. The end-to-end pipeline requires no labeled probe period (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
 
 
@@ -299,7 +299,7 @@ Algorithm~\ref{alg:care} summarizes the procedure.
 A key challenge is identifying \textit{which} classes are collapsing without labeled data.
 We propose a multi-signal collapse risk score computed entirely from model predictions on unlabeled data.
 
-For each class $c$, we compare predictions between a reference period and the target period across four signals, all computed on samples \textit{predicted} as class $c$ (no true labels required):
+For each class $c$, we compare predictions between a reference period and the target period across five signals, all computed on samples \textit{predicted} as class $c$ (no true labels required):
 \begin{enumerate}
   \item \textbf{Prediction count ratio}: $r_c = (n_c^{\text{tgt}}/N^{\text{tgt}}) / (n_c^{\text{ref}}/N^{\text{ref}})$, normalized by total period size. Collapsed classes lose predictions ($r_c \ll 1$).
   \item \textbf{Frechet Distance}: measures feature distribution shift between periods for the predicted class region.
@@ -759,7 +759,7 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using only 1{,}000 target labels ($<$0.3\% of test data).
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
-Under strict evaluation, \ours{} improves macro-F1 from 0.629 to $0.674{\pm}0.002$ (3 seeds) in the autonomous pipeline and to $0.673{\pm}0.001$ (5 seeds) in the labeled-probe variant, with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode.
+Under strict evaluation, \ours{} improves macro-F1 from 0.629 to $0.673{\pm}0.001$ (5 seeds, labeled-probe) and to $0.673{\pm}0.000$ (3 seeds, autonomous pipeline with detected classes for repair, fixed 12 classes for evaluation), with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode.
 
 % ============================================================
 \bibliographystyle{IEEEtran}

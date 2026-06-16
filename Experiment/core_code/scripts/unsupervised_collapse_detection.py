@@ -319,6 +319,12 @@ def main():
         "reference_period": args.reference_period,
         "target_period": args.target_period,
         "num_classes": num_classes,
+        "config": {
+            "min_samples": args.min_samples,
+            "top_k": args.top_k,
+            "score_threshold": args.score_threshold,
+            "weights": weights,
+        },
         "actual_collapsed": sorted(actual_collapsed),
         "detected_collapse": sorted(r["class"] for r in collapse_cands),
         "detected_absorbers": sorted(r["class"] for r in absorber_cands),

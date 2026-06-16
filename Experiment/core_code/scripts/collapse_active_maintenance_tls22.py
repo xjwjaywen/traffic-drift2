@@ -515,6 +515,10 @@ def main():
     parser.add_argument("--collapse-classes", default=None)
     parser.add_argument("--stable-classes", default=None)
     parser.add_argument("--absorber-classes", default=None)
+    parser.add_argument("--eval-collapse-classes", default=None,
+                        help="Separate class list for evaluation metrics. If set, "
+                             "--collapse-classes is used only for replay/selection, "
+                             "while this list is used for collapse F1 reporting.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--ft-lr", type=float, default=1e-3)
     parser.add_argument("--ft-epochs", type=int, default=30)
@@ -562,6 +566,8 @@ def main():
     eval_cfg["data"]["num_classes"] = num_classes
 
     collapse_classes = parse_int_list(args.collapse_classes, DEFAULT_COLLAPSE_CLASSES)
+    eval_collapse_classes = (parse_int_list(args.eval_collapse_classes)
+                             if args.eval_collapse_classes else collapse_classes)
     stable_classes = parse_int_list(args.stable_classes, DEFAULT_STABLE_CLASSES)
     absorber_classes = parse_int_list(args.absorber_classes, DEFAULT_ABSORBER_CLASSES)
     budgets = parse_int_list(args.budgets)
@@ -661,7 +667,7 @@ def main():
     selected_rows = []
 
     static_summary, static_report = summarize(
-        labels, static_preds, collapse_classes, stable_classes, thresholds
+        labels, static_preds, eval_collapse_classes, stable_classes, thresholds
     )
     rows.append({
         "method": "static",
@@ -736,11 +742,10 @@ def main():
             strict_labels = labels[eval_mask]
             strict_preds = preds[eval_mask]
             strict_summary, strict_report = summarize(
-                strict_labels, strict_preds, collapse_classes, stable_classes, thresholds
+                strict_labels, strict_preds, eval_collapse_classes, stable_classes, thresholds
             )
-            # Full evaluation (includes queried, for reference)
             full_summary, full_report = summarize(
-                labels, preds, collapse_classes, stable_classes, thresholds
+                labels, preds, eval_collapse_classes, stable_classes, thresholds
             )
 
             selected_collapse = int(np.isin(selected_labels, collapse_classes).sum())
@@ -762,7 +767,7 @@ def main():
                 **{f"strict_{k}": v for k, v in strict_summary.items()},
                 **{f"full_{k}": v for k, v in full_summary.items()},
             })
-            for c in collapse_classes:
+            for c in eval_collapse_classes:
                 s_item = strict_report.get(str(c), {})
                 f_item = full_report.get(str(c), {})
                 per_class_rows.append({

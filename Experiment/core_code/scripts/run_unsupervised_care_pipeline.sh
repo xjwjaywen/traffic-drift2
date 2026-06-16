@@ -34,12 +34,17 @@ classes = d.get('detected_absorbers', [])
 print(','.join(str(c) for c in classes) if classes else '')
 ")
 
+# Fixed 12-class eval set (for fair comparison across pipelines)
+EVAL_COLLAPSE="56,163,174,48,38,69,104,47,66,10,109,26"
+
 echo ""
 echo "Detected collapse classes: ${COLLAPSE_CLASSES:-none}"
 echo "Detected absorber classes: ${ABSORBER_CLASSES:-none}"
+echo "Eval collapse classes (fixed): ${EVAL_COLLAPSE}"
 
 echo ""
 echo "=== Step 2: CARE Repair (3 seeds) ==="
+echo "Using DETECTED classes for replay, FIXED 12 classes for evaluation"
 for SEED in 0 1 2; do
     echo "--- Seed ${SEED} ---"
     EXTRA=""
@@ -49,6 +54,7 @@ for SEED in 0 1 2; do
     if [[ -n "${ABSORBER_CLASSES}" ]]; then
         EXTRA="${EXTRA} --absorber-classes ${ABSORBER_CLASSES}"
     fi
+    EXTRA="${EXTRA} --eval-collapse-classes ${EVAL_COLLAPSE}"
 
     python scripts/collapse_active_maintenance_tls22.py \
         --config "${CONFIG}" \
