@@ -83,16 +83,25 @@ def compute_per_class_fd(ref_features, ref_preds, tgt_features, tgt_preds,
     return results
 
 
-def detect_collapse_candidates(fd_results, top_k=15, count_change_threshold=0.3):
-    """Identify collapse candidates from FD scores + count changes.
+def compute_collapse_score(fd, fd_median, fd_mad, count_ratio):
+    """Combined collapse risk score.
 
-    A class is a collapse candidate if:
-    - Its FD is in the top-K highest (feature distribution shifted)
-    - OR its prediction count dropped significantly (being absorbed)
+    Higher score = more likely to be collapsing. Combines:
+    1. Prediction count drop (strongest signal: collapsed classes lose predictions)
+    2. FD anomaly (feature distribution shifted)
+    3. Interaction: count drop + FD shift together = strong evidence
+    """
+    fd_z = (fd - fd_median) / (fd_mad + 1e-8)
+    count_drop = max(0, 1.0 - count_ratio)  # 0 if no drop, 1 if fully lost
+    fd_norm = min(fd_z / 5.0, 1.0)  # normalize z-score to [0, 1]
+    score = 0.6 * count_drop + 0.3 * fd_norm + 0.1 * count_drop * fd_norm
+    return float(score)
 
-    A class is an absorber candidate if:
-    - Its prediction count increased significantly (absorbing others)
-    - AND its FD is elevated (feature distribution changed due to incoming victims)
+
+def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.15):
+    """Identify collapse and absorber candidates using combined scoring.
+
+    Uses a composite score of count_ratio drop + FD anomaly.
     """
     valid = [r for r in fd_results if r["fd"] is not None]
     if not valid:
@@ -108,18 +117,18 @@ def detect_collapse_candidates(fd_results, top_k=15, count_change_threshold=0.3)
     for r in valid:
         z_score = (r["fd"] - fd_median) / fd_mad
         r["fd_zscore"] = float(z_score)
+        r["collapse_score"] = compute_collapse_score(
+            r["fd"], fd_median, fd_mad, r["count_ratio"]
+        )
 
-        # Collapse: count dropped (being absorbed by others) OR high FD
-        if r["count_ratio"] < (1 - count_change_threshold):
-            collapse_candidates.append(r)
-        elif z_score > 3.0:
+        if r["collapse_score"] > score_threshold:
             collapse_candidates.append(r)
 
-        # Absorber: count increased (absorbing others)
-        if r["count_ratio"] > (1 + count_change_threshold):
+        # Absorber: prediction count increased (absorbing victims)
+        if r["count_ratio"] > 1.3:
             absorber_candidates.append(r)
 
-    collapse_candidates.sort(key=lambda x: x["fd"], reverse=True)
+    collapse_candidates.sort(key=lambda x: x["collapse_score"], reverse=True)
     absorber_candidates.sort(key=lambda x: x["count_ratio"], reverse=True)
 
     return collapse_candidates[:top_k], absorber_candidates[:top_k]
@@ -195,14 +204,14 @@ def main():
     for r in absorber_cands[:10]:
         print(f"  class {r['class']}: count_ratio={r['count_ratio']:.2f}, FD={r['fd']:.2f}")
 
-    print(f"\nTop-10 by Frechet Distance:")
-    valid_sorted = sorted([r for r in fd_results if r["fd"] is not None],
-                          key=lambda x: x["fd"], reverse=True)
-    for r in valid_sorted[:10]:
+    print(f"\nTop-15 by Collapse Score (combined count_drop + FD):")
+    valid_scored = sorted([r for r in fd_results if r.get("collapse_score") is not None],
+                          key=lambda x: x.get("collapse_score", 0), reverse=True)
+    for r in valid_scored[:15]:
         is_actual = "← COLLAPSED" if r["class"] in actual_set else ""
-        print(f"  class {r['class']:3d}: FD={r['fd']:8.2f}, "
+        print(f"  class {r['class']:3d}: score={r.get('collapse_score', 0):.3f}, "
               f"count_ratio={r['count_ratio']:.2f}, "
-              f"z={r.get('fd_zscore', 0):.1f} {is_actual}")
+              f"FD={r['fd']:8.2f}, z={r.get('fd_zscore', 0):.1f} {is_actual}")
 
     # Save results
     out = {
@@ -219,7 +228,7 @@ def main():
     with open(os.path.join(args.output_dir, "detection_summary.json"), "w") as f:
         json.dump(out, f, indent=2)
 
-    fieldnames = ["class", "fd", "ref_count", "tgt_count", "count_ratio", "fd_zscore", "status"]
+    fieldnames = ["class", "fd", "ref_count", "tgt_count", "count_ratio", "fd_zscore", "collapse_score", "status"]
     with open(os.path.join(args.output_dir, "per_class_fd.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
