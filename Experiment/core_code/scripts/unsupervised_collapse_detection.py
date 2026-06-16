@@ -40,9 +40,23 @@ def frechet_distance(mu1, sigma1, mu2, sigma2):
     return float(max(fd, 0))
 
 
-def compute_per_class_fd(ref_features, ref_preds, tgt_features, tgt_preds,
-                         num_classes, min_samples=10):
-    """Compute Frechet Distance per predicted class (no labels needed)."""
+def compute_per_class_signals(ref_features, ref_preds, ref_logits,
+                              tgt_features, tgt_preds, tgt_logits,
+                              num_classes, min_samples=10):
+    """Compute multiple unsupervised signals per predicted class."""
+    import torch.nn.functional as F
+
+    ref_probs = F.softmax(ref_logits, dim=1)
+    tgt_probs = F.softmax(tgt_logits, dim=1)
+    ref_margin = (torch.topk(ref_logits, 2, dim=1).values[:, 0] -
+                  torch.topk(ref_logits, 2, dim=1).values[:, 1]).numpy()
+    tgt_margin = (torch.topk(tgt_logits, 2, dim=1).values[:, 0] -
+                  torch.topk(tgt_logits, 2, dim=1).values[:, 1]).numpy()
+    ref_conf = ref_probs.max(dim=1).values.numpy()
+    tgt_conf = tgt_probs.max(dim=1).values.numpy()
+    ref_ent = (-(ref_probs * torch.log(ref_probs.clamp(min=1e-12))).sum(dim=1)).numpy()
+    tgt_ent = (-(tgt_probs * torch.log(tgt_probs.clamp(min=1e-12))).sum(dim=1)).numpy()
+
     results = []
     for c in range(num_classes):
         ref_mask = ref_preds == c
@@ -52,11 +66,10 @@ def compute_per_class_fd(ref_features, ref_preds, tgt_features, tgt_preds,
 
         if ref_n < min_samples or tgt_n < min_samples:
             results.append({
-                "class": c,
-                "fd": None,
-                "ref_count": ref_n,
-                "tgt_count": tgt_n,
+                "class": c, "fd": None,
+                "ref_count": ref_n, "tgt_count": tgt_n,
                 "count_ratio": tgt_n / max(ref_n, 1),
+                "margin_drop": None, "conf_drop": None, "entropy_rise": None,
                 "status": "insufficient_samples",
             })
             continue
@@ -68,63 +81,101 @@ def compute_per_class_fd(ref_features, ref_preds, tgt_features, tgt_preds,
         mu_tgt = tgt_feat.mean(axis=0)
         sigma_ref = np.cov(ref_feat, rowvar=False) + np.eye(ref_feat.shape[1]) * 1e-6
         sigma_tgt = np.cov(tgt_feat, rowvar=False) + np.eye(tgt_feat.shape[1]) * 1e-6
-
         fd = frechet_distance(mu_ref, sigma_ref, mu_tgt, sigma_tgt)
 
+        # Per-class margin drop (lower margin in target = more boundary confusion)
+        margin_drop = float(np.mean(ref_margin[ref_mask]) - np.mean(tgt_margin[tgt_mask]))
+        # Per-class confidence drop
+        conf_drop = float(np.mean(ref_conf[ref_mask]) - np.mean(tgt_conf[tgt_mask]))
+        # Per-class entropy rise
+        entropy_rise = float(np.mean(tgt_ent[tgt_mask]) - np.mean(ref_ent[ref_mask]))
+
         results.append({
-            "class": c,
-            "fd": fd,
-            "ref_count": ref_n,
-            "tgt_count": tgt_n,
+            "class": c, "fd": fd,
+            "ref_count": ref_n, "tgt_count": tgt_n,
             "count_ratio": tgt_n / max(ref_n, 1),
+            "margin_drop": margin_drop,
+            "conf_drop": conf_drop,
+            "entropy_rise": entropy_rise,
             "status": "ok",
         })
 
     return results
 
 
-def compute_collapse_score(fd, fd_median, fd_mad, count_ratio):
-    """Combined collapse risk score.
+def compute_collapse_score(r, fd_median, fd_mad, margin_stats, conf_stats, ent_stats):
+    """Combined collapse risk score using 4 unsupervised signals.
 
-    Higher score = more likely to be collapsing. Combines:
-    1. Prediction count drop (strongest signal: collapsed classes lose predictions)
-    2. FD anomaly (feature distribution shifted)
-    3. Interaction: count drop + FD shift together = strong evidence
+    1. count_drop: prediction count decreased (being absorbed)
+    2. FD anomaly: feature distribution shifted
+    3. margin_drop: predictions near class became less decisive
+    4. conf_drop + entropy_rise: predictions became less confident
     """
+    fd = r.get("fd", 0) or 0
     fd_z = (fd - fd_median) / (fd_mad + 1e-8)
-    count_drop = max(0, 1.0 - count_ratio)  # 0 if no drop, 1 if fully lost
-    fd_norm = min(fd_z / 5.0, 1.0)  # normalize z-score to [0, 1]
-    score = 0.6 * count_drop + 0.3 * fd_norm + 0.1 * count_drop * fd_norm
+    count_drop = max(0, 1.0 - r["count_ratio"])
+    fd_norm = min(max(fd_z / 5.0, 0), 1.0)
+
+    # Normalize margin/conf/entropy signals using MAD
+    margin_drop = r.get("margin_drop") or 0
+    margin_z = (margin_drop - margin_stats[0]) / (margin_stats[1] + 1e-8)
+    margin_norm = min(max(margin_z / 3.0, 0), 1.0)
+
+    conf_drop = r.get("conf_drop") or 0
+    conf_z = (conf_drop - conf_stats[0]) / (conf_stats[1] + 1e-8)
+    conf_norm = min(max(conf_z / 3.0, 0), 1.0)
+
+    ent_rise = r.get("entropy_rise") or 0
+    ent_z = (ent_rise - ent_stats[0]) / (ent_stats[1] + 1e-8)
+    ent_norm = min(max(ent_z / 3.0, 0), 1.0)
+
+    # Weighted combination
+    score = (0.40 * count_drop +
+             0.20 * fd_norm +
+             0.15 * margin_norm +
+             0.15 * conf_norm +
+             0.10 * ent_norm)
     return float(score)
 
 
-def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.15):
-    """Identify collapse and absorber candidates using combined scoring.
+def _robust_stats(values):
+    """Compute median and MAD for robust normalization."""
+    med = np.median(values)
+    mad = np.median(np.abs(values - med))
+    return (med, mad)
 
-    Uses a composite score of count_ratio drop + FD anomaly.
-    """
+
+def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.12):
+    """Identify collapse and absorber candidates using multi-signal scoring."""
     valid = [r for r in fd_results if r["fd"] is not None]
     if not valid:
         return [], []
 
     fds = np.array([r["fd"] for r in valid])
-    fd_median = np.median(fds)
-    fd_mad = np.median(np.abs(fds - fd_median)) + 1e-8
+    fd_median, fd_mad = _robust_stats(fds)
+
+    margins = np.array([r["margin_drop"] for r in valid if r.get("margin_drop") is not None])
+    margin_stats = _robust_stats(margins) if len(margins) > 0 else (0, 1)
+
+    confs = np.array([r["conf_drop"] for r in valid if r.get("conf_drop") is not None])
+    conf_stats = _robust_stats(confs) if len(confs) > 0 else (0, 1)
+
+    ents = np.array([r["entropy_rise"] for r in valid if r.get("entropy_rise") is not None])
+    ent_stats = _robust_stats(ents) if len(ents) > 0 else (0, 1)
 
     collapse_candidates = []
     absorber_candidates = []
 
     for r in valid:
-        z_score = (r["fd"] - fd_median) / fd_mad
+        z_score = (r["fd"] - fd_median) / (fd_mad + 1e-8)
         r["fd_zscore"] = float(z_score)
         r["collapse_score"] = compute_collapse_score(
-            r["fd"], fd_median, fd_mad, r["count_ratio"]
+            r, fd_median, fd_mad, margin_stats, conf_stats, ent_stats
         )
 
         if r["collapse_score"] > score_threshold:
             collapse_candidates.append(r)
 
-        # Absorber: prediction count increased (absorbing victims)
         if r["count_ratio"] > 1.3:
             absorber_candidates.append(r)
 
@@ -166,11 +217,11 @@ def main():
     print(f"\nReference: {args.reference_period} ({len(ref_preds)} samples)")
     print(f"Target: {args.target_period} ({len(tgt_preds)} samples)")
 
-    # Compute per-class Frechet Distance (using PREDICTIONS, no labels)
-    print("\nComputing per-class Frechet Distance (unsupervised)...")
-    fd_results = compute_per_class_fd(
-        ref_out["features"], ref_preds,
-        tgt_out["features"], tgt_preds,
+    # Compute per-class signals (using PREDICTIONS, no labels)
+    print("\nComputing per-class collapse signals (unsupervised)...")
+    fd_results = compute_per_class_signals(
+        ref_out["features"], ref_preds, ref_out["logits"],
+        tgt_out["features"], tgt_preds, tgt_out["logits"],
         num_classes, args.min_samples,
     )
 
@@ -204,14 +255,16 @@ def main():
     for r in absorber_cands[:10]:
         print(f"  class {r['class']}: count_ratio={r['count_ratio']:.2f}, FD={r['fd']:.2f}")
 
-    print(f"\nTop-15 by Collapse Score (combined count_drop + FD):")
+    print(f"\nTop-15 by Collapse Score (4-signal composite):")
     valid_scored = sorted([r for r in fd_results if r.get("collapse_score") is not None],
                           key=lambda x: x.get("collapse_score", 0), reverse=True)
     for r in valid_scored[:15]:
         is_actual = "← COLLAPSED" if r["class"] in actual_set else ""
+        md = r.get('margin_drop', 0) or 0
+        cd = r.get('conf_drop', 0) or 0
         print(f"  class {r['class']:3d}: score={r.get('collapse_score', 0):.3f}, "
-              f"count_ratio={r['count_ratio']:.2f}, "
-              f"FD={r['fd']:8.2f}, z={r.get('fd_zscore', 0):.1f} {is_actual}")
+              f"cnt={r['count_ratio']:.2f}, FD={r['fd']:6.1f}, "
+              f"margin_drop={md:+.2f}, conf_drop={cd:+.3f} {is_actual}")
 
     # Save results
     out = {
@@ -228,7 +281,7 @@ def main():
     with open(os.path.join(args.output_dir, "detection_summary.json"), "w") as f:
         json.dump(out, f, indent=2)
 
-    fieldnames = ["class", "fd", "ref_count", "tgt_count", "count_ratio", "fd_zscore", "collapse_score", "status"]
+    fieldnames = ["class", "fd", "ref_count", "tgt_count", "count_ratio", "margin_drop", "conf_drop", "entropy_rise", "fd_zscore", "collapse_score", "status"]
     with open(os.path.join(args.output_dir, "per_class_fd.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
