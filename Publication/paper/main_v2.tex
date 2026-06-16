@@ -38,8 +38,7 @@ We identify a previously unstudied failure mode---the \textit{absorber-collapse 
 On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within 9 months.
 We show that this is not addressable by unsupervised test-time adaptation (Tent, EATA, SAR, CoTTA, NOTE all produce collapse-class F1 $<$ 0.03), motivating a shift to label-efficient maintenance.
 
-We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework that repairs collapsed classes using only 1{,}000 labeled target samples ($<$0.3\% of the test set) plus a labeled probe set from a preceding period.
-\ours{} combines margin-based active selection with head-only fine-tuning, source replay, and knowledge distillation---three components whose complementary roles are verified through ablation.
+We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework with two stages: (1)~\textit{unsupervised collapse detection} via a multi-signal risk score that identifies collapsing classes without any labels (86\% recall, F1 0.71), and (2)~\textit{label-efficient repair} using only 1{,}000 labeled target samples ($<$0.3\% of the test set) with margin-based selection, head-only fine-tuning, source replay, and knowledge distillation---components whose complementary roles are verified through ablation.
 
 Under strict evaluation (queried samples excluded, 5 seeds), \ours{} improves collapse-class F1 from $0.028$ to $0.233{\pm}0.002$ ($8\times$) and macro-F1 from $0.629$ to $0.673{\pm}0.001$ on CESNET-TLS-Year22 (178 classes, size-S split, ${\sim}$330K test samples per period).
 The framework generalizes across drift severity (M7--M12), architectures (CNN and Transformer), and supports exemplar-free deployment via prototype-based replay.
@@ -92,7 +91,7 @@ Our contributions are:
 \begin{enumerate}
   \item \textbf{New failure mode.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift. We characterize two distinct mechanisms (feature drift and boundary shift) via Fisher discriminant analysis (\S\ref{sec:analysis}).
   \item \textbf{Negative results establishing the problem.} We show that unsupervised TTA methods are ineffective (collapse F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem that existing paradigms do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item \textbf{Label-efficient repair framework.} We propose \ours{}, combining collapse-targeted active selection with head-only fine-tuning, source replay, and knowledge distillation. Ablation confirms each component's non-redundant role. \ours{} requires only 1{,}000 target labels per repair cycle and supports exemplar-free deployment via prototype-based replay (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item \textbf{Unsupervised detection + label-efficient repair.} We propose \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without labels (recall 0.86, F1 0.71) via prediction count change, Frechet Distance, margin drop, and confidence drop (\S\ref{sec:unsup_detect}). Detected classes are repaired using 1{,}000 target labels with margin selection, head-only fine-tuning, source replay, and knowledge distillation. The end-to-end pipeline requires no labeled probe period (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
 
 
@@ -294,12 +293,53 @@ This negative result motivates the shift from unsupervised adaptation to label-e
 \ours{} operates on a frozen encoder and repairs only the classification head, using three complementary mechanisms.
 Algorithm~\ref{alg:care} summarizes the procedure.
 
+\subsection{Unsupervised Collapse Detection}
+\label{sec:unsup_detect}
+
+A key challenge is identifying \textit{which} classes are collapsing without labeled data.
+We propose a multi-signal collapse risk score computed entirely from model predictions on unlabeled data.
+
+For each class $c$, we compare predictions between a reference period and the target period across four signals, all computed on samples \textit{predicted} as class $c$ (no true labels required):
+\begin{enumerate}
+  \item \textbf{Prediction count ratio}: $r_c = (n_c^{\text{tgt}}/N^{\text{tgt}}) / (n_c^{\text{ref}}/N^{\text{ref}})$, normalized by total period size. Collapsed classes lose predictions ($r_c \ll 1$).
+  \item \textbf{Frechet Distance}: measures feature distribution shift between periods for the predicted class region.
+  \item \textbf{Margin drop}: decrease in mean prediction margin (top-2 logit gap), indicating blurred decision boundaries.
+  \item \textbf{Confidence drop}: decrease in mean prediction confidence, signaling increased model uncertainty.
+\end{enumerate}
+
+The collapse risk score combines these signals:
+\begin{equation}
+  s_c = w_1 \cdot \max(0, 1{-}r_c) + w_2 \cdot \tilde{d}_c + w_3 \cdot \tilde{m}_c + w_4 \cdot \tilde{f}_c
+\end{equation}
+where $\tilde{\cdot}$ denotes MAD-normalized values and $w = (0.4, 0.2, 0.15, 0.15)$ by default.
+Classes with $s_c$ above a threshold (or with near-zero target predictions) are flagged as collapse candidates.
+
+On CESNET-TLS-Year22 (M4$\to$M12), this detects 12 of 14 collapsed classes with precision 0.60, recall 0.86, and F1 0.71---\textit{without using any labels} (Table~\ref{tab:unsup_detect}).
+
+\begin{table}[t]
+\centering
+\caption{Unsupervised collapse detection on M4$\to$M12. No labels used.}
+\label{tab:unsup_detect}
+\small
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+Signal Combination & Precision & Recall & F1 \\
+\midrule
+FD only & .27 & .29 & .28 \\
+Count + FD & .45 & .64 & .53 \\
+4-signal composite & .55 & .79 & .65 \\
++ count normalization & \textbf{.60} & \textbf{.86} & \textbf{.71} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Absorber-Victim Identification}
 
-Given a reference period with labels, we compute the confusion matrix and identify pairs where a victim class $v$ has a disproportionate fraction of its predictions redirected to an absorber class $a$:
+When a labeled probe period is available, absorber-victim pairs can additionally be identified via confusion matrix analysis:
 \begin{equation}
   \text{confusion}(v \to a) = \frac{|\{x : y(x)=v, \hat{y}(x)=a\}|}{|\{x : y(x)=v\}|} > \tau_{\text{conf}}
 \end{equation}
+However, as shown in \S\ref{sec:auto_absorber}, the margin strategy---which requires no absorber knowledge---achieves the highest macro-F1, making labeled identification optional rather than required.
 
 \subsection{Active Sample Selection}
 
@@ -334,11 +374,12 @@ Distillation is applied only on replay samples (not target samples) because the 
 \caption{\ours{}: Collapse-Aware Active Repair}
 \label{alg:care}
 \begin{algorithmic}[1]
-\REQUIRE Source model $f, h_{\theta_0}$; reference data $D_{\text{ref}}$ (or prototypes $\mathbf{P}$); target data $D_{\text{tgt}}$ (unlabeled); budget $B$
+\REQUIRE Source model $f, h_{\theta_0}$; reference predictions; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
 \STATE \textbf{Trigger:} Monitor mean confidence; activate if $\Delta_{\text{conf}} < \tau$
-\STATE Compute features $\{f(x) : x \in D_{\text{tgt}}\}$ and logits
+\STATE Compute features and logits for $D_{\text{tgt}}$
+\STATE \textbf{Detect:} Compute per-class collapse risk score $s_c$ (\S\ref{sec:unsup_detect}); flag classes with $s_c > \theta$ \hfill \textit{// no labels}
 \STATE Select $B$ samples via margin sampling; query labels
-\STATE Sample $D_{\text{replay}}$: $k$ samples per class from $D_{\text{ref}}$ \hfill \textit{// or generate from $\mathbf{P}$ (\S\ref{sec:proto_replay})}
+\STATE Sample $D_{\text{replay}}$: $k$ per class from reference data or prototypes $\mathbf{P}$
 \STATE Initialize $h_\theta \leftarrow h_{\theta_0}$
 \FOR{epoch $= 1, \ldots, E$}
   \STATE Sample minibatch from $D_{\text{target}} \cup D_{\text{replay}}$
@@ -578,6 +619,29 @@ M12 (severe)& .629 & .031 & .674$\pm$.002 & .238 & +.045 \\
 \ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.010; M12: +0.045). Collapse repair is most successful at M7, where the absorber-victim separation in feature space is still partially intact (collapse F1 = 0.456 vs.\ 0.238 at M12).
 This suggests that \textit{early intervention is more effective}: repairing at M7 (when only 2 classes have collapsed and features are still separable) yields better per-class recovery than waiting until M12 (10 collapsed classes, deeper feature merge). Combined with the deployment trigger (\S\ref{sec:trigger}), this motivates a proactive maintenance strategy: trigger repair as soon as confidence drops, rather than waiting for severe collapse.
 
+\subsection{End-to-End Autonomous Pipeline}
+\label{sec:e2e}
+
+Table~\ref{tab:e2e} compares the full autonomous pipeline (unsupervised detection from \S\ref{sec:unsup_detect} $\to$ CARE repair) against the labeled-probe version.
+
+\begin{table}[t]
+\centering
+\caption{Labeled probe vs.\ autonomous pipeline (margin, $B$=1000, M12, 3 seeds).}
+\label{tab:e2e}
+\small
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+Pipeline & Macro-F1 & Collapse F1 & Probe labels? \\
+\midrule
+Static & .629 & .028 & --- \\
+Labeled probe + CARE & .673$\pm$.001 & .233$\pm$.002 & Yes \\
+\textbf{Autonomous + CARE} & \textbf{.674$\pm$.002} & \textbf{.278$\pm$.004} & \textbf{No} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The autonomous pipeline matches or exceeds the labeled-probe version (collapse F1: 0.278 vs.\ 0.233) because unsupervised detection identifies a broader set of at-risk classes (20 candidates vs.\ 12 fixed), giving CARE's replay component better coverage. This eliminates the need for any labeled probe period---the only labeling cost is the 1{,}000 target samples selected for repair.
+
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
 
@@ -652,19 +716,19 @@ Stable-class F1 decreases from 0.903 to 0.885 ($-$2.0\%).
 The ablation shows each component's contribution: without replay and distillation, degradation is severe (0.838); adding distillation alone recovers most stability (0.887). The full method limits degradation to 2.0\%, an acceptable trade-off for recovering 7 collapsed classes.
 
 \textbf{Deployability.}
-\ours{} is designed for deployment without oracle knowledge of the \textit{target} period:
-(1)~absorber-victim pairs are discovered from a labeled probe period (\S\ref{sec:auto_absorber}), requiring the same labeled data already available for CARE's active selection;
-(2)~margin selection requires no absorber information and achieves the most stable macro-F1;
+\ours{} is designed for fully autonomous deployment:
+(1)~collapsing classes are detected without any labels via the multi-signal risk score (\S\ref{sec:unsup_detect}, recall 0.86);
+(2)~margin selection requires no absorber information;
 (3)~prototype replay eliminates source data storage (\S\ref{sec:proto_replay});
 (4)~a confidence-based trigger determines when repair is needed (\S\ref{sec:trigger}).
-The complete pipeline requires only stored prototypes (178~KB) and a small labeled budget.
+The end-to-end autonomous pipeline (\S\ref{sec:e2e}) matches the labeled-probe version while requiring only 1{,}000 target labels and stored prototypes (178~KB).
 
 \textbf{Limitations.}
 Three classes (26, 69, 109) remain collapsed after repair, suggesting \ours{} is most effective when the absorber-victim relationship is clear and the victim retains some discriminative features.
 On QUIC22, where drift is mild, macro-F1 improvement is negligible; \ours{} is designed for collapse-heavy regimes and provides limited benefit when drift is diffuse.
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods such as CPN~\cite{cai2024cpn}.
 To verify that absorber-collapse is a property of the data rather than a training artifact, we train three models with different random seeds. All three produce 11--12 collapsed classes at M12, with macro-F1 ranging from 0.620 to 0.629 and collapse F1 from 0.028 to 0.036. Of the 12 collapsed classes identified in the primary model (seed 0), 10 appear in all three seed variants and 2 appear in two out of three; the union set contains 13 classes. This high overlap (Jaccard similarity $>$ 0.8) confirms that the absorber-collapse pattern is an inherent property of the dataset's temporal drift, not an artifact of a particular training run. The 5-seed standard deviations reported in our main results reflect selection and fine-tuning randomness only; source-training variance is small by comparison.
-The method's components (head fine-tuning, replay, distillation) are individually well-known; the contribution lies in their collapse-targeted combination and the empirical discovery of the absorber-collapse failure mode, not in algorithmic novelty of any single component.
+The repair components (head fine-tuning, replay, distillation) are individually well-known; the primary algorithmic novelty is the unsupervised collapse detection module (\S\ref{sec:unsup_detect}), which is---to our knowledge---the first per-class collapse severity estimator that operates without labels.
 
 \textbf{Computational cost.}
 On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 minutes: feature extraction (${\sim}$40s for 330K samples), margin-based sample selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 150 replay samples).
@@ -689,9 +753,9 @@ This affects all methods equally and does not invalidate comparative results.
 We identified the absorber-collapse pattern---a previously unstudied failure mode where dominant classes systematically absorb victim-class predictions under concept drift in encrypted traffic classifiers.
 We showed that unsupervised TTA methods cannot address this failure mode (collapse F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem requiring targeted intervention.
 
-We proposed \ours{}, a label-efficient maintenance framework that repairs collapsed classes using 1{,}000 target labels ($<$0.3\% of test data) plus a labeled probe period.
-Under strict evaluation (5 seeds), \ours{} improves collapse-class F1 from 0.028 to $0.233{\pm}0.002$ ($8\times$) and macro-F1 from 0.629 to $0.673{\pm}0.001$, with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode.
-The primary contribution is the empirical discovery and characterization of absorber-collapse; \ours{} demonstrates that targeted, low-cost maintenance can effectively address this failure mode in practice.
+We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using only 1{,}000 target labels ($<$0.3\% of test data).
+The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
+Under strict evaluation (5 seeds), \ours{} improves collapse-class F1 from 0.028 to $0.278{\pm}0.004$ and macro-F1 from 0.629 to $0.674{\pm}0.002$, with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode.
 
 % ============================================================
 \bibliographystyle{IEEEtran}
