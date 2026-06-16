@@ -69,7 +69,7 @@ def aggregate(runs):
     out = {}
     for k, vs in by_key.items():
         arr = np.array(vs)
-        out[k] = (float(arr.mean()), float(arr.std()), len(arr))
+        out[k] = (float(arr.mean()), float(arr.std(ddof=1)) if len(arr) > 1 else 0.0, len(arr))
     return out
 
 

@@ -86,7 +86,10 @@ class NOTE:
         buf_ppi = torch.stack([self.buffer[i] for i in indices]).to(ppi.device)
 
         # Entropy minimization on buffer
-        self.model.train()
+        self.model.eval()
+        for m in self.model.modules():
+            if isinstance(m, (nn.BatchNorm1d, nn.GroupNorm, nn.LayerNorm)):
+                m.train()
         self.optimizer.zero_grad()
         buf_logits = self.model(buf_ppi)
         probs = F.softmax(buf_logits, dim=1)

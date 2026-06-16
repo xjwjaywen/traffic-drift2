@@ -72,7 +72,10 @@ class MVFC:
 
     def adapt_batch(self, ppi, flow_stats=None):
         """Adapt and classify a batch using multi-view consistency."""
-        self.model.train()
+        self.model.eval()
+        for m in self.model.modules():
+            if isinstance(m, (nn.BatchNorm1d, nn.GroupNorm, nn.LayerNorm)):
+                m.train()
 
         for _ in range(self.adapt_steps):
             self.optimizer.zero_grad()

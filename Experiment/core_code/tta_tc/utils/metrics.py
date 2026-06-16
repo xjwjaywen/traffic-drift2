@@ -59,7 +59,7 @@ class MetricsTracker:
         if not arrs:
             return None
         trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
-        return trapz(arrs) / len(arrs)
+        return trapz(arrs) / max(len(arrs) - 1, 1)
 
     def summary(self):
         """Generate summary dict."""

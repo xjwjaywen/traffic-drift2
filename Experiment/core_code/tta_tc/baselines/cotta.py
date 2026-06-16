@@ -73,7 +73,10 @@ class CoTTA:
                 return self.model(ppi, flow_stats), {"adapted": False}
 
         # Cross-entropy with pseudo-labels
-        self.model.train()
+        self.model.eval()
+        for m in self.model.modules():
+            if isinstance(m, (nn.BatchNorm1d, nn.GroupNorm, nn.LayerNorm)):
+                m.train()
         self.optimizer.zero_grad()
         logits = self.model(ppi[mask], flow_stats[mask] if flow_stats is not None else None)
         loss = F.cross_entropy(logits, pseudo_labels[mask])

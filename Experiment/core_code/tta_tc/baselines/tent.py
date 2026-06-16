@@ -30,9 +30,16 @@ class Tent:
 
         self.optimizer = torch.optim.Adam(self.params, lr=cfg.get("adapt_lr", 1e-3))
 
+    def _set_norm_train(self):
+        """Set only normalization layers to train mode."""
+        self.model.eval()
+        for m in self.model.modules():
+            if isinstance(m, (nn.BatchNorm1d, nn.GroupNorm, nn.LayerNorm)):
+                m.train()
+
     def adapt_batch(self, ppi, flow_stats=None):
         """Adapt and classify a batch."""
-        self.model.train()
+        self._set_norm_train()
         self.optimizer.zero_grad()
 
         logits = self.model(ppi, flow_stats)

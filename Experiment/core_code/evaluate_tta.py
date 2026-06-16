@@ -410,6 +410,10 @@ def run_sequential_eval(model_path, eval_cfg, device):
                 method = MethodClass(method_model, adapt_cfg)
 
                 for period_name, test_loader in loaders:
+                    # Reset baseline per period for fair comparison
+                    del method
+                    method_model_fresh = copy.deepcopy(model).to(device)
+                    method = MethodClass(method_model_fresh, adapt_cfg)
                     labels, preds, t = evaluate_tta_method(
                         method, test_loader, device, f"{method_key}@{period_name}"
                     )

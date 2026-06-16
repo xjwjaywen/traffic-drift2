@@ -47,7 +47,10 @@ class EATA:
 
     def adapt_batch(self, ppi, flow_stats=None):
         """Adapt with sample selection and Fisher regularization."""
-        self.model.train()
+        self.model.eval()
+        for m in self.model.modules():
+            if isinstance(m, (nn.BatchNorm1d, nn.GroupNorm, nn.LayerNorm)):
+                m.train()
 
         logits = self.model(ppi, flow_stats)
         probs = F.softmax(logits, dim=1)
