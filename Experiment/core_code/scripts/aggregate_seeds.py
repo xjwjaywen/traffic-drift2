@@ -53,7 +53,7 @@ def aggregate(rows):
                     vals.append(float(v))
             if vals:
                 agg[f"{m}_mean"] = f"{np.mean(vals):.4f}"
-                agg[f"{m}_std"] = f"{np.std(vals):.4f}"
+                agg[f"{m}_std"] = f"{np.std(vals, ddof=1) if len(vals) > 1 else 0:.4f}"
             else:
                 agg[f"{m}_mean"] = ""
                 agg[f"{m}_std"] = ""

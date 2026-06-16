@@ -132,20 +132,25 @@ def compute_per_class_signals(ref_features, ref_preds, ref_logits,
     return results
 
 
-def compute_collapse_score(r, fd_median, fd_mad, margin_stats, conf_stats, ent_stats):
-    """Combined collapse risk score using 4 unsupervised signals.
+DEFAULT_WEIGHTS = [0.40, 0.20, 0.15, 0.15, 0.10]
+
+
+def compute_collapse_score(r, fd_median, fd_mad, margin_stats, conf_stats, ent_stats,
+                           weights=None):
+    """Combined collapse risk score using 5 unsupervised signals.
 
     1. count_drop: prediction count decreased (being absorbed)
     2. FD anomaly: feature distribution shifted
     3. margin_drop: predictions near class became less decisive
-    4. conf_drop + entropy_rise: predictions became less confident
+    4. conf_drop: predictions became less confident
+    5. entropy_rise: prediction entropy increased
     """
+    w = weights or DEFAULT_WEIGHTS
     fd = r.get("fd", 0) or 0
     fd_z = (fd - fd_median) / (fd_mad + 1e-8)
     count_drop = max(0, 1.0 - r["count_ratio"])
     fd_norm = min(max(fd_z / 5.0, 0), 1.0)
 
-    # Normalize margin/conf/entropy signals using MAD
     margin_drop = r.get("margin_drop") or 0
     margin_z = (margin_drop - margin_stats[0]) / (margin_stats[1] + 1e-8)
     margin_norm = min(max(margin_z / 3.0, 0), 1.0)
@@ -158,12 +163,8 @@ def compute_collapse_score(r, fd_median, fd_mad, margin_stats, conf_stats, ent_s
     ent_z = (ent_rise - ent_stats[0]) / (ent_stats[1] + 1e-8)
     ent_norm = min(max(ent_z / 3.0, 0), 1.0)
 
-    # Weighted combination
-    score = (0.40 * count_drop +
-             0.20 * fd_norm +
-             0.15 * margin_norm +
-             0.15 * conf_norm +
-             0.10 * ent_norm)
+    score = (w[0] * count_drop + w[1] * fd_norm + w[2] * margin_norm +
+             w[3] * conf_norm + w[4] * ent_norm)
     return float(score)
 
 
@@ -174,13 +175,12 @@ def _robust_stats(values):
     return (med, mad)
 
 
-def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.12):
+def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.12, weights=None):
     """Identify collapse and absorber candidates using multi-signal scoring."""
-    # Include count_only entries (near-zero predictions = strong collapse signal)
     valid = [r for r in fd_results if r["fd"] is not None]
     count_only = [r for r in fd_results if r.get("status") == "count_only"]
     for r in count_only:
-        r["collapse_score"] = 0.95  # near-certain collapse
+        r["collapse_score"] = 0.95
         r["fd_zscore"] = 0.0
     if not valid and not count_only:
         return [], []
@@ -204,7 +204,7 @@ def detect_collapse_candidates(fd_results, top_k=20, score_threshold=0.12):
         z_score = (r["fd"] - fd_median) / (fd_mad + 1e-8)
         r["fd_zscore"] = float(z_score)
         r["collapse_score"] = compute_collapse_score(
-            r, fd_median, fd_mad, margin_stats, conf_stats, ent_stats
+            r, fd_median, fd_mad, margin_stats, conf_stats, ent_stats, weights=weights
         )
 
         if r["collapse_score"] > score_threshold:
@@ -269,8 +269,11 @@ def main():
     )
 
     # Detect candidates
+    weights = [float(w) for w in args.weights.split(",")]
+    assert len(weights) == 5, f"Expected 5 weights, got {len(weights)}"
     collapse_cands, absorber_cands = detect_collapse_candidates(
-        fd_results, top_k=args.top_k, score_threshold=args.score_threshold
+        fd_results, top_k=args.top_k, score_threshold=args.score_threshold,
+        weights=weights,
     )
 
     # Ground truth: actual collapsed classes (using labels)

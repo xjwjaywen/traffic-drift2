@@ -305,13 +305,15 @@ For each class $c$, we compare predictions between a reference period and the ta
   \item \textbf{Frechet Distance}: measures feature distribution shift between periods for the predicted class region.
   \item \textbf{Margin drop}: decrease in mean prediction margin (top-2 logit gap), indicating blurred decision boundaries.
   \item \textbf{Confidence drop}: decrease in mean prediction confidence, signaling increased model uncertainty.
+  \item \textbf{Entropy rise}: increase in mean prediction entropy, complementing confidence drop for multi-modal uncertainty.
 \end{enumerate}
 
-The collapse risk score combines these signals:
+The collapse risk score combines these five signals:
 \begin{equation}
-  s_c = w_1 \cdot \max(0, 1{-}r_c) + w_2 \cdot \tilde{d}_c + w_3 \cdot \tilde{m}_c + w_4 \cdot \tilde{f}_c
+  s_c = w_1 \cdot \max(0, 1{-}r_c) + w_2 \cdot \tilde{d}_c + w_3 \cdot \tilde{m}_c + w_4 \cdot \tilde{f}_c + w_5 \cdot \tilde{e}_c
 \end{equation}
-where $\tilde{\cdot}$ denotes MAD-normalized values and $w = (0.4, 0.2, 0.15, 0.15)$ by default.
+where $\tilde{\cdot}$ denotes MAD-normalized values, $\tilde{e}_c$ is entropy rise, and $w = (0.40, 0.20, 0.15, 0.15, 0.10)$ by default.
+These weights were set based on signal informativeness (count drop is the strongest indicator) and were \textit{not} tuned on M12 labels.
 Classes with $s_c$ above a threshold (or with near-zero target predictions) are flagged as collapse candidates.
 
 On CESNET-TLS-Year22 (M4$\to$M12), this detects 12 of 14 collapsed classes with precision 0.60, recall 0.86, and F1 0.71---\textit{without using any labels} (Table~\ref{tab:unsup_detect}).
@@ -626,21 +628,24 @@ Table~\ref{tab:e2e} compares the full autonomous pipeline (unsupervised detectio
 
 \begin{table}[t]
 \centering
-\caption{Labeled probe vs.\ autonomous pipeline (margin, $B$=1000, M12, 3 seeds).}
+\caption{Labeled probe vs.\ autonomous pipeline (margin, $B$=1000, M12). Collapse F1 evaluated on the \textit{same} fixed 12-class set for fair comparison. Autonomous uses 3 seeds; labeled probe uses 5 seeds.}
 \label{tab:e2e}
 \small
 \begin{tabular}{@{}l ccc@{}}
 \toprule
-Pipeline & Macro-F1 & Collapse F1 & Probe labels? \\
+Pipeline & Macro-F1 & Collapse F1$^\dagger$ & Probe labels? \\
 \midrule
 Static & .629 & .028 & --- \\
 Labeled probe + CARE & .673$\pm$.001 & .233$\pm$.002 & Yes \\
-\textbf{Autonomous + CARE} & \textbf{.674$\pm$.002} & \textbf{.278$\pm$.004} & \textbf{No} \\
+Autonomous + CARE & .674$\pm$.002 & --- & No \\
 \bottomrule
+\multicolumn{4}{l}{\footnotesize $^\dagger$Evaluated on the fixed 12-class collapse set from the primary model.}\\
+\multicolumn{4}{l}{\footnotesize Autonomous collapse F1 must be re-evaluated on the same 12 classes.}
 \end{tabular}
 \end{table}
 
-The autonomous pipeline matches or exceeds the labeled-probe version (collapse F1: 0.278 vs.\ 0.233) because unsupervised detection identifies a broader set of at-risk classes (20 candidates vs.\ 12 fixed), giving CARE's replay component better coverage. This eliminates the need for any labeled probe period---the only labeling cost is the 1{,}000 target samples selected for repair.
+The autonomous pipeline achieves comparable macro-F1 to the labeled-probe version (.674 vs.\ .673) while eliminating the need for any labeled probe period. The unsupervised detection module identifies 20 candidate classes (recall 0.86 on the true 14 collapsed classes), and CARE's margin selection operates effectively regardless of whether the collapse list is exact.
+Note that direct collapse F1 comparison requires evaluation on the same class set; the macro-F1 comparison is valid as it covers all 178 classes.
 
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
@@ -755,7 +760,7 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using only 1{,}000 target labels ($<$0.3\% of test data).
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
-Under strict evaluation (5 seeds), \ours{} improves collapse-class F1 from 0.028 to $0.278{\pm}0.004$ and macro-F1 from 0.629 to $0.674{\pm}0.002$, with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode.
+Under strict evaluation, \ours{} improves macro-F1 from 0.629 to $0.674{\pm}0.002$ (3 seeds) in the autonomous pipeline and to $0.673{\pm}0.001$ (5 seeds) in the labeled-probe variant, with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), and an exemplar-free deployment mode.
 
 % ============================================================
 \bibliographystyle{IEEEtran}
