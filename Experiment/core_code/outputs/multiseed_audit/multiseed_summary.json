@@ -1,0 +1,23 @@
+{
+  "static_baselines": [
+    {
+      "train_seed": 0,
+      "overall_macro_f1": 0.6208135812807901,
+      "collapse_macro_f1": 0.02980100365637331,
+      "stable_macro_f1": 0.8710874372627309
+    },
+    {
+      "train_seed": 1,
+      "overall_macro_f1": 0.6202822074367178,
+      "collapse_macro_f1": 0.03153852496503578,
+      "stable_macro_f1": 0.8896248031831657
+    },
+    {
+      "train_seed": 2,
+      "overall_macro_f1": 0.6195492167693935,
+      "collapse_macro_f1": 0.03642294514667084,
+      "stable_macro_f1": 0.8710206512615792
+    }
+  ],
+  "num_training_seeds": 3
+}
