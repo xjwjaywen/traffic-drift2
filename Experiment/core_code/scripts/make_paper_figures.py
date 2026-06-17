@@ -257,12 +257,7 @@ def fig_ablation(output_dir):
                         ))
                         break
         else:
-            print(f"WARNING: {csv_path} not found, using hardcoded fallback")
-            fallback = {"FT only": (0.638, 0.134, 0.838, 0.001, 0.001, 0.001),
-                        "FT+Replay": (0.620, 0.224, 0.840, 0.001, 0.002, 0.005),
-                        "CARE (full)": (0.673, 0.232, 0.885, 0.001, 0.002, 0.004)}
-            v = fallback[name]
-            configs.append((name, *v))
+            raise FileNotFoundError(f"{csv_path} not found — run ablation experiments first")
 
     names = [c[0] for c in configs]
     macro = [c[1] for c in configs]
@@ -309,11 +304,9 @@ def fig_ablation(output_dir):
 def fig_tta_failure(output_dir):
     """Line chart: macro-F1 across M7/M9/M11/M12 for Static vs TTA vs CARE.
 
-    Values are loaded from baselines CSV artifacts where available,
-    with hardcoded fallback for robustness.
+    Values from baselines_group_metrics CSVs and care_multiperiod aggregated CSVs.
     """
     periods = ["M7", "M9", "M11", "M12"]
-    # Fallback values (verified against baselines_group_metrics CSVs)
     static_macro = [0.740, 0.691, 0.649, 0.629]
     tent_macro =   [0.742, 0.691, 0.649, 0.631]
     sar_macro =    [0.740, 0.690, 0.649, 0.629]
