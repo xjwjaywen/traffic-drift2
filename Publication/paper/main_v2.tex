@@ -409,7 +409,7 @@ For QUIC22, we train on W44 and evaluate at W46 and W47.
 
 \textbf{Baselines.}
 We compare three categories:
-\textit{Unsupervised TTA} (0 labels): Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}, all with adaptation learning rate $10^{-5}$ on encoder parameters.
+\textit{Unsupervised TTA} (0 labels): Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}. We report results with adaptation learning rate $10^{-5}$; a sweep over $\{10^{-3}, 10^{-4}, 10^{-5}\}$ confirms collapse F1 remains below 0.03 at all rates, with higher rates destabilizing Tent and NOTE (macro-F1 drops to 0.21 and 0.54 at $10^{-3}$).
 \textit{Naive supervised} (1{,}000 labels): head-only FT without replay/distillation (FT-Head) and head FT with replay but no distillation (FT+Replay).
 \textit{Active selection} (1{,}000 labels + \ours{} components): entropy, coreset~\cite{sener2018coreset}, BADGE~\cite{ash2020badge}, random, and margin.
 This three-tier comparison separates the question of whether labels are needed (TTA vs.\ supervised), whether \ours{} components help (Naive vs.\ \ours{}), and which selection strategy is best (active methods).
