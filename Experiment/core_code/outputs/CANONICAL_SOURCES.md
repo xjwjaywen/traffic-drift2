@@ -28,7 +28,7 @@ All paths relative to `Experiment/core_code/`.
 |---|---|---|
 | Fig 1 | `fig_collapse_timeline.pdf` | `outputs/per_class_collapse_tls22_monthly/collapse_timeline.csv` |
 | Fig 2 | `fig_ablation_bar.pdf` | `outputs/ablation_strict/*/aggregated_mean_std.csv` |
-| Fig 3 | `fig_tta_failure.pdf` | `outputs/baselines_group_metrics_*/` + `outputs/care_multiperiod/*/` |
+| Fig 3 | `fig_tta_failure.pdf` | `outputs/tta_multiperiod/{M7,M9,M11,M12}/` + `outputs/care_multiperiod/*/` |
 | Fig 4 | `fig_strategy_comparison.pdf` | `outputs/al_baselines_strict/` + `outputs/badge_5seeds_strict/` |
 | Fig 5 | `fig_budget_sweep.pdf` | `outputs/care_5seeds_strict_cnn/aggregated_mean_std.csv` |
 
