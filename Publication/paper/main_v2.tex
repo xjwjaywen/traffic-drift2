@@ -11,7 +11,7 @@
 \usepackage{subcaption}
 \usepackage{balance}
 
-\graphicspath{{../figures/}}
+\graphicspath{{../figures/}{../../Experiment/core_code/outputs/visualizations/}}
 
 \newcommand{\ours}{CARE}  % Collapse-Aware REpair
 \newcommand{\ie}{\textit{i.e.}}
@@ -216,6 +216,15 @@ By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-
 \end{itemize}
 
 The two mechanisms have implications for repair: feature-drift collapse can be addressed by re-anchoring the victim's prototype, while boundary-shift collapse requires recalibrating the decision boundary across multiple classes simultaneously. \ours{}'s combination of targeted fine-tuning and source replay addresses both mechanisms.
+
+Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE on encoder features for four representative absorber-victim pairs. At M3 (training time), victim and absorber clusters are well-separated; by M12, feature-drift victims (class~56$\to$96) have physically merged with their absorbers, while boundary-shift victims (class~48$\to$14) retain cluster separation but fall on the wrong side of the decision boundary.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_tsne_multi_pair_m12.pdf}
+\caption{t-SNE visualization of four absorber-victim pairs at M-2022-12. Feature-drift pairs (56$\to$96) show cluster merging; boundary-shift pairs (48$\to$14) retain separation but cross the decision boundary.}
+\label{fig:tsne}
+\end{figure}
 
 \subsection{Why General TTA Methods Fail}
 \label{sec:tta_eval}
@@ -715,7 +724,8 @@ The collapse-class F1 improves modestly ($0.305\to0.413$), confirming that \ours
 \textbf{Label cost and deployment model.}
 \ours{} requires two sources of labeled data per repair cycle: (1)~\textit{target labels}: 1{,}000 samples from the target period, selected by margin sampling ($<$0.3\% of the ${\sim}$330K monthly test set); and (2)~\textit{source replay}: a small subset of labeled source-period data (150 samples, $k{=}5$ per replay class) used for catastrophic forgetting prevention.
 The autonomous variant (\S\ref{sec:e2e}) additionally replaces the labeled probe with unsupervised collapse detection, so no probe labels are needed.
-In practice, the source replay data are a by-product of the original training pipeline and require no additional labeling effort; only the 1{,}000 target labels represent new annotation cost.
+Crucially, replay can use the original training data directly: replacing M4 reference replay with M3 (the training month) yields macro-F1 of $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$---within one standard deviation---while removing replay entirely drops macro-F1 to 0.638 and collapse F1 to 0.134.
+Thus the \textit{only} new annotation cost per repair cycle is the 1{,}000 target labels; replay reuses existing training data at zero additional labeling effort.
 In ISP deployment, these labels can be obtained through DPI-based labeling on a monitored subnet, SNI-based ground truth for TLS traffic, or periodic manual verification of a stratified sample.
 Repair is triggered only when confidence monitoring detects drift (\S\ref{sec:trigger}), so labeling cost is incurred only when needed---not continuously.
 
@@ -747,6 +757,21 @@ On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 
 This is negligible compared to full model retraining (${\sim}$2 hours).
 BADGE selection adds ${\sim}$20 minutes due to k-means++ over gradient embeddings, making \ours{}-Margin preferable for latency-sensitive deployments.
 The repair does not interrupt online inference: the updated head is swapped in atomically after training completes offline.
+
+\textbf{Detection weight sensitivity.}
+The collapse risk score weights $w = (0.40, 0.20, 0.15, 0.15, 0.10)$ were set heuristically.
+To verify robustness, we evaluated 31 configurations: $\pm$50\% perturbation of each weight (10 configs, renormalized) and 20 Dirichlet-random vectors.
+Under perturbation, F1 ranges from 0.647 to 0.706 (std = 0.029); recall is stable at 0.786--0.857 across all 10 perturbations.
+Under Dirichlet sampling, F1 averages 0.618 with the lowest at 0.471 (an extreme config placing 70\% weight on margin drop alone).
+The default weights achieve the highest F1 but are not critical: any reasonable weighting that emphasizes count drop ($w_1$) and Frechet distance ($w_2$) achieves recall $\geq$0.71.
+
+\textbf{Temperature scaling baseline.}
+A natural question is whether simple model calibration suffices. Temperature scaling (T*=1.11, learned on validation data) changes \textit{zero} predictions out of 1.32M test samples, leaving all metrics identical.
+This confirms that class collapse arises from confident misprediction---the model is wrong with high confidence, not uncertain---and cannot be addressed by post-hoc calibration.
+
+\textbf{Statistical significance.}
+Paired $t$-tests across 5 seeds confirm that margin significantly outperforms random (macro-F1: $p=0.003$; collapse F1: $p=0.019$) and that BADGE significantly outperforms margin (macro-F1: $p=0.012$; collapse F1: $p=0.009$).
+Wilcoxon signed-rank tests are inconclusive ($p=0.0625$ for all comparisons) due to the minimum achievable $p$-value with $n=5$ paired samples.
 
 \textbf{Collapse class count.}
 The CARE evaluation consistently uses a fixed set of 12 classes that are collapsed (recall ${<}0.1$) at M-2022-12 under the static model.

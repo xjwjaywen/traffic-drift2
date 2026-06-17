@@ -53,8 +53,8 @@ plt.rcParams.update({
 
 DEFAULT_COLLAPSE_CLASSES = [56, 163, 174, 48, 38, 69, 104, 47, 66, 10, 109, 26]
 DEFAULT_ABSORBER_MAP = {
-    56: 96, 163: 96, 174: 46, 48: 14, 38: 45, 69: 105,
-    104: 2, 47: 71, 66: 5, 10: 156, 109: 71, 26: 13,
+    56: 96, 163: 46, 174: 2, 48: 14, 38: 45, 69: 105,
+    104: 2, 47: 5, 66: 71, 10: 156, 109: 71, 26: 13,
 }
 # Representative pairs for t-SNE (high-support, diverse patterns)
 DEFAULT_TSNE_PAIRS = [
