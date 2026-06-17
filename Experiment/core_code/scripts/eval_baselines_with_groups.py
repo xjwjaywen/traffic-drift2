@@ -88,14 +88,15 @@ def group_f1(labels, preds, class_ids):
     return float(np.mean(f1s)) if f1s else 0.0
 
 
-def compute_all_metrics(labels, preds):
+def compute_all_metrics(labels, preds, collapse_classes=None):
+    cc = collapse_classes if collapse_classes is not None else COLLAPSE_CLASSES
     return {
         "overall_macro_f1": float(f1_score(labels, preds, average="macro",
                                            zero_division=0)),
-        "collapse_macro_f1": group_f1(labels, preds, COLLAPSE_CLASSES),
+        "collapse_macro_f1": group_f1(labels, preds, cc),
         "stable_macro_f1": group_f1(labels, preds, STABLE_CLASSES),
         "collapsed_count": sum(
-            1 for c in COLLAPSE_CLASSES
+            1 for c in cc
             if np.isin(labels, [c]).sum() > 0
             and (preds[labels == c] == c).sum() / max((labels == c).sum(), 1) < 0.1
         ),
@@ -109,6 +110,8 @@ def main():
     parser.add_argument("--test-period", default="M-2022-12")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--methods", default="static,bn_adapt,tent,eata,cotta,sar,note")
+    parser.add_argument("--collapse-classes", default=None,
+                        help="Comma-separated collapse class IDs (default: M12 fixed 12-class set)")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -118,6 +121,11 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     print(f"Test period: {args.test_period}")
+
+    custom_cc = None
+    if args.collapse_classes:
+        custom_cc = [int(c) for c in args.collapse_classes.split(",")]
+        print(f"Using custom collapse classes ({len(custom_cc)}): {custom_cc}")
 
     model, num_classes = load_model(args.checkpoint, cfg, device)
     _, _, test_loader, _ = build_dataloaders(cfg["data"])
@@ -144,7 +152,7 @@ def main():
         if method_key == "static":
             print("\n=== Static ===")
             labels, preds = evaluate_static(model, test_loader, device)
-            m = compute_all_metrics(labels, preds)
+            m = compute_all_metrics(labels, preds, custom_cc)
             m["method"] = "Static"
             rows.append(m)
             print(f"  macro={m['overall_macro_f1']:.4f} collapse={m['collapse_macro_f1']:.4f} "
@@ -156,7 +164,7 @@ def main():
             m_model = copy.deepcopy(model).to(device)
             method = MethodClass(m_model, adapt_cfg)
             labels, preds, t = evaluate_tta(method, test_loader, device, name)
-            m = compute_all_metrics(labels, preds)
+            m = compute_all_metrics(labels, preds, custom_cc)
             m["method"] = name
             m["time_s"] = round(t, 1)
             rows.append(m)
