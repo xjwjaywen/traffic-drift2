@@ -40,7 +40,7 @@ We show that this is not addressable by unsupervised test-time adaptation (Tent,
 
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework with two stages: (1)~\textit{unsupervised collapse detection} via a multi-signal risk score that identifies collapsing classes without any labels (86\% recall, F1 0.71), and (2)~\textit{label-efficient repair} using only 1{,}000 labeled target samples ($<$0.3\% of the test set) with margin-based selection, head-only fine-tuning, source replay, and knowledge distillation---components whose complementary roles are verified through ablation.
 
-Under strict evaluation (queried samples excluded, 5 seeds), \ours{} improves collapse-class F1 from $0.028$ to $0.233{\pm}0.003$ ($8\times$) and macro-F1 from $0.629$ to $0.673{\pm}0.001$ on CESNET-TLS-Year22 (178 classes, size-S split, ${\sim}$330K test samples per period).
+Under strict evaluation (queried samples excluded, 5 seeds), the fully autonomous \ours{} pipeline improves collapse-class F1 from $0.028$ to $0.236{\pm}0.003$ ($8\times$) and macro-F1 from $0.629$ to $0.674{\pm}0.001$ on CESNET-TLS-Year22 (178 classes, size-S split, ${\sim}$330K test samples per period), requiring no oracle class information.
 The framework generalizes across drift severity (M7--M12), architectures (CNN and Transformer), and supports exemplar-free deployment via prototype-based replay.
 \end{abstract}
 
@@ -318,7 +318,7 @@ Classes with $s_c$ above a threshold (or with near-zero target predictions) are 
 
 On CESNET-TLS-Year22 (M4$\to$M12), this detects 12 of 14 collapsed classes with precision 0.60, recall 0.86, and F1 0.71---\textit{without using any labels} (Table~\ref{tab:unsup_detect}).
 Here, 14 denotes all classes with recall $<0.1$ and support $>0$ (no minimum-support filtering); the 12-class evaluation set used elsewhere (\S\ref{sec:experiments}) applies a minimum support threshold ($\geq$50 samples) to ensure stable metrics, excluding two low-support classes (15--16 samples each).
-Crucially, the weights and threshold are \textit{not} period-specific: applying the same parameters to M7 and M9 yields recall 0.86 and 0.90 respectively, confirming that the detector generalizes across drift severity without re-tuning.
+Crucially, the weights and threshold are \textit{not} period-specific: applying the same parameters to M7 yields precision 0.30, recall 0.86, F1 0.44, and to M9 yields precision 0.45, recall 0.90, F1 0.60. Recall is consistently high (0.86--0.90); precision is lower in early periods when fewer classes have actually collapsed, producing more false positives relative to true positives.
 The ablation shows that count drop and Frechet Distance provide the primary detection signal (F1 0.59); adding margin and confidence alone does not improve detection, but entropy rise contributes a complementary signal that lifts recall from 0.71 to 0.86.
 
 \begin{table}[t]
@@ -640,12 +640,12 @@ Pipeline & Macro-F1 & Collapse F1 & Collapsed & Probe? \\
 \midrule
 Static & .629 & .028 & 12 & --- \\
 Labeled probe (5s) & .673$\pm$.001 & .233$\pm$.003 & 5.0 & Yes \\
-\textbf{Autonomous (3s)} & \textbf{.674$\pm$.001} & \textbf{.235$\pm$.003} & \textbf{5.7} & \textbf{No} \\
+\textbf{Autonomous (5s)} & \textbf{.674$\pm$.001} & \textbf{.236$\pm$.003} & \textbf{5.8} & \textbf{No} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-When evaluated on the same 12-class set, the autonomous pipeline achieves comparable performance to the labeled-probe version (collapse F1: 0.235 vs.\ 0.233, macro-F1: 0.674 vs.\ 0.673).
+When evaluated on the same 12-class set, the autonomous pipeline achieves comparable performance to the labeled-probe version (collapse F1: 0.236 vs.\ 0.233, macro-F1: 0.674 vs.\ 0.673).
 This confirms that unsupervised detection successfully identifies the relevant collapse region, and CARE's margin selection operates effectively without exact collapse-class knowledge.
 The practical benefit is clear: the autonomous pipeline eliminates the labeled probe period entirely, reducing the total labeling requirement to only 1{,}000 target samples per repair cycle.
 

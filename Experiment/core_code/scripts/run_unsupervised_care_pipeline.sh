@@ -2,7 +2,7 @@
 # Full autonomous pipeline: unsupervised collapse detection → CARE repair
 # No labeled probe period needed. Only 1000 target labels for repair.
 #
-# Usage: bash scripts/run_unsupervised_care_pipeline.sh <config> <checkpoint> <ref_period> <tgt_period> <output_dir>
+# Usage: bash scripts/run_unsupervised_care_pipeline.sh <config> <checkpoint> <ref_period> <tgt_period> <output_dir> [num_seeds=5]
 
 set -euo pipefail
 
@@ -42,10 +42,12 @@ echo "Detected collapse classes: ${COLLAPSE_CLASSES:-none}"
 echo "Detected absorber classes: ${ABSORBER_CLASSES:-none}"
 echo "Eval collapse classes (fixed): ${EVAL_COLLAPSE}"
 
+NUM_SEEDS="${6:-5}"
+
 echo ""
-echo "=== Step 2: CARE Repair (3 seeds) ==="
+echo "=== Step 2: CARE Repair (${NUM_SEEDS} seeds) ==="
 echo "Using DETECTED classes for replay, FIXED 12 classes for evaluation"
-for SEED in 0 1 2; do
+for SEED in $(seq 0 $((NUM_SEEDS - 1))); do
     echo "--- Seed ${SEED} ---"
     EXTRA=""
     if [[ -n "${COLLAPSE_CLASSES}" ]]; then
@@ -74,7 +76,7 @@ done
 
 echo ""
 echo "=== Step 3: Aggregate ==="
-python scripts/aggregate_seeds.py --base-dir "${OUTPUT_DIR}/care" --num-seeds 3
+python scripts/aggregate_seeds.py --base-dir "${OUTPUT_DIR}/care" --num-seeds "${NUM_SEEDS}"
 
 echo ""
 echo "=== Autonomous Pipeline Complete ==="
