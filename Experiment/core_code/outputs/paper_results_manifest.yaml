@@ -110,18 +110,18 @@ tables:
   table_8:  # \label{tab:auto_absorber}
     description: "Oracle vs auto-discovered absorber lists (absorber-margin, B=1000, 5 seeds)"
     source_file:
-      # Oracle:
+      # Oracle (12-class fixed eval):
       - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
-      # Auto (M11->M12):
-      - "care_auto_absorber_m11_to_m12/"
-      # Margin (no absorber info) - same as autonomous:
+      # Auto M11→M12 (11-class probe-discovered eval — NOT the same eval set):
+      - "care_auto_absorber_m11_to_m12/aggregated_mean_std.csv"
+      # Margin no absorber (12-class fixed eval):
       - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
     supporting_files:
-      - "care_auto_absorber_m11_to_m12/discovery/"
-    collapse_set: "12 classes (support >= 50)"
+      - "care_auto_absorber_m11_to_m12/seed_0/summary.json"
+    collapse_set: "MIXED — see paper caption. Oracle/Margin use 12-class fixed; Auto uses 11-class M11-probe-discovered."
     seeds: 5
     regeneration_command: "bash scripts/run_auto_absorber_care.sh"
-    notes: "Margin (no absorber info) achieves highest macro-F1 (0.673) despite lower collapse F1, because absorber-margin restricts sample diversity."
+    notes: "CAUTION: Collapse F1 and Collapsed count are NOT directly comparable across rows because eval sets differ. Only macro-F1 (over all 178 classes) is comparable. Margin (no absorber info) achieves highest macro-F1 (0.673)."
 
   table_9:  # \label{tab:multiperiod}
     description: "Multi-period CARE results at M7, M9, M11, M12 (margin, B=1000, 3 seeds)"
