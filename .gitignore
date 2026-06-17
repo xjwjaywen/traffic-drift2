@@ -1,41 +1,37 @@
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
-# Experiment/core_code/outputs/
 # Python cache
 __pycache__/
 *.pyc
-
-# Experiment outputs (large checkpoints and logs)
-# Experiment/core_code/outputs/
-Experiment/analysis/figures/
-Experiment/analysis/tables/
-Experiment/analysis/results/
-
-Experiment/core_code/data/
-*.h5
-*.npz
-
-.DS_Store
 *.py[cod]
 .venv/
 venv/
 
-# Local data and generated experiment outputs.
+# Model checkpoints and large binary files (use GitHub Releases)
+*.pt
+*.npy
+*.npz
+*.h5
+
+# Experiment outputs default (canonical results added with git add -f)
+Experiment/core_code/outputs/
+Experiment/core_code/data/
+Experiment/analysis/figures/
+Experiment/analysis/tables/
+Experiment/analysis/results/
+
+# Abandoned directions (kept in git history, removed from HEAD)
+CA_TTA/
+DT_TTA/
+WST_validation/
+TIF_extension/
+causalquic_phase0/
+Ideation/
+Survey/
+
+# Local data
 data/
 outputs/
-causalquic_phase0/data/
-causalquic_phase0/outputs/
-causalquic_phase0/reports/
 
-# Dr. Claw project metadata (not part of paper)
+# OS / IDE
+.DS_Store
 instance.json
 .pipeline/

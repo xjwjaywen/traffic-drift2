@@ -1,8 +1,0 @@
-method,sampler,aurc_mean,aurc_std,n
-ft_head,random,0.824797,0.000974,3
-knn_labeled,random,0.664347,0.002749,3
-tta_tc,class_balanced,0.837817,0.000491,3
-tta_tc,coreset,0.832403,0.000365,3
-tta_tc,entropy,0.831077,0.000000,3
-tta_tc,margin,0.839833,0.000000,3
-tta_tc,random,0.837515,0.000039,3

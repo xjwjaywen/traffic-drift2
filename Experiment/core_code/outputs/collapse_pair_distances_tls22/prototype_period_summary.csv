@@ -1,6 +1,0 @@
-period,split,num_samples,valid_prototype_classes
-M-2022-1,train,957312,177
-M-2022-2,train,1529856,177
-M-2022-3,train,2284416,178
-M-2022-4,train,2071680,176
-M-2022-12,train,1059072,173

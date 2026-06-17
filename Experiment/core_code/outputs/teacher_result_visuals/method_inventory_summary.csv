@@ -1,8 +1,0 @@
-line,methods,best_signal,conclusion
-Generic TTA,"Static, BN-Adapt, Tent, EATA, CoTTA, SAR, NOTE, TTA-TC",TLS22 M12 macro-F1: 0.6286 -> 0.6308; collapsed F1: 0.0255 -> 0.0565,Marginal overall gain; collapsed classes remain mostly unrecovered
-Norm / AdaBN,"GN, IN, BN, LN, BN + AdaBN","IN helps gradual recall (0.0246 -> 0.0601), but hurts abrupt recall (0.0102 -> 0.0069)",Useful diagnostic; not a stable collapse solution
-Static correction,"Global / quantile correction, prototype recalibration, oracle pair recalibration",Oracle pair macro-F1: 0.628647 -> 0.628840,Very low upper bound for post-hoc score correction
-Target prototypes,CAPS confidence-gated target prototype update,M12 macro-F1: 0.6286 -> 0.6319; bad F1: 0.1544 -> 0.1639,Weak but real signal; helps only part of bad classes
-Representation adaptation,CAPS++ target adapter,Best run degraded to macro-F1 about 0.1839,Unstable; direct target-side adapter is risky
-Training-time attempts,"Pooled ERM, class-balanced ERM, risk-weighted ERM, temporal prototype loss",Warm-start pooled ERM around M12 macro-F1 0.646; temporal proto did not beat pooled ERM,"More historical data helps, but tested regularizer is not enough"
-SSL / active maintenance,MPFP / POP / FSR verify; AL sweep with labeled samples,SSL verify output near random; AL raw outputs not fully summarized here,Do not claim SSL/TTA success; AL is a possible separate maintenance story

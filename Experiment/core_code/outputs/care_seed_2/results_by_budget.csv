@@ -1,3 +1,0 @@
-method,strategy,budget,replay_mode,replay_per_class,target_repeat,replay_distill_weight,distill_temperature,replay_samples,selected_collapse_labels,selected_absorber_preds,overall_accuracy,overall_macro_f1,bad_accuracy,bad_macro_f1,bad_support,stable_accuracy,stable_macro_f1,stable_support,collapsed_count,severe_collapsed_count,head_train_samples,selected_mean_proto_distance
-static,,0,all,5,2,0.5,2.0,890,0,0,0.7519431632771048,0.6286470835004149,0.006916489789943643,0.027576567124341363,27326,0.9412229836584081,0.9027706369575663,144172,12,8,,
-active_head_ft,absorber_margin,1000,all,5,2,0.5,2.0,890,76,1000,0.7884500717562871,0.6809908099386932,0.5977091414769816,0.41928941561249194,27326,0.9385941791748744,0.8836999636265332,144172,3,2,2890,0.19974380731582642
