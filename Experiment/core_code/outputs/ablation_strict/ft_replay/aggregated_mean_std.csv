@@ -1,5 +1,5 @@
 method,strategy,budget,n_seeds,strict_overall_macro_f1_mean,strict_overall_macro_f1_std,strict_bad_macro_f1_mean,strict_bad_macro_f1_std,strict_stable_macro_f1_mean,strict_stable_macro_f1_std,strict_collapsed_count_mean,strict_collapsed_count_std,full_overall_macro_f1_mean,full_overall_macro_f1_std,full_bad_macro_f1_mean,full_bad_macro_f1_std,full_stable_macro_f1_mean,full_stable_macro_f1_std,full_collapsed_count_mean,full_collapsed_count_std
-active_head_ft,margin,1000,5,0.6198,0.0014,0.2236,0.0023,0.8397,0.0046,5.0000,0.0000,0.6201,0.0014,0.2244,0.0023,0.8397,0.0046,5.0000,0.0000
-active_head_ft,margin,200,5,0.5618,0.0031,0.1050,0.0021,0.7815,0.0187,10.0000,0.0000,0.5618,0.0031,0.1051,0.0021,0.7815,0.0187,10.0000,0.0000
-active_head_ft,margin,500,5,0.5841,0.0024,0.1507,0.0029,0.8354,0.0119,6.2000,0.4472,0.5843,0.0024,0.1509,0.0029,0.8355,0.0119,6.2000,0.4472
+active_head_ft,margin,1000,5,0.6203,0.0026,0.2230,0.0013,0.8394,0.0045,5.0000,0.0000,0.6206,0.0026,0.2239,0.0013,0.8394,0.0045,5.0000,0.0000
+active_head_ft,margin,200,5,0.5617,0.0031,0.1051,0.0016,0.7820,0.0188,10.0000,0.0000,0.5618,0.0031,0.1051,0.0016,0.7820,0.0188,10.0000,0.0000
+active_head_ft,margin,500,5,0.5832,0.0026,0.1492,0.0050,0.8344,0.0124,6.2000,0.4472,0.5834,0.0026,0.1495,0.0050,0.8345,0.0124,6.2000,0.4472
 static,,0,5,0.6286,0.0000,0.0276,0.0000,0.9028,0.0000,12.0000,0.0000,0.6286,0.0000,0.0276,0.0000,0.9028,0.0000,12.0000,0.0000
