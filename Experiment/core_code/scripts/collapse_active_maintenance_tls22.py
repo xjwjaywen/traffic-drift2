@@ -418,6 +418,7 @@ def fit_head(
     distill_logits=None,
     distill_weight=0.0,
     distill_temperature=2.0,
+    seed=None,
 ):
     head = copy.deepcopy(model.cls_head).to(device)
     for p in head.parameters():
@@ -437,14 +438,16 @@ def fit_head(
         teacher_logits = distill_logits.to(device)
         dn = dx.shape[0]
         temp = float(distill_temperature)
+    gen = torch.Generator(device=device)
+    gen.manual_seed(seed if seed is not None else 0)
     head.train()
     for _ in range(epochs):
-        perm = torch.randperm(n, device=device)
+        perm = torch.randperm(n, device=device, generator=gen)
         for start in range(0, n, batch_size):
             idx = perm[start : start + batch_size]
             loss = F.cross_entropy(head(x[idx]), y[idx])
             if use_distill:
-                didx = torch.randint(0, dn, (idx.numel(),), device=device)
+                didx = torch.randint(0, dn, (idx.numel(),), device=device, generator=gen)
                 student_log_probs = F.log_softmax(head(dx[didx]) / temp, dim=1)
                 teacher_probs = F.softmax(teacher_logits[didx] / temp, dim=1)
                 distill_loss = F.kl_div(
@@ -733,6 +736,7 @@ def main():
                 distill_logits=replay_logits,
                 distill_weight=args.replay_distill_weight,
                 distill_temperature=args.distill_temperature,
+                seed=args.seed,
             )
             preds = predict_head(head, features, device)
 

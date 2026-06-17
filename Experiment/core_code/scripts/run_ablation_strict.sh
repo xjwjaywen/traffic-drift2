@@ -1,25 +1,17 @@
 #!/bin/bash
 # Ablation study with strict evaluation (5 seeds each).
-# Configurations:
-#   1. FT only        (no replay, no distill)
-#   2. FT + Replay    (replay, no distill)
-#   3. FT + Distill   (no replay, distill on reference samples... but distill needs replay features)
-#   4. Full CARE      (replay + distill)
 #
-# Note: "FT + Distill" uses stable_absorber replay for distillation targets
-# but we separate the replay CE effect by setting target-repeat high to dilute replay.
-# Actually, simpler: FT+Distill = replay + distill but replay-per-class=0 won't work
-# because distill needs replay features. So we use two clean configs:
-#   - FT only:     replay-mode=none, distill=0
-#   - FT+Replay:   replay-mode=stable_absorber, distill=0
-#   - FT+Distill:  replay-mode=stable_absorber, distill=0.5, replay-per-class=5
-#                   (but we zero out replay CE by a workaround... not clean)
+# Three cleanly isolated configurations (paper Table 7):
+#   1. FT only:     target labels → CE, no replay, no distillation
+#   2. FT + Replay: target labels + 150 replay samples → CE, no distillation
+#   3. Full CARE:   target labels + replay → CE, + KL distillation on replay
 #
-# Cleanest approach: 4 configs that clearly isolate components:
-#   1. FT only:           replay=none,             distill=0
-#   2. FT + Replay:       replay=stable_absorber,  distill=0
-#   3. FT + Replay+Dist:  replay=stable_absorber,  distill=0.5
-#   (FT + Distill alone is not cleanly separable since distill needs replay samples)
+# Note: "FT + Distill" (distillation without replay) is not included because
+# distillation requires reference features as KL targets, making it impossible
+# to cleanly separate from replay. The paper acknowledges this.
+#
+# ft_distill is retained in the script for historical reference but is NOT
+# used in the paper's ablation table.
 #
 # Usage: bash scripts/run_ablation_strict.sh <config> <checkpoint> <output_base>
 

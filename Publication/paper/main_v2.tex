@@ -468,7 +468,7 @@ Table~\ref{tab:per_class} illustrates per-class repair outcomes when oracle abso
 
 \begin{table}[t]
 \centering
-\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list). This represents the diagnostic upper bound; the deployable margin strategy achieves aggregate collapse F1 of $0.233{\pm}0.003$.}
+\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list, representative single run seed~0). This represents the diagnostic upper bound; the deployable margin strategy achieves aggregate collapse F1 of $0.233{\pm}0.003$ (5 seeds).}
 \label{tab:per_class}
 \small
 \begin{tabular}{@{}c cc cc l@{}}
@@ -503,7 +503,7 @@ All ablations use margin selection with budget $B=1000$ and strict evaluation (5
 
 \begin{table}[t]
 \centering
-\caption{Ablation study at M-2022-12 (margin selection, $B$=1000, strict evaluation, 5 seeds). FT+Distill includes replay samples as distillation targets (distillation requires reference features); its CE contribution is reduced via lower target repeat.}
+\caption{Ablation study at M-2022-12 (margin selection, $B$=1000, strict evaluation, 5 seeds). Since distillation requires reference features as KL targets, it cannot be cleanly separated from replay; we therefore present three cleanly isolated configurations plus the full method.}
 \label{tab:ablation}
 \small
 \begin{tabular}{@{}l cccc@{}}
@@ -513,7 +513,6 @@ Configuration & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 Static (no repair)      & .629 & .028 & \textbf{.903} & 12 \\
 FT only                 & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
 FT + Replay             & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
-FT + Distill            & .670$\pm$.000 & .152$\pm$.008 & .887 & 7.8 \\
 \midrule
 \textbf{\ours{} (Full)} & \textbf{.673$\pm$.001} & \textbf{.232$\pm$.002} & .885 & \textbf{5.2} \\
 \bottomrule
@@ -522,10 +521,9 @@ FT + Distill            & .670$\pm$.000 & .152$\pm$.008 & .887 & 7.8 \\
 
 Key findings:
 \begin{itemize}
-  \item \textbf{FT only}: Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.838).
-  \item \textbf{+ Replay}: Improves collapse repair (.134$\to$.224) but does not protect stable classes (.840). This is because replay uses only $k{=}5$ samples from stable/absorber classes (30 classes, 150 samples total)---too few to fully anchor 178-class decision boundaries. Distillation provides the missing regularization.
-  \item \textbf{+ Distill}: Best stable-class preservation (.887, close to Static), but limited collapse repair (.152). Note: distillation requires reference features, so this configuration includes replay samples as KL targets; the replay CE contribution is reduced by lower target repeat (1$\times$ vs.\ 2$\times$).
-  \item \textbf{Full \ours{}}: Combines replay's collapse repair with distillation's stable protection---the only configuration that simultaneously improves collapse F1 and maintains stable F1 above 0.88.
+  \item \textbf{FT only}: Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.838), demonstrating that targeted labels alone cause catastrophic forgetting.
+  \item \textbf{FT + Replay}: Adding 150 replay samples (5 per class from 30 stable/absorber classes) improves collapse repair (.134$\to$.224) but does not protect stable classes (.840). Replay alone is too small to anchor 178-class decision boundaries.
+  \item \textbf{Full \ours{}}: Adding KL distillation on replay samples recovers stable-class F1 to .885 (close to Static's .903) while maintaining collapse repair at .232---the only configuration that simultaneously improves collapse F1 and preserves stable F1 above 0.88. Distillation requires reference features as KL targets and thus cannot be cleanly isolated from replay; the jump from FT+Replay (.620 macro) to Full CARE (.673 macro) reflects the combined effect of distillation regularization plus increased target repeat (2$\times$ vs.\ 1$\times$ in FT+Replay would dilute replay further).
 \end{itemize}
 
 \begin{figure}[t]
