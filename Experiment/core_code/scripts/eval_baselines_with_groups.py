@@ -112,7 +112,12 @@ def main():
     parser.add_argument("--methods", default="static,bn_adapt,tent,eata,cotta,sar,note")
     parser.add_argument("--collapse-classes", default=None,
                         help="Comma-separated collapse class IDs (default: M12 fixed 12-class set)")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for reproducibility (affects CoTTA, NOTE)")
     args = parser.parse_args()
+
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
     os.makedirs(args.output_dir, exist_ok=True)
     cfg = load_config(args.config)

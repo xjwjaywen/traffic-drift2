@@ -229,7 +229,7 @@ All methods maintain stable-class F1 near 0.90 but provide \textit{no improvemen
 
 \begin{table}[t]
 \centering
-\caption{TTA baselines on CESNET-TLS-Year22. All TTA methods fail to address class collapse. Collapse set is auto-discovered per period (M7: 2, M9: 8, M12: 11 classes). \ours{} uses strict evaluation (queried excluded, 3 seeds).}
+\caption{TTA baselines on CESNET-TLS-Year22. All TTA methods fail to address class collapse. Collapse F1 evaluated on probe-discovered class sets per period (M7: 2, M9: 8, M12: 11 evaluation classes). \ours{} uses strict evaluation (queried excluded, 3 seeds).}
 \label{tab:tta_baselines}
 \small
 \begin{tabular}{@{}l ccc ccc@{}}
@@ -423,6 +423,7 @@ Overall macro-F1 (averaged over all 178 classes, thus implicitly covering the 14
 
 \textbf{\ours{} configuration.}
 Budget $B=1000$, margin-based selection (no absorber knowledge required), replay with $k=5$ samples per class from stable and absorber classes, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, head fine-tuning learning rate $10^{-3}$, 30 epochs.
+We report two settings: (1)~a \textit{diagnostic} setting where the collapse/absorber class list is provided as oracle input (labeled ``oracle'' in tables), and (2)~a \textit{fully autonomous} setting where collapse and absorber classes are discovered by the unsupervised detection module (\S\ref{sec:unsup_detect}) with no oracle information. The autonomous setting is the recommended deployment configuration.
 
 \subsection{Main Results}
 
