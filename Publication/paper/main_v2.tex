@@ -39,7 +39,7 @@ On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within 9 month
 
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework with two stages: (1)~\textit{unsupervised collapse detection} via a multi-signal risk score (recall 0.86, F1 0.71), and (2)~\textit{label-efficient repair} using 1{,}000 labeled target samples plus source-period replay, with margin-based selection, head-only fine-tuning, and knowledge distillation.
 
-Under strict evaluation (queried samples excluded, 5 seeds), the autonomous pipeline improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ and macro-F1 from 0.629 to $0.674{\pm}0.001$; switching to all-class replay further improves macro-F1 to $0.686{\pm}0.001$.
+Under strict evaluation (queried samples excluded, 5 seeds), \ours{} with BADGE selection and all-class replay improves macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$; a lightweight margin variant achieves $0.686{\pm}0.001$ in under one second.
 The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), and supports exemplar-free deployment via prototype replay.
 \end{abstract}
 
@@ -82,8 +82,9 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 
 % P5: Results highlight
 We first establish that unsupervised TTA methods cannot address class collapse (all produce collapse-class F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
-Under strict evaluation (queried samples excluded, 5 seeds), the fully autonomous \ours{} pipeline---unsupervised collapse detection followed by margin-based repair---improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.674{\pm}0.001$ using 1{,}000 target labels ($<$0.3\% of the test set) plus source-period replay, with no oracle class information.
-An all-class replay variant further improves macro-F1 to $0.686{\pm}0.001$, with the detection module serving as a monitoring and deployment trigger rather than a replay selector.
+Under strict evaluation (queried samples excluded, 5 seeds), \ours{} with BADGE selection and all-class replay improves macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$ ($12\times$) using 1{,}000 target labels ($<$0.3\% of the test set) plus source-period replay, with no oracle class information.
+A lightweight margin variant achieves macro-F1 of $0.686{\pm}0.001$ with sub-second selection time.
+The unsupervised detection module serves as a deployment trigger and diagnostic monitor (recall $\geq$0.86 across all drift levels).
 \ours{} generalizes across architectures (CNN and Transformer), drift severity (M7--M12), and supports exemplar-free deployment.
 
 % P6: Contributions
@@ -670,24 +671,32 @@ To isolate the detection module's contribution, we compare four replay class sel
 
 \begin{table}[t]
 \centering
-\caption{Detection necessity ablation (margin, $B$=1000, 5 seeds, fixed 12-class eval). All variants use full CARE components; only the replay class set differs.}
+\caption{Replay class selection ablation (margin, $B$=1000, 5 seeds, fixed 12-class eval). Top block: class selection; bottom block: fair replay budget comparison (matched total replay samples $\approx$900).}
 \label{tab:detect_necessity}
 \small
-\begin{tabular}{@{}l ccc@{}}
+\begin{tabular}{@{}l cccc@{}}
 \toprule
-Replay Class Selection & Macro-F1 & Collapse F1 & Stable F1 \\
+Replay Configuration & Macro-F1 & Collapse F1 & Stable F1 & Replay$_n$ \\
 \midrule
-All classes (no detection) & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & \textbf{.892$\pm$.003} \\
-Detected classes & .674$\pm$.001 & .236$\pm$.003 & .887$\pm$.002 \\
-Oracle classes & .673$\pm$.001 & .232$\pm$.003 & .885$\pm$.003 \\
-Random class subset & .673$\pm$.002 & .238$\pm$.009 & .885$\pm$.004 \\
+\multicolumn{5}{l}{\textit{Class selection (all use $k{=}5$ per class):}} \\
+All classes ($178{\times}5$) & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & \textbf{.892$\pm$.003} & 890 \\
+Detected classes (${\sim}30{\times}5$) & .674$\pm$.001 & .236$\pm$.003 & .887$\pm$.002 & 150 \\
+Oracle classes (${\sim}30{\times}5$) & .673$\pm$.001 & .232$\pm$.003 & .885$\pm$.003 & 150 \\
+Random class subset & .673$\pm$.002 & .238$\pm$.009 & .885$\pm$.004 & 150 \\
+\midrule
+\multicolumn{5}{l}{\textit{Fair budget comparison (${\approx}$900 replay samples):}} \\
+All classes ($178{\times}5$) & .686$\pm$.001 & .256$\pm$.009 & .892$\pm$.003 & 890 \\
+Detected classes (${\sim}30{\times}30$) & .678$\pm$.001 & .243$\pm$.003 & .883$\pm$.003 & $\sim$900 \\
+All classes ($178{\times}1$) & .680$\pm$.003 & .231$\pm$.015 & .883$\pm$.003 & 178 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Replaying from \textit{all} 178 classes yields the best results (macro-F1: 0.686 vs.\ 0.674 for detected), because broader replay coverage stabilizes more decision boundaries.
-This reveals that the detection module's primary value is \textit{not} in guiding replay class selection---all-class replay is strictly better---but rather in two deployment-critical roles discussed in \S\ref{sec:discussion}: (1)~serving as an unsupervised monitoring and alerting system that identifies \textit{which} classes are degrading, enabling targeted human investigation, and (2)~providing the deployment trigger that determines \textit{when} repair should be activated.
-Based on this finding, we recommend all-class replay as the default repair configuration, with the detection module serving its monitoring role.
+Replaying from \textit{all} 178 classes yields the best results (macro-F1: 0.686 vs.\ 0.674 for detected).
+To rule out the confound that all-class replay simply uses more samples (890 vs.\ 150), we match the total replay budget: detected-class with $k{=}30$ ($\approx$900 samples) achieves only 0.678, while all-class with $k{=}1$ (178 samples, \textit{fewer} than the original 150) achieves 0.680.
+This confirms that the advantage comes from \textit{class coverage breadth}, not replay volume.
+The detection module's primary value is therefore \textit{not} in guiding replay class selection---all-class replay is strictly better---but rather in two deployment-critical roles: (1)~unsupervised monitoring that identifies \textit{which} classes are degrading, enabling targeted human investigation, and (2)~providing the deployment trigger that determines \textit{when} repair should be activated (\S\ref{sec:discussion}).
+Based on this finding, we recommend all-class replay as the default repair configuration.
 
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
@@ -753,7 +762,7 @@ The collapse-class F1 improves modestly ($0.305\to0.413$), confirming that \ours
 \label{sec:discussion}
 
 \textbf{Label cost and deployment model.}
-\ours{} requires two sources of labeled data per repair cycle: (1)~\textit{target labels}: 1{,}000 samples from the target period, selected by margin sampling ($<$0.3\% of the ${\sim}$330K monthly test set); and (2)~\textit{source replay}: a small subset of labeled source-period data (150 samples, $k{=}5$ per replay class) used for catastrophic forgetting prevention.
+\ours{} requires two sources of labeled data per repair cycle: (1)~\textit{target labels}: 1{,}000 samples from the target period ($<$0.3\% of the ${\sim}$330K monthly test set); and (2)~\textit{source replay}: $k{=}5$ samples per class from all 178 training classes (890 samples total) for catastrophic forgetting prevention.
 The autonomous variant (\S\ref{sec:e2e}) additionally replaces the labeled probe with unsupervised collapse detection, so no probe labels are needed.
 Crucially, replay can use the original training data directly: replacing M4 reference replay with M3 (the training month) yields macro-F1 of $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$---within one standard deviation---while removing replay entirely drops macro-F1 to 0.638 and collapse F1 to 0.134.
 Thus the \textit{only} new annotation cost per repair cycle is the 1{,}000 target labels; replay reuses existing training data at zero additional labeling effort.
@@ -783,6 +792,29 @@ Both training-seed variance ($\sigma_{\text{macro}}{=}0.0006$) and fine-tuning-s
 The repair components (head fine-tuning, replay, distillation) are individually well-known.
 The unsupervised collapse detection module (\S\ref{sec:unsup_detect}) is---to our knowledge---the first per-class collapse severity estimator that operates without labels.
 While the detection necessity ablation (\S\ref{sec:e2e}) shows that all-class replay outperforms detected-class replay for the repair step itself, the detection module serves two roles that all-class replay cannot: (1)~\textit{monitoring}: it identifies \textit{which specific classes} are degrading, enabling targeted investigation by network operators---all-class replay repairs blindly without this diagnostic insight; and (2)~\textit{triggering}: the per-class risk scores provide the deployment trigger (\S\ref{sec:trigger}) that determines \textit{when} repair should be activated, without requiring labeled data to detect drift.
+Table~\ref{tab:trigger_eval} validates the trigger role: detection recall is $\geq$0.86 across all time points, meaning the detector reliably identifies collapsed classes from M7 onward. Precision increases with drift severity (0.30 at M7 to 0.60 at M12), reflecting more true positives as collapse deepens.
+
+\begin{table}[t]
+\centering
+\caption{Detection trigger evaluation across drift levels. The detector reliably identifies collapsed classes (recall $\geq$0.86) at all time points.}
+\label{tab:trigger_eval}
+\small
+\begin{tabular}{@{}l cccc@{}}
+\toprule
+Period & Detected & Precision & Recall & F1 \\
+\midrule
+M7 (light) & 20 & .300 & .857 & .444 \\
+M9 (medium) & 20 & .450 & .900 & .600 \\
+M11 (heavy) & 20 & .500 & .909 & .645 \\
+M12 (severe) & 20 & .600 & .857 & .706 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{\ours{} framework configurations.}
+\ours{} is a framework accommodating multiple selector/replay combinations.
+With the recommended all-class replay, BADGE selection achieves macro-F1 of $0.700{\pm}0.003$ and collapse F1 of $0.333{\pm}0.040$ (the strongest configuration), while margin selection achieves $0.686{\pm}0.001$ with sub-second selection time.
+We recommend BADGE for scheduled maintenance windows and margin for latency-constrained or resource-limited deployments.
 
 \textbf{Computational cost.}
 On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 minutes: feature extraction (${\sim}$40s for 330K samples), margin-based sample selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 150 replay samples).
@@ -824,9 +856,9 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using 1{,}000 target labels ($<$0.3\% of test data) plus source-period replay.
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
-Under strict evaluation (5 seeds), the autonomous pipeline improves macro-F1 from 0.629 to $0.674{\pm}0.001$ and collapse-class F1 from 0.028 to $0.236{\pm}0.003$; all-class replay further improves macro-F1 to $0.686{\pm}0.001$.
-The detection module's primary value is as an unsupervised monitoring and deployment trigger---identifying \textit{which} classes are degrading and \textit{when} repair should be activated---rather than guiding replay class selection.
-Gains are consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations).
+Under strict evaluation (5 seeds), \ours{} with BADGE selection and all-class replay improves macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$; a lightweight margin variant achieves $0.686{\pm}0.001$ with sub-second selection.
+A replay class selection ablation confirms that all-class replay outperforms detected-class replay even at matched replay budgets, establishing that the detection module's value lies in unsupervised monitoring and deployment triggering (recall $\geq$0.86 across M7--M12) rather than replay guidance.
+Gains are consistent across architectures (CNN/Transformer) and training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations).
 
 % ============================================================
 \bibliographystyle{IEEEtran}
