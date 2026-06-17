@@ -39,7 +39,7 @@ On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within 9 month
 
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a targeted maintenance framework with two stages: (1)~\textit{unsupervised collapse detection} via a multi-signal risk score (recall 0.86, F1 0.71), and (2)~\textit{label-efficient repair} using 1{,}000 labeled target samples plus source-period replay, with margin-based selection, head-only fine-tuning, and knowledge distillation.
 
-Under strict evaluation (queried samples excluded, 5 seeds), the autonomous pipeline improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ and macro-F1 from 0.629 to $0.674{\pm}0.001$, requiring no oracle class information.
+Under strict evaluation (queried samples excluded, 5 seeds), the autonomous pipeline improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ and macro-F1 from 0.629 to $0.674{\pm}0.001$; switching to all-class replay further improves macro-F1 to $0.686{\pm}0.001$.
 The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), and supports exemplar-free deployment via prototype replay.
 \end{abstract}
 
@@ -82,7 +82,8 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 
 % P5: Results highlight
 We first establish that unsupervised TTA methods cannot address class collapse (all produce collapse-class F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
-Under strict evaluation (queried samples excluded, 5 seeds), the fully autonomous \ours{} pipeline---unsupervised collapse detection followed by margin-based repair---improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.674{\pm}0.001$ using 1{,}000 target labels ($<$0.3\% of the test set) plus source-period replay samples, with no oracle class information.
+Under strict evaluation (queried samples excluded, 5 seeds), the fully autonomous \ours{} pipeline---unsupervised collapse detection followed by margin-based repair---improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.674{\pm}0.001$ using 1{,}000 target labels ($<$0.3\% of the test set) plus source-period replay, with no oracle class information.
+An all-class replay variant further improves macro-F1 to $0.686{\pm}0.001$, with the detection module serving as a monitoring and deployment trigger rather than a replay selector.
 \ours{} generalizes across architectures (CNN and Transformer), drift severity (M7--M12), and supports exemplar-free deployment.
 
 % P6: Contributions
@@ -470,12 +471,11 @@ Coreset         & .618$\pm$.008 & .108$\pm$.037 & .878 & 9.2 \\
 Random          & .656$\pm$.006 & .183$\pm$.031 & .890 & 8.0 \\
 BADGE~\cite{ash2020badge}  & \textbf{.688$\pm$.007} & \textbf{.318$\pm$.041} & .889 & \textbf{4.4} \\
 \ours{}-Margin$^c$ & .673$\pm$.001 & .233$\pm$.003 & .884 & 5.0 \\
-\ours{}-Margin$^{d\star}$ & .674$\pm$.001 & .236$\pm$.003 & .887 & 5.8 \\
+\ours{}-Margin$^d$ & .674$\pm$.001 & .236$\pm$.003 & .887 & 5.8 \\
 \bottomrule
 \multicolumn{5}{l}{\footnotesize $^a$Head-only FT, no replay/distillation; $^b$Head FT + replay, no distillation.}\\
 \multicolumn{5}{l}{\footnotesize $^c$Oracle collapse/absorber list; $^d$Fully autonomous (unsupervised detection, no oracle info).}\\
-\multicolumn{5}{l}{\footnotesize $^\star$Recommended deployment config: no oracle info, $<$1s compute, $\sigma_{\text{macro}}{=}.001$.}\\
-\multicolumn{5}{l}{\footnotesize Bold = best score per column among active methods. BADGE is strongest; Margin$^\star$ is lightweight.}
+\multicolumn{5}{l}{\footnotesize Bold = best score per column. All-class replay further improves Margin$^d$ to .686 (Table~\ref{tab:detect_necessity}).}
 \end{tabular}
 \end{table}
 
@@ -824,7 +824,9 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using 1{,}000 target labels ($<$0.3\% of test data) plus source-period replay.
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
-Under strict evaluation (5 seeds), the fully autonomous pipeline improves macro-F1 from 0.629 to $0.674{\pm}0.001$ and collapse-class F1 from 0.028 to $0.236{\pm}0.003$, requiring no oracle class information---only 1{,}000 target labels, source-period replay samples, and unsupervised detection. Gains are consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations).
+Under strict evaluation (5 seeds), the autonomous pipeline improves macro-F1 from 0.629 to $0.674{\pm}0.001$ and collapse-class F1 from 0.028 to $0.236{\pm}0.003$; all-class replay further improves macro-F1 to $0.686{\pm}0.001$.
+The detection module's primary value is as an unsupervised monitoring and deployment trigger---identifying \textit{which} classes are degrading and \textit{when} repair should be activated---rather than guiding replay class selection.
+Gains are consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations).
 
 % ============================================================
 \bibliographystyle{IEEEtran}
