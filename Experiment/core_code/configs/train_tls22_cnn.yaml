@@ -1,5 +1,5 @@
 # Training config: CESNET-TLS-Year22 with 1D-CNN backbone
-# Train on M-2022-1 to M-2022-3, test on M-2022-5
+# Train on M-2022-3 (single month), test on M-2022-5
 
 data:
   dataset: tls22

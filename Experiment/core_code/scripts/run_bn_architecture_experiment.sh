@@ -25,7 +25,7 @@ for METHOD in static bn_adapt tent eata sar cotta note; do
         --config "${CONFIG_EVAL}" \
         --checkpoint "${OUTPUT_MODEL}/best_model.pt" \
         --test-period M-2022-12 \
-        --method "${METHOD}" \
+        --methods "${METHOD}" \
         --output-dir "outputs/bn_tta_baselines_M12" \
         2>/dev/null || echo "SKIP ${METHOD} (not supported or error)"
 done

@@ -409,8 +409,8 @@ For QUIC22, we train on W44 and evaluate at W46 and W47.
 
 \textbf{Baselines.}
 We compare three categories:
-\textit{Unsupervised TTA} (0 labels): Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}.
-\textit{Naive supervised} (1{,}000 labels, no replay/distillation): head-only fine-tuning (Naive-Head) and full-model fine-tuning (Naive-Full).
+\textit{Unsupervised TTA} (0 labels): Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}, all with adaptation learning rate $10^{-5}$ on encoder parameters.
+\textit{Naive supervised} (1{,}000 labels): head-only FT without replay/distillation (FT-Head) and head FT with replay but no distillation (FT+Replay).
 \textit{Active selection} (1{,}000 labels + \ours{} components): entropy, coreset~\cite{sener2018coreset}, BADGE~\cite{ash2020badge}, random, and margin.
 This three-tier comparison separates the question of whether labels are needed (TTA vs.\ supervised), whether \ours{} components help (Naive vs.\ \ours{}), and which selection strategy is best (active methods).
 
@@ -445,9 +445,9 @@ SAR             & .629 & .026 & .901 & 11 \\
 CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
-\multicolumn{5}{l}{\textit{Supervised with 1{,}000 labels (no replay/distillation):}} \\
-Naive-Head$^a$  & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
-Naive-Full$^b$  & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
+\multicolumn{5}{l}{\textit{Supervised with 1{,}000 labels (partial \ours{} components):}} \\
+FT-Head$^a$     & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
+FT+Replay$^b$   & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
 \midrule
 \multicolumn{5}{l}{\textit{Active selection with 1{,}000 labels + \ours{} components:}} \\
 Entropy         & .600$\pm$.004 & .073$\pm$.013 & .882 & 9.8 \\
@@ -456,7 +456,7 @@ Random          & .656$\pm$.006 & .183$\pm$.031 & .890 & 8.0 \\
 BADGE~\cite{ash2020badge}  & .688$\pm$.007 & .318$\pm$.041 & .889 & 4.4 \\
 \textbf{\ours{}-Margin}$^\star$ & \textbf{.673$\pm$.001} & .233$\pm$.003 & .884 & 5.0 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize $^a$Head-only FT, margin selection; $^b$Head FT with replay, margin selection.}\\
+\multicolumn{5}{l}{\footnotesize $^a$Head-only FT, margin selection, no replay/distillation; $^b$Head FT + replay, no distillation.}\\
 \multicolumn{5}{l}{\footnotesize Active methods use \ours{} components (replay + distillation); 5 seeds, strict eval.}\\
 \multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest macro-F1 variance ($\sigma_{\text{macro}}{=}.001$), $<$1s compute vs.\ ${\sim}$20min BADGE.}
 \end{tabular}
@@ -503,7 +503,7 @@ All ablations use margin selection with budget $B=1000$ and strict evaluation (5
 
 \begin{table}[t]
 \centering
-\caption{Ablation study at M-2022-12 (margin selection, $B$=1000, strict evaluation, 5 seeds). Each component plays a distinct, non-redundant role.}
+\caption{Ablation study at M-2022-12 (margin selection, $B$=1000, strict evaluation, 5 seeds). FT+Distill includes replay samples as distillation targets (distillation requires reference features); its CE contribution is reduced via lower target repeat.}
 \label{tab:ablation}
 \small
 \begin{tabular}{@{}l cccc@{}}
@@ -524,7 +524,7 @@ Key findings:
 \begin{itemize}
   \item \textbf{FT only}: Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.838).
   \item \textbf{+ Replay}: Improves collapse repair (.134$\to$.224) but does not protect stable classes (.840). This is because replay uses only $k{=}5$ samples from stable/absorber classes (30 classes, 150 samples total)---too few to fully anchor 178-class decision boundaries. Distillation provides the missing regularization.
-  \item \textbf{+ Distill}: Best stable-class preservation (.887, close to Static), but limited collapse repair (.152).
+  \item \textbf{+ Distill}: Best stable-class preservation (.887, close to Static), but limited collapse repair (.152). Note: distillation requires reference features, so this configuration includes replay samples as KL targets; the replay CE contribution is reduced by lower target repeat (1$\times$ vs.\ 2$\times$).
   \item \textbf{Full \ours{}}: Combines replay's collapse repair with distillation's stable protection---the only configuration that simultaneously improves collapse F1 and maintains stable F1 above 0.88.
 \end{itemize}
 
