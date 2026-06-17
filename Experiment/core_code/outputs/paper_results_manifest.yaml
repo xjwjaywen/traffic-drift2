@@ -1,0 +1,284 @@
+# Paper Results Manifest
+# Maps each table/figure in Publication/paper/main_v2.tex to its canonical data source.
+# All source_file paths are relative to Experiment/core_code/outputs/ unless noted.
+# Generated from CANONICAL_SOURCES.md and main_v2.tex cross-reference.
+
+tables:
+
+  table_1:  # \label{tab:absorber_pairs}
+    description: "Absorber-collapse pairs at M-2022-12 (12 victim classes, confusion rates, pattern type, first collapse month)"
+    source_file: "per_class_collapse_tls22_monthly/collapse_classes.csv"
+    supporting_files:
+      - "per_class_collapse_tls22_monthly/collapse_pairs.csv"
+      - "per_class_collapse_tls22_monthly/collapse_period_summary.csv"
+      - "per_class_collapse_tls22_monthly/summary.json"
+    collapse_set: "12 classes (recall < 0.1 AND support >= 50 at M-2022-12)"
+    seeds: null
+    regeneration_command: "python scripts/summarize_per_class_collapse.py"
+    notes: "Collapse pairs identified from confusion matrix analysis across M4-M12. Fisher trajectory data in fisher_trajectory_results.txt provides the two-mechanism characterization (feature drift vs boundary shift)."
+
+  table_2:  # \label{tab:tta_baselines}
+    description: "TTA baselines on GroupNorm CNN at M7, M9, M12 (Tent, EATA, SAR, CoTTA, NOTE vs Static and CARE)"
+    source_file:
+      - "tta_multiperiod/M7/baselines_group_metrics.csv"
+      - "tta_multiperiod/M9/baselines_group_metrics.csv"
+      - "tta_multiperiod/M12/baselines_group_metrics.csv"
+    care_row_sources:
+      - "care_multiperiod/M_2022_7/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
+    collapse_set: "Auto-discovered per period (M7: 2, M9: 7, M12: 10 evaluation classes)"
+    seeds: "1 (TTA) / 3 (CARE)"
+    regeneration_command: "python evaluate_tta.py --dataset tls22 --periods M7 M9 M12"
+    notes: "TTA methods use adaptation lr 1e-5. CARE row uses margin selection with auto-discovered absorbers, strict eval."
+
+  table_3:  # \label{tab:bn_tta}
+    description: "TTA on BatchNorm architecture at M-2022-12 (verifies TTA failure is not GroupNorm artifact)"
+    source_file:
+      - "care_bn_strict/aggregated_mean_std.csv"
+      - "bn_tta_baselines_M12/baselines_group_metrics.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: "3 (CARE-Margin)"
+    regeneration_command: "bash scripts/run_bn_architecture_experiment.sh"
+    notes: "BN-Adapt functions (+0.009 macro) but collapse F1 stays at 0.032. NOTE catastrophically degrades BN model (macro 0.042)."
+
+  table_4:  # \label{tab:unsup_detect}
+    description: "Unsupervised collapse detection ablation (signal combinations: FD only, Count+FD, +margin+conf, full 5-signal)"
+    source_file: "detection_ablation/ablation_summary.json"
+    supporting_files:
+      - "detection_ablation/fd_only.json"
+      - "detection_ablation/count_fd.json"
+      - "detection_ablation/4signal.json"
+      - "detection_ablation/5signal_full.json"
+    collapse_set: "14 classes (recall < 0.1 AND support > 0)"
+    seeds: null
+    regeneration_command: "python scripts/run_detection_ablation.py"
+    notes: "No labels used. Best: 5-signal with precision 0.60, recall 0.86, F1 0.71. Weights not tuned on M12."
+
+  table_5:  # \label{tab:main_results}
+    description: "Main results at M-2022-12: TTA (0 labels), naive supervised (1000 labels), active selection with CARE components (1000 labels, 5 seeds, strict eval)"
+    source_file:
+      # TTA rows (Static, Tent, EATA, SAR, CoTTA, NOTE):
+      - "baselines_group_metrics_M12/"
+      # FT-Head:
+      - "ablation_strict/ft_only/aggregated_mean_std.csv"
+      # FT+Replay:
+      - "ablation_strict/ft_replay/aggregated_mean_std.csv"
+      # Active baselines (Entropy, Coreset, Random):
+      - "al_baselines_strict/aggregated_mean_std.csv"
+      # BADGE:
+      - "badge_5seeds_strict/aggregated_mean_std.csv"
+      # CARE-Margin (oracle):
+      - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+      # CARE-Margin (autonomous):
+      - "autonomous_5seeds_strict/care/aggregated_mean_std.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: 5
+    regeneration_command: |
+      bash scripts/run_5seeds_strict.sh          # CARE oracle margin
+      bash scripts/run_ablation_strict.sh         # FT-Head, FT+Replay
+      bash scripts/run_al_baselines.sh            # Entropy, Coreset, Random
+      bash scripts/run_badge_5seeds.sh            # BADGE
+      bash scripts/run_unsupervised_care_pipeline.sh  # Autonomous pipeline
+    notes: "Strict eval: queried samples excluded from test set. Autonomous row (starred) is the recommended deployment config. BADGE achieves highest collapse F1 (0.318) but margin has lower variance (sigma_macro=0.001 vs 0.007)."
+
+  table_6:  # \label{tab:per_class}
+    description: "Per-class recovery at M-2022-12 (absorber-margin, B=1000, oracle absorber list, seed 0)"
+    source_file: "care_5seeds_strict_cnn/seed_0/per_collapse_class_m12.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: "seed 0 only (diagnostic single-run)"
+    regeneration_command: "bash scripts/run_5seeds_strict.sh"
+    notes: "Represents diagnostic upper bound with oracle absorber knowledge. 9/12 classes recover above 0.1 recall. Three failures (26, 69, 109) have features fully merged with absorber in encoder space."
+
+  table_7:  # \label{tab:ablation}
+    description: "Compound ablation at M-2022-12 (margin, B=1000, strict eval, 5 seeds): Static vs FT-only vs FT+Replay vs Full CARE"
+    source_file:
+      - "ablation_strict/ft_only/aggregated_mean_std.csv"
+      - "ablation_strict/ft_replay/aggregated_mean_std.csv"
+      - "ablation_strict/full_care/aggregated_mean_std.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: 5
+    regeneration_command: "bash scripts/run_ablation_strict.sh"
+    notes: "Full CARE jump from FT+Replay (.620) to .673 reflects compound effect of distillation + target repeat 2x. Distillation cannot be isolated from replay (needs replay features as KL targets)."
+
+  table_8:  # \label{tab:auto_absorber}
+    description: "Oracle vs auto-discovered absorber lists (absorber-margin, B=1000, 5 seeds)"
+    source_file:
+      # Oracle:
+      - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+      # Auto (M11->M12):
+      - "care_auto_absorber_m11_to_m12/"
+      # Margin (no absorber info) - same as autonomous:
+      - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+    supporting_files:
+      - "care_auto_absorber_m11_to_m12/discovery/"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: 5
+    regeneration_command: "bash scripts/run_auto_absorber_care.sh"
+    notes: "Margin (no absorber info) achieves highest macro-F1 (0.673) despite lower collapse F1, because absorber-margin restricts sample diversity."
+
+  table_9:  # \label{tab:multiperiod}
+    description: "Multi-period CARE results at M7, M9, M11, M12 (margin, B=1000, 3 seeds)"
+    source_file:
+      - "care_multiperiod/M_2022_7/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_11/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
+    collapse_set: "Auto-discovered per period (class counts vary)"
+    seeds: 3
+    regeneration_command: "bash scripts/run_multiperiod_care.sh"
+    notes: "CARE benefit increases with drift severity (M7: +0.010, M12: +0.045 macro). Early intervention (M7) yields better per-class recovery."
+
+  table_10:  # \label{tab:e2e}
+    description: "End-to-end autonomous pipeline vs labeled-probe (margin, B=1000, M12, fixed 12-class eval)"
+    source_file:
+      # Labeled probe:
+      - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+      # Autonomous:
+      - "autonomous_5seeds_strict/care/aggregated_mean_std.csv"
+    supporting_files:
+      - "autonomous_5seeds_strict/detection/detection_summary.json"
+      - "autonomous_5seeds_strict/detection/per_class_fd.csv"
+    collapse_set: "12 classes (fixed eval set)"
+    seeds: "5/5"
+    regeneration_command: "bash scripts/run_unsupervised_care_pipeline.sh"
+    notes: "Autonomous (0.674 macro, 0.236 collapse F1) matches labeled probe (0.673, 0.233). Confirms unsupervised detection is sufficient."
+
+  table_11:  # \label{tab:proto_replay}
+    description: "Real vs prototype replay (margin, B=1000, 3 seeds)"
+    source_file:
+      - "proto_replay_comparison/real_replay/aggregated_mean_std.csv"
+      - "proto_replay_comparison/proto_replay/aggregated_mean_std.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: 3
+    regeneration_command: "bash scripts/run_proto_replay_comparison.sh"
+    notes: "Prototype replay achieves 98.7% of real replay macro-F1 (0.664 vs 0.673). Stores only 178x256 floats = 178 KB instead of raw data."
+
+  table_12:  # \label{tab:arch}
+    description: "Architecture comparison: CNN vs Transformer (margin, B=1000, M-2022-12)"
+    source_file:
+      # CNN:
+      - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+      # Transformer:
+      - "care_transformer_multiperiod/M_2022_12/aggregated_mean_std.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: "5 (CNN) / 3 (Transformer)"
+    regeneration_command: "bash scripts/run_multiperiod_care.sh  # includes transformer runs"
+    notes: "Transformer benefits more from CARE (macro +0.097 vs +0.044), likely due to richer encoder representations enabling better head-only repair."
+
+  table_inline_tta_lr_sweep:
+    description: "TTA learning rate sweep (inline in text, lr = {1e-3, 1e-4, 1e-5})"
+    source_file:
+      - "tta_lr_sweep/lr_1e-3/baselines_group_metrics.csv"
+      - "tta_lr_sweep/lr_1e-4/baselines_group_metrics.csv"
+      - "tta_lr_sweep/lr_1e-5/baselines_group_metrics.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: 1
+    regeneration_command: "python evaluate_tta.py --dataset tls22 --lr 1e-3 1e-4 1e-5"
+    notes: "Collapse F1 < 0.03 at all learning rates. Higher rates destabilize Tent and NOTE (macro drops to 0.21 and 0.54 at 1e-3)."
+
+  table_inline_training_seed_audit:
+    description: "Training seed stability audit (inline in Discussion, 3 training seeds x 3 CARE seeds)"
+    source_file:
+      - "multiseed_audit/trainseed0/care/"
+      - "multiseed_audit/trainseed1/care/"
+      - "multiseed_audit/trainseed2/care/"
+    supporting_files:
+      - "multiseed_audit/trainseed0/static/"
+      - "multiseed_audit/trainseed1/static/"
+      - "multiseed_audit/trainseed2/static/"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: "3x3 (3 training seeds x 3 CARE seeds = 9 runs)"
+    regeneration_command: "bash scripts/run_full_audit_experiments.sh"
+    notes: "Static macro-F1 0.620 +/- 0.001 across training seeds (vs primary checkpoint 0.629 due to deterministic cuDNN). CARE macro 0.667 +/- 0.007 across all 9 runs."
+
+figures:
+
+  fig_1:  # \label{fig:collapse_timeline}
+    description: "Recall trajectories of 12 collapse classes over M4-M12 (shows abrupt vs gradual collapse patterns)"
+    output_file: "Publication/figures/fig_collapse_timeline.pdf"
+    source_file: "per_class_collapse_tls22_monthly/collapse_timeline.csv"
+    supporting_files:
+      - "per_class_collapse_tls22_monthly/collapse_period_summary.csv"
+    regeneration_command: "python scripts/make_paper_figures.py --figure collapse_timeline"
+    notes: "Classes exhibit both abrupt collapse (e.g. class 56 at M5) and gradual decline (e.g. class 104 over M5-M9). Threshold line at recall = 0.1."
+
+  fig_2:  # \label{fig:ablation_bar}
+    description: "Ablation study bar chart (Static vs FT-only vs FT+Replay vs Full CARE, showing collapse F1 and stable F1)"
+    output_file: "Publication/figures/fig_ablation_bar.pdf"
+    source_file:
+      - "ablation_strict/ft_only/aggregated_mean_std.csv"
+      - "ablation_strict/ft_replay/aggregated_mean_std.csv"
+      - "ablation_strict/full_care/aggregated_mean_std.csv"
+    regeneration_command: "python scripts/make_paper_figures.py --figure ablation_bar"
+    notes: "Only full CARE simultaneously improves collapse F1 (red) while maintaining stable F1 (green)."
+
+  fig_3:  # \label{fig:tta_failure}
+    description: "Overall macro-F1 and collapse-class F1 across time points for TTA baselines vs CARE"
+    output_file: "Publication/figures/fig_tta_failure.pdf"
+    source_file:
+      - "tta_multiperiod/M7/baselines_group_metrics.csv"
+      - "tta_multiperiod/M9/baselines_group_metrics.csv"
+      - "tta_multiperiod/M11/baselines_group_metrics.csv"
+      - "tta_multiperiod/M12/baselines_group_metrics.csv"
+      - "care_multiperiod/M_2022_7/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_11/aggregated_mean_std.csv"
+      - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
+    regeneration_command: "python scripts/make_paper_figures.py --figure tta_failure"
+    notes: "All TTA baselines track Static closely on both metrics. CARE provides increasing benefit as drift severity grows."
+
+  fig_4:  # \label{fig:strategy_comparison}
+    description: "Selection strategy comparison across label budgets (margin vs entropy vs coreset vs random)"
+    output_file: "Publication/figures/fig_strategy_comparison.pdf"
+    source_file:
+      - "al_baselines_strict/"
+      - "badge_5seeds_strict/"
+    regeneration_command: "python scripts/make_paper_figures.py --figure strategy_comparison"
+    notes: "Margin consistently outperforms entropy and coreset, which fall below Static baseline. Strict evaluation."
+
+  fig_5:  # \label{fig:budget_sweep}
+    description: "Label efficiency curve with error bars (5 seeds): macro-F1 as a function of label budget B"
+    output_file: "Publication/figures/fig_budget_sweep.pdf"
+    source_file: "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+    regeneration_command: "python scripts/make_paper_figures.py --figure budget_sweep"
+    notes: "200 labels already improve macro to 0.637; 1000 labels reach 0.673 +/- 0.001 with diminishing returns beyond."
+
+# Collapse set definitions used throughout
+collapse_sets:
+  fixed_12:
+    description: "Main evaluation set"
+    criteria: "recall < 0.1 AND support >= 50 at M-2022-12"
+    classes: [10, 26, 38, 47, 48, 56, 66, 69, 104, 109, 163, 174]
+
+  detection_14:
+    description: "Detection ground truth (used in Table 4)"
+    criteria: "recall < 0.1 AND support > 0 at M-2022-12"
+    notes: "Includes 2 additional low-support classes (15-16 samples each)"
+
+  auto_discovered:
+    description: "Per-period probe-based discovery"
+    criteria: "Probe-period recall < threshold, class counts vary by period"
+    period_counts:
+      M7: 2
+      M9: 7
+      M12: 10
+
+# Aggregation convention
+aggregation:
+  method: "sample std (ddof=1)"
+  script: "scripts/aggregate_seeds.py"
+  note: "All aggregated_mean_std.csv files follow this convention"
+
+# Superseded directories (NOT used in any paper result)
+superseded:
+  - path: "autonomous_fixed12_eval/"
+    replaced_by: "autonomous_5seeds_strict/"
+  - path: "autonomous_pipeline_final/"
+    replaced_by: "autonomous_5seeds_strict/"
+    reason: "3-seed version, superseded by 5-seed"
+  - path: "unsupervised_care_pipeline/"
+    replaced_by: "autonomous_5seeds_strict/"
+    reason: "Uses detected (not fixed-12) eval set"
+  - path: "unsupervised_collapse_detection_v4/"
+    replaced_by: "detection_ablation/"

@@ -80,7 +80,7 @@ def make_table1(single, seq_quic22, save_dir):
         rows.append(row)
 
     # Determine best values per numeric column
-    cols = ["acc_w45", "f1_w45", "acc_w4545", "acc_w4546", "acc_w4547", "aurc"]
+    cols = ["acc_w45", "f1_w45", "acc_w46", "acc_w47", "aurc"]
     col_vals = {}
     for col in cols:
         col_vals[col] = [r.get(col) for r in rows if r.get(col) is not None]
@@ -107,8 +107,8 @@ def make_table1(single, seq_quic22, save_dir):
 
         acc45 = _fmt(row.get("acc_w45"), all_vals=col_vals.get("acc_w45"))
         f145  = _fmt(row.get("f1_w45"),  all_vals=col_vals.get("f1_w45"))
-        acc46 = _fmt(row.get("acc_w4545"), all_vals=col_vals.get("acc_w4545"))
-        acc47 = _fmt(row.get("acc_w4546"), all_vals=col_vals.get("acc_w4546"))
+        acc46 = _fmt(row.get("acc_w46"), all_vals=col_vals.get("acc_w46"))
+        acc47 = _fmt(row.get("acc_w47"), all_vals=col_vals.get("acc_w47"))
         aurc  = _fmt(row.get("aurc"),    all_vals=col_vals.get("aurc"))
 
         if m == "tta_tc":

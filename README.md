@@ -2,7 +2,7 @@
 
 Encrypted traffic classifiers degrade over time due to concept drift. We discover that this degradation follows a systematic **absorber-collapse pattern**: a few dominant classes absorb predictions from victim classes, causing them to collapse to near-zero recall.
 
-We propose **CARE**, a targeted repair framework that detects collapse candidates without labels and repairs them with 1,000 target labels via margin selection, source replay, and knowledge distillation.
+We propose **CARE**, a targeted repair framework that detects collapse candidates without labels and repairs them with 1,000 target labels plus source-period replay samples via margin selection, head-only fine-tuning, and knowledge distillation.
 
 ## Key Results (CESNET-TLS-Year22, M-2022-12)
 
@@ -70,8 +70,18 @@ python scripts/eval_baselines_with_groups.py \
     --output-dir outputs/baselines_group_metrics_M12
 ```
 
-### Run CARE repair
+### Run CARE repair (autonomous pipeline — recommended)
 ```bash
+# End-to-end autonomous pipeline: unsupervised detection → margin repair
+# No oracle class lists needed; uses M-2022-3 train data for replay
+bash scripts/run_unsupervised_care_pipeline.sh \
+    --checkpoint outputs/tls22_cnn/best_model.pt \
+    --target-period M-2022-12
+```
+
+### Run CARE repair (diagnostic/oracle mode)
+```bash
+# Uses hardcoded oracle collapse/absorber class lists — for ablation only
 python scripts/collapse_active_maintenance_tls22.py \
     --config configs/eval_tls22.yaml \
     --checkpoint outputs/tls22_cnn/best_model.pt \

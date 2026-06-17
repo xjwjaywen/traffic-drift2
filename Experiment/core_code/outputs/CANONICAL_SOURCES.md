@@ -8,11 +8,11 @@ All paths relative to `Experiment/core_code/`.
 | Paper Table | Label | Source | Collapse Set | Seeds |
 |---|---|---|---|---|
 | Tab 1 (Absorber pairs) | `absorber_pairs` | `outputs/per_class_collapse_tls22_monthly/collapse_classes.csv` | 12 (support≥50) | — |
-| Tab 2 (TTA baselines GN) | `tta_baselines` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period (M7: 2, M9: 8, M12: 11 classes) | 1 (TTA) / 3 (CARE) |
+| Tab 2 (TTA baselines GN) | `tta_baselines` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period (M7: 2, M9: 7, M12: 10 classes) | 1 (TTA) / 3 (CARE) |
 | Tab 3 (TTA baselines BN) | `bn_tta` | `outputs/care_bn_strict/aggregated_mean_std.csv` + `outputs/bn_tta_baselines_M12/` | 12 (support≥50) | 3 (CARE) |
 | Tab 4 (Detection ablation) | `unsup_detect` | `outputs/detection_ablation/ablation_summary.json` | 14 (support>0) | — |
 | Tab 5 (Main results) | `main_results` | TTA: `outputs/baselines_group_metrics_M12/`; FT-Head/FT+Replay: `outputs/ablation_strict/{ft_only,ft_replay}/`; Active: `outputs/al_baselines_strict/aggregated_mean_std.csv`; BADGE: `outputs/badge_5seeds_strict/aggregated_mean_std.csv`; Oracle Margin: `outputs/care_5seeds_strict_cnn/` (margin); **Autonomous Margin: `outputs/autonomous_5seeds_strict/care/aggregated_mean_std.csv`** | 12 (support≥50) | 5 |
-| Tab 6 (Per-class recovery) | `per_class` | `outputs/care_5seeds_strict_cnn/seed_0/per_collapse_class_m12.csv` | 12 (support≥50) | seed 0 |
+| Tab 6 (Per-class recovery) | `per_class` | `outputs/care_seed_0/per_collapse_class_m12.csv` (non-strict, absorber_margin@1000, oracle) | 12 (support≥50) | seed 0 |
 | Tab 7 (Ablation) | `ablation` | `outputs/ablation_strict/{ft_only,ft_replay,full_care}/aggregated_mean_std.csv` | 12 (support≥50) | 5 |
 | Tab 8 (Auto absorber) | `auto_absorber` | Oracle: `outputs/care_5seeds_strict_cnn/` (absorber_margin); Auto: `outputs/care_auto_absorber_m11_to_m12/`; Margin: `outputs/care_5seeds_strict_cnn/` (margin) | 12 (support≥50) | 5 |
 | Tab 9 (Multi-period) | `multiperiod` | `outputs/care_multiperiod/{M_2022_7,M_2022_9,M_2022_11,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period | 3 |

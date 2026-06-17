@@ -50,10 +50,18 @@ class MetricsTracker:
         self.period_metrics[period_name] = metrics
         return metrics
 
+    @staticmethod
+    def _period_sort_key(name):
+        """Sort period names by numeric suffix (e.g. M-2022-4 < M-2022-10)."""
+        import re
+        nums = re.findall(r'\d+', name)
+        return tuple(int(n) for n in nums) if nums else (name,)
+
     def compute_aurc(self):
         """Compute Area Under Retention Curve."""
         arrs = []
-        for name, m in sorted(self.period_metrics.items()):
+        for name, m in sorted(self.period_metrics.items(),
+                              key=lambda x: self._period_sort_key(x[0])):
             if m["arr"] is not None:
                 arrs.append(m["arr"])
         if not arrs:

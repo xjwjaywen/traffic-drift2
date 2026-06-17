@@ -111,8 +111,16 @@ def fig_strategy_comparison(output_dir):
         strategies[s]["macro_std"].append(float(r.get("strict_overall_macro_f1_std", 0)))
         strategies[s]["collapse_std"].append(float(r.get("strict_bad_macro_f1_std", 0)))
 
+    # Read static baseline from data instead of hardcoding
     static_macro = 0.629
     static_collapse = 0.028
+    for r in rows:
+        if r.get("method") == "static" or r.get("strategy") == "":
+            static_macro = float(r.get("strict_overall_macro_f1_mean",
+                                       r.get("strict_overall_macro_f1", static_macro)))
+            static_collapse = float(r.get("strict_bad_macro_f1_mean",
+                                          r.get("strict_bad_macro_f1", static_collapse)))
+            break
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -186,6 +194,14 @@ def fig_budget_sweep(output_dir):
 
     rows = read_csv(path)
     static_macro = 0.629
+    static_collapse = 0.028
+    for r in rows:
+        if r.get("method") == "static" or r.get("strategy") == "":
+            static_macro = float(r.get("strict_overall_macro_f1_mean",
+                                       r.get("strict_overall_macro_f1", static_macro)))
+            static_collapse = float(r.get("strict_bad_macro_f1_mean",
+                                          r.get("strict_bad_macro_f1", static_collapse)))
+            break
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -209,7 +225,7 @@ def fig_budget_sweep(output_dir):
                      label=strategy, capsize=3, linewidth=1.5)
 
     ax1.axhline(y=static_macro, color="gray", linestyle="--", alpha=0.6, label="Static")
-    ax2.axhline(y=0.028, color="gray", linestyle="--", alpha=0.6, label="Static")
+    ax2.axhline(y=static_collapse, color="gray", linestyle="--", alpha=0.6, label="Static")
     for ax, ylabel, title in [
         (ax1, "Overall Macro-F1", "Label Efficiency: Macro-F1"),
         (ax2, "Collapse-Class F1", "Label Efficiency: Collapse Recovery"),
