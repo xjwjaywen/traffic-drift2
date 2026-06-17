@@ -19,7 +19,7 @@ All 5 evaluated TTA methods (Tent, EATA, SAR, CoTTA, NOTE) completely fail on cl
 ```
 ├── Publication/              # Paper draft and figures
 │   ├── paper/main_v2.tex     # LaTeX source (CARE paper, latest)
-│   └── figures/              # 6 publication-quality figures
+│   └── figures/              # 5 publication figures
 │
 ├── Experiment/core_code/     # Main experiment codebase
 │   ├── train.py              # Model training (joint CLS + SSL)
