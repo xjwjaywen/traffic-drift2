@@ -446,8 +446,8 @@ CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
 \multicolumn{5}{l}{\textit{Supervised with 1{,}000 labels (partial \ours{} components):}} \\
-FT-Head$^a$     & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
-FT+Replay$^b$   & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
+FT-Head$^a$     & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
+FT+Replay$^b$   & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
 \midrule
 \multicolumn{5}{l}{\textit{Active selection with 1{,}000 labels + \ours{} components:}} \\
 Entropy         & .600$\pm$.004 & .073$\pm$.013 & .882 & 9.8 \\
@@ -511,8 +511,8 @@ All ablations use margin selection with budget $B=1000$ and strict evaluation (5
 Configuration & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 \midrule
 Static (no repair)      & .629 & .028 & \textbf{.903} & 12 \\
-FT only                 & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
-FT + Replay             & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
+FT only                 & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
+FT + Replay             & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
 \midrule
 \textbf{\ours{} (Full)} & \textbf{.673$\pm$.001} & \textbf{.232$\pm$.003} & .885 & \textbf{5.4} \\
 \bottomrule
@@ -521,8 +521,8 @@ FT + Replay             & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
 
 Key findings:
 \begin{itemize}
-  \item \textbf{FT only}: Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.838), demonstrating that targeted labels alone cause catastrophic forgetting.
-  \item \textbf{FT + Replay}: Adding 150 replay samples (5 per class from 30 stable/absorber classes) improves collapse repair (.134$\to$.224) but does not protect stable classes (.840). Replay alone is too small to anchor 178-class decision boundaries.
+  \item \textbf{FT only}: Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.839), demonstrating that targeted labels alone cause catastrophic forgetting.
+  \item \textbf{FT + Replay}: Adding 150 replay samples (5 per class from 30 stable/absorber classes) improves collapse repair (.134$\to$.223) but does not protect stable classes (.839). Replay alone is too small to anchor 178-class decision boundaries.
   \item \textbf{Full \ours{}}: Adding KL distillation on replay samples recovers stable-class F1 to .885 (close to Static's .903) while maintaining collapse repair at .232---the only configuration that simultaneously improves collapse F1 and preserves stable F1 above 0.88. Distillation requires reference features as KL targets and thus cannot be cleanly isolated from replay; the jump from FT+Replay (.620 macro) to Full CARE (.673 macro) reflects the combined effect of distillation regularization plus increased target repeat (2$\times$ vs.\ 1$\times$ in FT+Replay would dilute replay further).
 \end{itemize}
 
@@ -719,7 +719,7 @@ Repair is triggered only when confidence monitoring detects drift (\S\ref{sec:tr
 
 \textbf{Stable-class trade-off.}
 Stable-class F1 decreases from 0.903 to 0.885 ($-$2.0\%).
-The ablation shows each component's contribution: without replay and distillation, degradation is severe (0.838); adding distillation alone recovers most stability (0.887). The full method limits degradation to 2.0\%, an acceptable trade-off for recovering 7 collapsed classes.
+The ablation shows each component's contribution: without replay and distillation, degradation is severe (0.839); with the full method, stable F1 recovers to 0.885, limiting degradation to 2.0\%---an acceptable trade-off for recovering 7 collapsed classes.
 
 \textbf{Deployability.}
 \ours{} is designed for fully autonomous deployment:
