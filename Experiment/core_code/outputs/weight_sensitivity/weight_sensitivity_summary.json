@@ -1,0 +1,40 @@
+{
+  "reference_period": "M-2022-4",
+  "target_period": "M-2022-12",
+  "n_configs": 31,
+  "n_actual_collapsed": 14,
+  "actual_collapsed": [
+    10,
+    26,
+    38,
+    47,
+    48,
+    56,
+    58,
+    66,
+    69,
+    104,
+    109,
+    121,
+    163,
+    174
+  ],
+  "default_weights": [
+    0.4,
+    0.2,
+    0.15,
+    0.15,
+    0.1
+  ],
+  "default_f1": 0.7059,
+  "perturbation_f1_mean": 0.6706,
+  "perturbation_f1_std": 0.0288,
+  "perturbation_f1_min": 0.6471,
+  "perturbation_f1_max": 0.7059,
+  "dirichlet_f1_mean": 0.6177,
+  "dirichlet_f1_std": 0.0822,
+  "dirichlet_f1_min": 0.4706,
+  "dirichlet_f1_max": 0.7059,
+  "overall_f1_mean": 0.6376,
+  "overall_f1_std": 0.0734
+}

@@ -1,0 +1,105 @@
+{
+  "val_period": "M-2022-4",
+  "target_period": "M-2022-12",
+  "num_classes": 178,
+  "optimal_temperature": 1.108434,
+  "val_nll_T1": 0.363469,
+  "val_nll_Tstar": 0.360467,
+  "predictions_changed": 0,
+  "total_samples": 1323229,
+  "before": {
+    "overall_accuracy": 0.7519,
+    "overall_macro_f1": 0.6286,
+    "collapse_macro_f1": 0.0312,
+    "collapse_support": 27326,
+    "stable_macro_f1": 0.9426,
+    "stable_support": 144172,
+    "collapsed_count": 12,
+    "total_collapse_classes": 12
+  },
+  "after": {
+    "overall_accuracy": 0.7519,
+    "overall_macro_f1": 0.6286,
+    "collapse_macro_f1": 0.0312,
+    "collapse_support": 27326,
+    "stable_macro_f1": 0.9426,
+    "stable_support": 144172,
+    "collapsed_count": 12,
+    "total_collapse_classes": 12
+  },
+  "collapse_recall_comparison": {
+    "56": {
+      "before": 0.0004,
+      "after": 0.0004,
+      "delta": 0.0,
+      "support": 12137
+    },
+    "163": {
+      "before": 0.0155,
+      "after": 0.0155,
+      "delta": 0.0,
+      "support": 1741
+    },
+    "174": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0,
+      "support": 1507
+    },
+    "48": {
+      "before": 0.0009,
+      "after": 0.0009,
+      "delta": 0.0,
+      "support": 3361
+    },
+    "38": {
+      "before": 0.0518,
+      "after": 0.0518,
+      "delta": 0.0,
+      "support": 193
+    },
+    "69": {
+      "before": 0.0048,
+      "after": 0.0048,
+      "delta": 0.0,
+      "support": 1866
+    },
+    "104": {
+      "before": 0.0097,
+      "after": 0.0097,
+      "delta": 0.0,
+      "support": 1744
+    },
+    "47": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0,
+      "support": 618
+    },
+    "66": {
+      "before": 0.001,
+      "after": 0.001,
+      "delta": 0.0,
+      "support": 1955
+    },
+    "10": {
+      "before": 0.0976,
+      "after": 0.0976,
+      "delta": 0.0,
+      "support": 1004
+    },
+    "109": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0,
+      "support": 393
+    },
+    "26": {
+      "before": 0.0223,
+      "after": 0.0223,
+      "delta": 0.0,
+      "support": 807
+    }
+  },
+  "note": "Temperature scaling preserves argmax ordering (monotone transform), so predictions are nearly identical. This confirms calibration alone cannot address concept drift / class collapse."
+}

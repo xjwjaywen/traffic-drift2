@@ -1,0 +1,183 @@
+{
+  "care_dir": "outputs/care_5seeds_strict_cnn",
+  "badge_dir": "outputs/badge_5seeds_strict",
+  "budget": 1000,
+  "num_seeds": 5,
+  "tests": [
+    {
+      "comparison": "margin vs random",
+      "metric": "Macro-F1 (overall)",
+      "n_paired": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "margin_values": [
+        0.6737405244167833,
+        0.6724058228049549,
+        0.6722509663812788,
+        0.6746710918202905,
+        0.6715656284436176
+      ],
+      "random_values": [
+        0.6607905474320845,
+        0.6605596169029705,
+        0.6598469681189771,
+        0.6502917150283682,
+        0.6499137530574504
+      ],
+      "margin_mean": 0.672927,
+      "random_mean": 0.656281,
+      "mean_diff": 0.016646,
+      "std_diff": 0.005907,
+      "paired_ttest": {
+        "t_statistic": 6.301681,
+        "p_value": 0.003241,
+        "significant_005": true,
+        "significant_001": true
+      },
+      "wilcoxon": {
+        "W_statistic": 0.0,
+        "p_value": 0.0625,
+        "significant_005": false,
+        "significant_001": false
+      }
+    },
+    {
+      "comparison": "margin vs random",
+      "metric": "Collapse-F1",
+      "n_paired": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "margin_values": [
+        0.23316257010548877,
+        0.2299972422620643,
+        0.22991154544620332,
+        0.2344653333425822,
+        0.2360051928102316
+      ],
+      "random_values": [
+        0.2148543375414842,
+        0.15753183389425773,
+        0.19715682078524777,
+        0.14760946777729692,
+        0.19883713101556952
+      ],
+      "margin_mean": 0.232708,
+      "random_mean": 0.183198,
+      "mean_diff": 0.04951,
+      "std_diff": 0.028846,
+      "paired_ttest": {
+        "t_statistic": 3.837975,
+        "p_value": 0.018492,
+        "significant_005": true,
+        "significant_001": false
+      },
+      "wilcoxon": {
+        "W_statistic": 0.0,
+        "p_value": 0.0625,
+        "significant_005": false,
+        "significant_001": false
+      }
+    },
+    {
+      "comparison": "margin vs badge",
+      "metric": "Macro-F1 (overall)",
+      "n_paired": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "margin_values": [
+        0.6737405244167833,
+        0.6724058228049549,
+        0.6722509663812788,
+        0.6746710918202905,
+        0.6715656284436176
+      ],
+      "badge_values": [
+        0.6785907543265767,
+        0.6976704021401506,
+        0.6903117267388857,
+        0.68643407084047,
+        0.6851174085736594
+      ],
+      "margin_mean": 0.672927,
+      "badge_mean": 0.687625,
+      "mean_diff": -0.014698,
+      "std_diff": 0.007581,
+      "paired_ttest": {
+        "t_statistic": -4.335472,
+        "p_value": 0.012297,
+        "significant_005": true,
+        "significant_001": false
+      },
+      "wilcoxon": {
+        "W_statistic": 0.0,
+        "p_value": 0.0625,
+        "significant_005": false,
+        "significant_001": false
+      }
+    },
+    {
+      "comparison": "margin vs badge",
+      "metric": "Collapse-F1",
+      "n_paired": 5,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "margin_values": [
+        0.23316257010548877,
+        0.2299972422620643,
+        0.22991154544620332,
+        0.2344653333425822,
+        0.2360051928102316
+      ],
+      "badge_values": [
+        0.2571327945743191,
+        0.32634150586853466,
+        0.3006165295122165,
+        0.36281169114817896,
+        0.34229964058505974
+      ],
+      "margin_mean": 0.232708,
+      "badge_mean": 0.31784,
+      "mean_diff": -0.085132,
+      "std_diff": 0.039969,
+      "paired_ttest": {
+        "t_statistic": -4.762769,
+        "p_value": 0.008887,
+        "significant_005": true,
+        "significant_001": true
+      },
+      "wilcoxon": {
+        "W_statistic": 0.0,
+        "p_value": 0.0625,
+        "significant_005": false,
+        "significant_001": false
+      }
+    }
+  ],
+  "interpretation": {
+    "p<0.05": "Statistically significant at 5% level",
+    "p<0.01": "Statistically significant at 1% level",
+    "paired_ttest": "Parametric test assuming normal distribution of differences",
+    "wilcoxon": "Non-parametric alternative; more conservative with small n",
+    "note": "With n=5 seeds, Wilcoxon's minimum possible p-value is 0.0625 (cannot reach 0.05), so the t-test is the primary significance measure for this sample size."
+  }
+}
