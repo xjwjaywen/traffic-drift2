@@ -1,6 +1,9 @@
 {
+  "config": "configs/eval_tls22.yaml",
+  "checkpoint": "outputs/tls22_cnn/best_model.pt",
   "reference_period": "M-2022-4",
   "target_period": "M-2022-12",
+  "min_samples": 10,
   "actual_collapsed": [
     10,
     26,
