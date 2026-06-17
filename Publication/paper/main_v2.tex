@@ -514,7 +514,7 @@ Static (no repair)      & .629 & .028 & \textbf{.903} & 12 \\
 FT only                 & .638$\pm$.001 & .134$\pm$.001 & .838 & 7.0 \\
 FT + Replay             & .620$\pm$.001 & .224$\pm$.002 & .840 & 5.0 \\
 \midrule
-\textbf{\ours{} (Full)} & \textbf{.673$\pm$.001} & \textbf{.232$\pm$.002} & .885 & \textbf{5.2} \\
+\textbf{\ours{} (Full)} & \textbf{.673$\pm$.001} & \textbf{.232$\pm$.003} & .885 & \textbf{5.4} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -638,12 +638,12 @@ Pipeline & Macro-F1 & Collapse F1 & Collapsed & Probe? \\
 \midrule
 Static & .629 & .028 & 12 & --- \\
 Labeled probe (5s) & .673$\pm$.001 & .233$\pm$.003 & 5.0 & Yes \\
-\textbf{Autonomous (3s)} & \textbf{.674$\pm$.001} & \textbf{.235$\pm$.003} & \textbf{5.7} & \textbf{No} \\
+\textbf{Autonomous (3s)} & \textbf{.674$\pm$.001} & \textbf{.235$\pm$.002} & \textbf{6.0} & \textbf{No} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-When evaluated on the same 12-class set, the autonomous pipeline achieves comparable performance to the labeled-probe version (collapse F1: 0.235 vs.\ 0.233, macro-F1: 0.674 vs.\ 0.673).
+When evaluated on the same 12-class set, the autonomous pipeline achieves comparable performance to the labeled-probe version (collapse F1: 0.235 vs.\ 0.233, macro-F1: 0.674 vs.\ 0.673), with all three seeds producing identical collapsed counts (6 classes).
 This confirms that unsupervised detection successfully identifies the relevant collapse region, and CARE's margin selection operates effectively without exact collapse-class knowledge.
 The practical benefit is clear: the autonomous pipeline eliminates the labeled probe period entirely, reducing the total labeling requirement to only 1{,}000 target samples per repair cycle.
 
