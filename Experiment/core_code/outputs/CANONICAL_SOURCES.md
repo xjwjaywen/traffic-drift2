@@ -8,7 +8,7 @@ All paths relative to `Experiment/core_code/`.
 | Paper Table | Label | Source | Collapse Set | Seeds |
 |---|---|---|---|---|
 | Tab 1 (Absorber pairs) | `absorber_pairs` | `outputs/per_class_collapse_tls22_monthly/collapse_classes.csv` | 12 (support≥50) | — |
-| Tab 2 (TTA baselines GN) | `tta_baselines` | M12: `outputs/baselines_group_metrics_M12/`; M7/M9 macro: `outputs/baselines_group_metrics_7/`; M7/M9 collapse + CARE: `outputs/care_multiperiod/`. **Note**: TTA collapse F1 at M7/M9 uses auto-discovered collapse sets (2/8 classes); needs `outputs/tta_multiperiod/` to fully reproduce (TODO) | Auto-discovered per period | 1 |
+| Tab 2 (TTA baselines GN) | `tta_baselines` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period (M7: 2, M9: 8, M12: 12 classes) | 1 (TTA) / 3 (CARE) |
 | Tab 3 (TTA baselines BN) | `bn_tta` | `outputs/care_bn_strict/aggregated_mean_std.csv` + `outputs/bn_tta_baselines_M12/` | 12 (support≥50) | 3 (CARE) |
 | Tab 4 (Detection ablation) | `unsup_detect` | `outputs/detection_ablation/ablation_summary.json` | 14 (support>0) | — |
 | Tab 5 (Main results) | `main_results` | TTA: `outputs/baselines_group_metrics_M12/`; FT-Head/FT+Replay: `outputs/ablation_strict/{ft_only,ft_replay}/`; Active: `outputs/al_baselines_strict/aggregated_mean_std.csv`; BADGE: `outputs/badge_5seeds_strict/aggregated_mean_std.csv` | 12 (support≥50) | 5 |

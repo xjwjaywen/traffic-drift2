@@ -304,18 +304,45 @@ def fig_ablation(output_dir):
 def fig_tta_failure(output_dir):
     """Line chart: macro-F1 across M7/M9/M11/M12 for Static vs TTA vs CARE.
 
-    Values from baselines_group_metrics CSVs and care_multiperiod aggregated CSVs.
+    Reads TTA data from tta_multiperiod/ and CARE from care_multiperiod/.
     """
     periods = ["M7", "M9", "M11", "M12"]
-    static_macro = [0.740, 0.691, 0.649, 0.629]
-    tent_macro =   [0.742, 0.691, 0.649, 0.631]
-    sar_macro =    [0.740, 0.690, 0.649, 0.629]
-    care_macro =   [0.750, 0.722, 0.689, 0.674]
+    period_keys = ["M_2022_7", "M_2022_9", "M_2022_11", "M_2022_12"]
+
+    def load_tta_series(method_name):
+        macro, coll = [], []
+        for p in periods:
+            csv_path = f"outputs/tta_multiperiod/{p}/baselines_group_metrics.csv"
+            if not os.path.exists(csv_path):
+                raise FileNotFoundError(f"{csv_path} not found — run TTA baselines for {p}")
+            for row in read_csv(csv_path):
+                if row["method"] == method_name:
+                    macro.append(float(row["overall_macro_f1"]))
+                    coll.append(float(row["collapse_macro_f1"]))
+                    break
+        return macro, coll
+
+    def load_care_series():
+        macro, coll = [], []
+        for pk in period_keys:
+            csv_path = f"outputs/care_multiperiod/{pk}/aggregated_mean_std.csv"
+            if not os.path.exists(csv_path):
+                raise FileNotFoundError(f"{csv_path} not found")
+            for row in read_csv(csv_path):
+                if row["strategy"] == "margin" and row["budget"] == "1000":
+                    macro.append(float(row["strict_overall_macro_f1_mean"]))
+                    coll.append(float(row["strict_bad_macro_f1_mean"]))
+                    break
+        return macro, coll
+
+    static_macro, static_coll = load_tta_series("Static")
+    tent_macro, tent_coll = load_tta_series("Tent")
+    sar_macro, sar_coll = load_tta_series("SAR")
+    care_macro, care_coll = load_care_series()
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     x = np.arange(len(periods))
 
-    # Left: Macro-F1
     ax1.plot(x, static_macro, "o--", color="gray", label="Static", alpha=0.8)
     ax1.plot(x, tent_macro, "s--", color="#90CAF9", label="Tent", alpha=0.6)
     ax1.plot(x, sar_macro, "^--", color="#CE93D8", label="SAR", alpha=0.6)
@@ -327,12 +354,6 @@ def fig_tta_failure(output_dir):
     ax1.legend(fontsize=9)
     ax1.grid(True, alpha=0.3)
     ax1.set_ylim(0.55, 0.80)
-
-    # Right: Collapse-class F1
-    static_coll = [0.023, 0.055, 0.017, 0.028]
-    tent_coll =   [0.025, 0.053, 0.017, 0.026]
-    sar_coll =    [0.024, 0.054, 0.017, 0.026]
-    care_coll =   [0.456, 0.159, 0.277, 0.238]
 
     ax2.plot(x, static_coll, "o--", color="gray", label="Static", alpha=0.8)
     ax2.plot(x, tent_coll, "s--", color="#90CAF9", label="Tent", alpha=0.6)
