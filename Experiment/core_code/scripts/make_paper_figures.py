@@ -404,7 +404,6 @@ def main():
     fig_budget_sweep(args.output_dir)
     fig_ablation(args.output_dir)
     fig_tta_failure(args.output_dir)
-    fig_per_class_recovery(args.output_dir)
 
 
 if __name__ == "__main__":

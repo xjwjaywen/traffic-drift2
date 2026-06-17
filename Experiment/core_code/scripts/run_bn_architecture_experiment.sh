@@ -19,16 +19,12 @@ echo ""
 echo "============================================"
 echo "=== Step 2: Evaluate TTA baselines on BN ==="
 echo "============================================"
-for METHOD in static bn_adapt tent eata sar cotta note; do
-    echo "--- ${METHOD} ---"
-    python scripts/eval_baselines_with_groups.py \
-        --config "${CONFIG_EVAL}" \
-        --checkpoint "${OUTPUT_MODEL}/best_model.pt" \
-        --test-period M-2022-12 \
-        --methods "${METHOD}" \
-        --output-dir "outputs/bn_tta_baselines_M12" \
-        2>/dev/null || echo "SKIP ${METHOD} (not supported or error)"
-done
+python scripts/eval_baselines_with_groups.py \
+    --config "${CONFIG_EVAL}" \
+    --checkpoint "${OUTPUT_MODEL}/best_model.pt" \
+    --test-period M-2022-12 \
+    --methods "static,bn_adapt,tent,eata,sar,cotta,note" \
+    --output-dir "outputs/bn_tta_baselines_M12"
 
 echo ""
 echo "============================================"
