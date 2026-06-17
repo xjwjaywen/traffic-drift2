@@ -470,7 +470,7 @@ Table~\ref{tab:per_class} illustrates per-class repair outcomes when oracle abso
 
 \begin{table}[t]
 \centering
-\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list, representative single run seed~0). This represents the diagnostic upper bound; the deployable margin strategy achieves aggregate collapse F1 of $0.233{\pm}0.003$ (5 seeds).}
+\caption{Per-class recovery at M-2022-12 (absorber-margin, $B$=1000, oracle absorber list, representative single run seed~0). This represents the diagnostic upper bound; the labeled-probe margin strategy achieves $0.233{\pm}0.003$ and the autonomous margin strategy achieves $0.236{\pm}0.003$ (both 5 seeds).}
 \label{tab:per_class}
 \small
 \begin{tabular}{@{}c cc cc l@{}}
@@ -720,8 +720,8 @@ In ISP deployment, labels can be obtained through DPI-based labeling on a monito
 Repair is triggered only when confidence monitoring detects drift (\S\ref{sec:trigger}), so labeling cost is incurred only when needed---not continuously.
 
 \textbf{Stable-class trade-off.}
-Stable-class F1 decreases from 0.903 to 0.885 ($-$2.0\%).
-The ablation shows each component's contribution: without replay and distillation, degradation is severe (0.839); with the full method, stable F1 recovers to 0.885, limiting degradation to 2.0\%---an acceptable trade-off for recovering 7 collapsed classes.
+Stable-class F1 decreases from 0.903 to 0.887 ($-$1.8\%) in the autonomous configuration.
+The ablation shows each component's contribution: without replay and distillation, degradation is severe (0.839); with the full method, stable F1 recovers to 0.885--0.887, limiting degradation to ${\leq}$2.0\%---an acceptable trade-off for recovering collapsed classes.
 
 \textbf{Deployability.}
 \ours{} is designed for fully autonomous deployment:

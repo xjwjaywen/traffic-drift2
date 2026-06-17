@@ -2,7 +2,7 @@
 
 Encrypted traffic classifiers degrade over time due to concept drift. We discover that this degradation follows a systematic **absorber-collapse pattern**: a few dominant classes absorb predictions from victim classes, causing them to collapse to near-zero recall.
 
-We propose **CARE**, a targeted repair framework that identifies absorber-victim pairs and repairs collapsed classes using minimal labeled samples + source replay + knowledge distillation.
+We propose **CARE**, a targeted repair framework that detects collapse candidates without labels and repairs them with 1,000 target labels via margin selection, source replay, and knowledge distillation.
 
 ## Key Results (CESNET-TLS-Year22, M-2022-12)
 

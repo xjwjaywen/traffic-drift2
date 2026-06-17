@@ -44,6 +44,7 @@ All `aggregated_mean_std.csv` use sample std (ddof=1) via `scripts/aggregate_see
 
 ## Superseded directories (not used in paper)
 
-- `autonomous_fixed12_eval/` — superseded by `autonomous_pipeline_final/`
+- `autonomous_fixed12_eval/` — superseded by `autonomous_5seeds_strict/`
+- `autonomous_pipeline_final/` — 3-seed version, superseded by `autonomous_5seeds_strict/`
 - `unsupervised_care_pipeline/` — uses detected (not fixed-12) eval set; superseded
 - `unsupervised_collapse_detection_v4/` — superseded by `detection_ablation/`

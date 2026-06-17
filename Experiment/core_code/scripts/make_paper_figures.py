@@ -374,39 +374,6 @@ def fig_tta_failure(output_dir):
     print("Saved fig_tta_failure.pdf")
 
 
-# ============================================================
-# Figure 6: Per-class recovery waterfall
-# ============================================================
-def fig_per_class_recovery(output_dir):
-    classes = [48, 56, 47, 104, 10, 38, 163, 66, 174, 26, 69, 109]
-    before = [0.001, 0.000, 0.000, 0.010, 0.098, 0.052, 0.015, 0.001, 0.000, 0.019, 0.005, 0.000]
-    after =  [0.913, 0.733, 0.699, 0.624, 0.623, 0.534, 0.455, 0.355, 0.274, 0.051, 0.000, 0.000]
-
-    fig, ax = plt.subplots(figsize=(8, 4))
-    x = np.arange(len(classes))
-    width = 0.35
-
-    ax.bar(x - width/2, before, width, label="Before (Static)",
-           color="#FFCDD2", edgecolor="#E53935", linewidth=0.8)
-    ax.bar(x + width/2, after, width, label="After (CARE)",
-           color="#C8E6C9", edgecolor="#43A047", linewidth=0.8)
-
-    ax.set_xticks(x)
-    ax.set_xticklabels([str(c) for c in classes], rotation=45)
-    ax.set_xlabel("Collapse Class ID")
-    ax.set_ylabel("Recall")
-    ax.set_title("Per-Class Recovery: Before vs. After CARE")
-    ax.legend()
-    ax.axhline(y=0.1, color="red", linestyle="--", alpha=0.4,
-               label="Collapse threshold")
-    ax.grid(True, alpha=0.2, axis="y")
-    fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "fig_per_class_recovery.pdf"),
-                bbox_inches="tight")
-    plt.close(fig)
-    print("Saved fig_per_class_recovery.pdf")
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", default="Publication/figures")
