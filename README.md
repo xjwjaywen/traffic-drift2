@@ -10,9 +10,10 @@ We propose **CARE**, a targeted repair framework that detects collapse candidate
 |--------|----------|-------------------|-------------------|
 | Static (no adaptation) | 0.629 | 0.028 | 12/178 |
 | SAR (best TTA) | 0.629 | 0.026 | 11/178 |
-| **CARE (ours, autonomous)** | **0.674±0.001** | **0.236±0.003** | **5.8/178** |
+| **CARE-BADGE (ours, best)** | **0.700±0.003** | **0.333±0.040** | **4.0/178** |
+| CARE-Margin (ours, lightweight) | 0.686±0.001 | 0.256±0.009 | 5.8/178 |
 
-All 5 evaluated TTA methods (Tent, EATA, SAR, CoTTA, NOTE) completely fail on class collapse (F1 < 0.03). Standard AL methods (entropy, coreset) also fail; BADGE achieves 0.318±0.041 collapse F1 but with higher variance than margin.
+All 5 TTA methods fail on class collapse (F1 < 0.03). CARE is a framework: BADGE is the strongest selector (~20min); margin is the low-latency alternative (<1s). Both use all-class replay with 1,000 target labels.
 
 ## Repository Structure
 

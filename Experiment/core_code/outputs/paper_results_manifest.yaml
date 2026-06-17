@@ -80,7 +80,42 @@ tables:
       bash scripts/run_al_baselines.sh            # Entropy, Coreset, Random
       bash scripts/run_badge_5seeds.sh            # BADGE
       bash scripts/run_unsupervised_care_pipeline.sh  # Autonomous pipeline
-    notes: "Strict eval: queried samples excluded from test set. Autonomous row (starred) is the recommended deployment config. BADGE achieves highest collapse F1 (0.318) but margin has lower variance (sigma_macro=0.001 vs 0.007)."
+    notes: "Strict eval: queried samples excluded. Bold = best per column. With all-class replay, BADGE reaches 0.700 and margin 0.686 (Table detect_necessity / framework configs in Discussion)."
+
+  table_p1_autonomous_allreplay:
+    description: "Autonomous + all-class replay canonical result (margin, B=1000, 5 seeds)"
+    source_file: "autonomous_allreplay_5seeds/care/aggregated_mean_std.csv"
+    collapse_set: "12 classes (fixed eval set)"
+    seeds: 5
+    regeneration_command: "bash scripts/run_primary_experiments.sh p1"
+    notes: "Canonical all-class replay result: macro 0.686±0.001, collapse 0.256±0.009."
+
+  table_p4_badge_allreplay:
+    description: "BADGE + all-class replay (B=1000, 5 seeds) — strongest framework config"
+    source_file: "badge_allreplay_5seeds/aggregated_mean_std.csv"
+    collapse_set: "12 classes (fixed eval set)"
+    seeds: 5
+    regeneration_command: "bash scripts/run_primary_experiments.sh p4"
+    notes: "Headline result: macro 0.700±0.003, collapse 0.333±0.040."
+
+  table_trigger_eval:
+    description: "Detection trigger evaluation across M7/M9/M11/M12"
+    source_file:
+      - "detection_trigger_eval/M7/detection_summary.json"
+      - "detection_trigger_eval/M9/detection_summary.json"
+      - "detection_trigger_eval/M11/detection_summary.json"
+      - "detection_trigger_eval/M12/detection_summary.json"
+    regeneration_command: "bash scripts/run_primary_experiments.sh p2"
+    notes: "Recall ≥0.857 at all periods. Precision increases with drift severity (0.30→0.60)."
+
+  table_fair_replay:
+    description: "Fair replay budget ablation (matched ~900 samples)"
+    source_file:
+      - "fair_replay_budget/all_k5/aggregated_mean_std.csv"
+      - "fair_replay_budget/detected_k30/aggregated_mean_std.csv"
+      - "fair_replay_budget/all_k1/aggregated_mean_std.csv"
+    regeneration_command: "bash scripts/run_primary_experiments.sh p3"
+    notes: "All-class (0.686) > detected-class at matched budget (0.678). Advantage is class coverage, not volume."
 
   table_6:  # \label{tab:per_class}
     description: "Per-class recovery at M-2022-12 (absorber-margin, B=1000, oracle absorber list, seed 0, non-strict eval)"

@@ -686,14 +686,14 @@ Random class subset & .673$\pm$.002 & .238$\pm$.009 & .885$\pm$.004 & 150 \\
 \midrule
 \multicolumn{5}{l}{\textit{Fair budget comparison (${\approx}$900 replay samples):}} \\
 All classes ($178{\times}5$) & .686$\pm$.001 & .256$\pm$.009 & .892$\pm$.003 & 890 \\
-Detected classes (${\sim}30{\times}30$) & .678$\pm$.001 & .243$\pm$.003 & .883$\pm$.003 & $\sim$900 \\
+Targeted classes (${\sim}30{\times}30$) & .678$\pm$.001 & .243$\pm$.003 & .883$\pm$.003 & $\sim$900 \\
 All classes ($178{\times}1$) & .680$\pm$.003 & .231$\pm$.015 & .883$\pm$.003 & 178 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Replaying from \textit{all} 178 classes yields the best results (macro-F1: 0.686 vs.\ 0.674 for detected).
-To rule out the confound that all-class replay simply uses more samples (890 vs.\ 150), we match the total replay budget: detected-class with $k{=}30$ ($\approx$900 samples) achieves only 0.678, while all-class with $k{=}1$ (178 samples, \textit{fewer} than the original 150) achieves 0.680.
+To rule out the confound that all-class replay simply uses more samples (890 vs.\ 150), we match the total replay budget: targeted-class replay (stable+absorber classes) with $k{=}30$ ($\approx$900 samples) achieves only 0.678, while all-class with $k{=}1$ (178 samples, comparable to the original 150) achieves 0.680.
 This confirms that the advantage comes from \textit{class coverage breadth}, not replay volume.
 The detection module's primary value is therefore \textit{not} in guiding replay class selection---all-class replay is strictly better---but rather in two deployment-critical roles: (1)~unsupervised monitoring that identifies \textit{which} classes are degrading, enabling targeted human investigation, and (2)~providing the deployment trigger that determines \textit{when} repair should be activated (\S\ref{sec:discussion}).
 Based on this finding, we recommend all-class replay as the default repair configuration.
