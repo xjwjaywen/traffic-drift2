@@ -73,10 +73,14 @@ python scripts/eval_baselines_with_groups.py \
 ### Run CARE repair (autonomous pipeline — recommended)
 ```bash
 # End-to-end autonomous pipeline: unsupervised detection → margin repair
-# No oracle class lists needed; uses M-2022-3 train data for replay
+# No oracle class lists needed
+# Args: <config> <checkpoint> <ref_period> <tgt_period> <output_dir> [num_seeds]
 bash scripts/run_unsupervised_care_pipeline.sh \
-    --checkpoint outputs/tls22_cnn/best_model.pt \
-    --target-period M-2022-12
+    configs/eval_tls22.yaml \
+    outputs/tls22_cnn/best_model.pt \
+    M-2022-4 \
+    M-2022-12 \
+    outputs/autonomous_care_M12
 ```
 
 ### Run CARE repair (diagnostic/oracle mode)

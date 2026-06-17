@@ -83,12 +83,18 @@ tables:
     notes: "Strict eval: queried samples excluded from test set. Autonomous row (starred) is the recommended deployment config. BADGE achieves highest collapse F1 (0.318) but margin has lower variance (sigma_macro=0.001 vs 0.007)."
 
   table_6:  # \label{tab:per_class}
-    description: "Per-class recovery at M-2022-12 (absorber-margin, B=1000, oracle absorber list, seed 0)"
-    source_file: "care_5seeds_strict_cnn/seed_0/per_collapse_class_m12.csv"
+    description: "Per-class recovery at M-2022-12 (absorber-margin, B=1000, oracle absorber list, seed 0, non-strict eval)"
+    source_file: "care_seed_0/per_collapse_class_m12.csv"
     collapse_set: "12 classes (support >= 50)"
-    seeds: "seed 0 only (diagnostic single-run)"
-    regeneration_command: "bash scripts/run_5seeds_strict.sh"
-    notes: "Represents diagnostic upper bound with oracle absorber knowledge. 9/12 classes recover above 0.1 recall. Three failures (26, 69, 109) have features fully merged with absorber in encoder space."
+    seeds: "seed 0 only (diagnostic single-run, non-strict)"
+    regeneration_command: |
+      python scripts/collapse_active_maintenance_tls22.py \
+        --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
+        --reference-period M-2022-4 --target-period M-2022-12 \
+        --strategies absorber_margin --budgets 1000 \
+        --replay-mode all --replay-per-class 5 --target-repeat 2 \
+        --replay-distill-weight 0.5 --seed 0 --output-dir outputs/care_seed_0
+    notes: "Non-strict evaluation (queried samples included) for diagnostic upper bound with oracle absorber knowledge. 9/12 classes recover above 0.1 recall. Three failures (26, 69, 109) have features fully merged with absorber in encoder space."
 
   table_7:  # \label{tab:ablation}
     description: "Compound ablation at M-2022-12 (margin, B=1000, strict eval, 5 seeds): Static vs FT-only vs FT+Replay vs Full CARE"
@@ -237,12 +243,55 @@ figures:
     regeneration_command: "python scripts/make_paper_figures.py --figure strategy_comparison"
     notes: "Margin consistently outperforms entropy and coreset, which fall below Static baseline. Strict evaluation."
 
+  fig_6:  # \label{fig:tsne}
+    description: "t-SNE visualization of 4 absorber-victim pairs at M-2022-12"
+    output_file: "Experiment/core_code/outputs/visualizations/fig_tsne_multi_pair_m12.pdf"
+    source_file: "visualizations/"
+    regeneration_command: |
+      python scripts/generate_visualizations.py \
+        --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
+        --output-dir outputs/visualizations
+    notes: "Shows feature-drift (cluster merging) vs boundary-shift (separation preserved but decision boundary crossed)."
+
   fig_5:  # \label{fig:budget_sweep}
     description: "Label efficiency curve with error bars (5 seeds): macro-F1 as a function of label budget B"
     output_file: "Publication/figures/fig_budget_sweep.pdf"
     source_file: "care_5seeds_strict_cnn/aggregated_mean_std.csv"
     regeneration_command: "python scripts/make_paper_figures.py --figure budget_sweep"
     notes: "200 labels already improve macro to 0.637; 1000 labels reach 0.673 +/- 0.001 with diminishing returns beyond."
+
+  discussion_replay_source:
+    description: "Replay source comparison (inline in Discussion): M3 vs M4 vs no-replay"
+    source_file:
+      - "replay_source_comparison/m3/aggregated_mean_std.csv"
+      - "replay_source_comparison/m4/aggregated_mean_std.csv"
+      - "replay_source_comparison/none/aggregated_mean_std.csv"
+    regeneration_command: "bash scripts/run_replay_source_comparison.sh"
+    notes: "M3 replay (0.672) ≈ M4 replay (0.673), no-replay = 0.638. Confirms replay can use training data at zero additional labeling cost."
+
+  discussion_weight_sensitivity:
+    description: "Detection weight sensitivity (inline in Discussion): 31 configs"
+    source_file: "weight_sensitivity/weight_sensitivity_summary.json"
+    regeneration_command: |
+      python scripts/run_weight_sensitivity.py \
+        --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
+        --output-dir outputs/weight_sensitivity
+    notes: "Perturbation F1: 0.647-0.706 (std=0.029). Dirichlet F1: 0.471-0.706 (mean=0.618)."
+
+  discussion_calibration_baseline:
+    description: "Temperature scaling baseline (inline in Discussion)"
+    source_file: "calibration_baseline/calibration_results.json"
+    regeneration_command: |
+      python scripts/run_calibration_baseline.py \
+        --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
+        --output-dir outputs/calibration_baseline
+    notes: "T*=1.11, changes 0/1.32M predictions. Confirms collapse is confident misprediction, not miscalibration."
+
+  discussion_significance_tests:
+    description: "Statistical significance tests (inline in Discussion)"
+    source_file: "significance_tests/significance_tests.json"
+    regeneration_command: "python scripts/run_significance_tests.py --output-dir outputs/significance_tests"
+    notes: "margin>random (macro p=0.003, collapse p=0.019); BADGE>margin (macro p=0.012, collapse p=0.009)."
 
 # Collapse set definitions used throughout
 collapse_sets:

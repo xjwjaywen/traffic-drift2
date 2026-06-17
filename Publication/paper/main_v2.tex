@@ -155,7 +155,10 @@ Our experiments show that standard active learning strategies (entropy, coreset)
 We use the CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, which contains 507.7M TLS flows across 12 months of 2022 from a university network.
 We use the \texttt{size=S} split provided by the CESNET DataZoo API, yielding approximately 330K test samples per monthly period across 178 application classes.
 Each flow is represented by Per-Packet Information (PPI): packet sizes, directions, and inter-packet times for the first 30 packets.
-We train a CNN classifier (3-layer 1D convolution with GroupNorm, 256-dim hidden layer, 178 classes) on March 2022 alone (M3) and evaluate on M4--M12, giving a minimum time gap of one month and maximum of nine months.
+We train a CNN classifier (3-layer 1D convolution with GroupNorm, 8 groups, 256-dim hidden layer, 178 classes) on March 2022 alone (M3) and evaluate on M4--M12, giving a minimum time gap of one month and maximum of nine months.
+Training uses a joint classification + self-supervised objective: cross-entropy loss plus three auxiliary SSL tasks (masked packet feature prediction, packet order prediction, and flow statistics reconstruction) with SSL weight 1.0, mask ratio 0.15, and auxiliary loss weights $\alpha{=}0.2$, $\beta{=}0.1$.
+The SSL tasks improve encoder generalization but are not used during CARE repair (which freezes the encoder and updates only the classification head).
+Training runs for 30 epochs with AdamW (lr=$10^{-3}$, weight decay=$10^{-4}$), batch size 1024, and 20\% validation split.
 
 \subsection{The Absorber-Collapse Pattern}
 \label{sec:absorber}
@@ -463,13 +466,14 @@ FT+Replay$^b$   & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
 Entropy         & .600$\pm$.004 & .073$\pm$.013 & .882 & 9.8 \\
 Coreset         & .618$\pm$.008 & .108$\pm$.037 & .878 & 9.2 \\
 Random          & .656$\pm$.006 & .183$\pm$.031 & .890 & 8.0 \\
-BADGE~\cite{ash2020badge}  & .688$\pm$.007 & .318$\pm$.041 & .889 & 4.4 \\
+BADGE~\cite{ash2020badge}  & \textbf{.688$\pm$.007} & \textbf{.318$\pm$.041} & .889 & \textbf{4.4} \\
 \ours{}-Margin$^c$ & .673$\pm$.001 & .233$\pm$.003 & .884 & 5.0 \\
-\textbf{\ours{}-Margin}$^{d\star}$ & \textbf{.674$\pm$.001} & .236$\pm$.003 & .887 & 5.8 \\
+\ours{}-Margin$^{d\star}$ & .674$\pm$.001 & .236$\pm$.003 & .887 & 5.8 \\
 \bottomrule
 \multicolumn{5}{l}{\footnotesize $^a$Head-only FT, no replay/distillation; $^b$Head FT + replay, no distillation.}\\
 \multicolumn{5}{l}{\footnotesize $^c$Oracle collapse/absorber list; $^d$Fully autonomous (unsupervised detection, no oracle info).}\\
-\multicolumn{5}{l}{\footnotesize $^\star$Recommended deployment config: no oracle info, $<$1s compute, $\sigma_{\text{macro}}{=}.001$.}
+\multicolumn{5}{l}{\footnotesize $^\star$Recommended deployment config: no oracle info, $<$1s compute, $\sigma_{\text{macro}}{=}.001$.}\\
+\multicolumn{5}{l}{\footnotesize Bold = best score per column among active methods. BADGE is strongest; Margin$^\star$ is lightweight.}
 \end{tabular}
 \end{table}
 
