@@ -308,10 +308,12 @@ def main():
                           key=lambda x: x.get("collapse_score", 0), reverse=True)
     for r in valid_scored[:15]:
         is_actual = "← COLLAPSED" if r["class"] in actual_set else ""
-        md = r.get('margin_drop', 0) or 0
-        cd = r.get('conf_drop', 0) or 0
+        md = r.get('margin_drop') or 0
+        cd = r.get('conf_drop') or 0
+        cr = r.get('count_ratio') or 0
+        fd = r.get('fd') or 0
         print(f"  class {r['class']:3d}: score={r.get('collapse_score', 0):.3f}, "
-              f"cnt={r['count_ratio']:.2f}, FD={r['fd']:6.1f}, "
+              f"cnt={cr:.2f}, FD={fd:6.1f}, "
               f"margin_drop={md:+.2f}, conf_drop={cd:+.3f} {is_actual}")
 
     # Save results
