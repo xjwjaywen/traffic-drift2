@@ -318,7 +318,7 @@ These weights were set based on signal informativeness (count drop is the strong
 Classes with $s_c$ above a threshold (or with near-zero target predictions) are flagged as collapse candidates.
 
 On CESNET-TLS-Year22 (M4$\to$M12), this detects 12 of 14 collapsed classes with precision 0.60, recall 0.86, and F1 0.71---\textit{without using any labels} (Table~\ref{tab:unsup_detect}).
-Here, 14 denotes all classes with recall $<0.1$ regardless of support; the 12-class evaluation set used elsewhere (\S\ref{sec:experiments}) applies a minimum support threshold ($\geq$50 samples) to ensure stable metrics, excluding two low-support classes (15--16 samples each).
+Here, 14 denotes all classes with recall $<0.1$ and support $>0$ (no minimum-support filtering); the 12-class evaluation set used elsewhere (\S\ref{sec:experiments}) applies a minimum support threshold ($\geq$50 samples) to ensure stable metrics, excluding two low-support classes (15--16 samples each).
 The ablation shows that count drop and Frechet Distance provide the primary detection signal (F1 0.59); adding margin and confidence alone does not improve detection, but entropy rise contributes a complementary signal that lifts recall from 0.71 to 0.86.
 
 \begin{table}[t]

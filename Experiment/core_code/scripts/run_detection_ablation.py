@@ -147,8 +147,11 @@ def main():
             json.dump(result, f, indent=2)
 
     summary = {
+        "config": args.config,
+        "checkpoint": args.checkpoint,
         "reference_period": args.reference_period,
         "target_period": args.target_period,
+        "min_samples": args.min_samples,
         "actual_collapsed": actual_collapsed,
         "top_k": args.top_k,
         "score_threshold": args.score_threshold,
