@@ -10,9 +10,9 @@ We propose **CARE**, a targeted repair framework that identifies absorber-victim
 |--------|----------|-------------------|-------------------|
 | Static (no adaptation) | 0.629 | 0.028 | 12/178 |
 | SAR (best TTA) | 0.629 | 0.026 | 11/178 |
-| **CARE (ours)** | **0.673±0.001** | **0.233±0.002** | **5/178** |
+| **CARE (ours)** | **0.673±0.001** | **0.233±0.003** | **5/178** |
 
-All 5 evaluated TTA methods (Tent, EATA, SAR, CoTTA, NOTE) completely fail on class collapse (F1 < 0.03). Standard AL methods (entropy, coreset) also fail; BADGE achieves 0.318±0.037 collapse F1 but with 6× higher variance than margin.
+All 5 evaluated TTA methods (Tent, EATA, SAR, CoTTA, NOTE) completely fail on class collapse (F1 < 0.03). Standard AL methods (entropy, coreset) also fail; BADGE achieves 0.318±0.041 collapse F1 but with higher variance than margin.
 
 ## Repository Structure
 
