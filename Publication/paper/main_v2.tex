@@ -230,7 +230,7 @@ All methods maintain stable-class F1 near 0.90 but provide \textit{no improvemen
 
 \begin{table}[t]
 \centering
-\caption{TTA baselines on CESNET-TLS-Year22. All TTA methods fail to address class collapse. \ours{} uses strict evaluation (queried excluded, 3 seeds).}
+\caption{TTA baselines on CESNET-TLS-Year22. All TTA methods fail to address class collapse. Collapse set is auto-discovered per period (M7: 2, M9: 8, M11: 9, M12: 11 classes). \ours{} uses strict evaluation (queried excluded, 3 seeds).}
 \label{tab:tta_baselines}
 \small
 \begin{tabular}{@{}l ccc ccc@{}}
@@ -239,12 +239,12 @@ All methods maintain stable-class F1 near 0.90 but provide \textit{no improvemen
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
 Method & M7 & M9 & M12 & M7 & M9 & M12 \\
 \midrule
-Static     & .023 & .055 & .028 & .740 & .691 & .629 \\
-Tent       & .023 & .056 & .026 & .742 & .693 & .631 \\
-EATA       & .023 & .055 & .028 & .740 & .691 & .629 \\
-SAR        & .022 & .056 & .026 & .740 & .692 & .629 \\
-CoTTA      & .022 & .056 & .027 & .741 & .692 & .629 \\
-NOTE       & .022 & .055 & .027 & .740 & .692 & .630 \\
+Static     & .023 & .055 & .031 & .740 & .691 & .629 \\
+Tent       & .023 & .056 & .030 & .742 & .693 & .631 \\
+EATA       & .023 & .055 & .031 & .740 & .691 & .629 \\
+SAR        & .022 & .056 & .030 & .740 & .692 & .629 \\
+CoTTA      & .022 & .056 & .031 & .741 & .692 & .630 \\
+NOTE       & .022 & .055 & .031 & .740 & .692 & .630 \\
 \midrule
 \textbf{\ours{}}$^\dagger$ & \textbf{.456} & \textbf{.159} & \textbf{.238} & \textbf{.750} & \textbf{.722} & \textbf{.674} \\
 \bottomrule
