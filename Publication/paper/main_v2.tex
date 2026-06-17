@@ -140,7 +140,7 @@ Our problem---repairing \textit{existing} classes that have collapsed due to dri
 
 \subsection{Active Learning Under Drift}
 
-MicFoal~\cite{micfoal2023} proposes online active learning for traffic classification under drift with adaptive labeling budgets.
+Liu~\etal{}~\cite{micfoal2023} propose online active learning for multiclass imbalanced traffic classification under concept drift.
 NetGuard~\cite{netguard2025} combines density-aware active selection with conditional generative augmentation for network intrusion detection.
 Both address drift broadly; neither identifies or targets the absorber-collapse pattern.
 Our experiments show that standard active learning strategies (entropy, coreset) are counterproductive for collapse repair (\S\ref{sec:al_baselines}), motivating our margin-based approach.
@@ -220,12 +220,12 @@ By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-
 
 The two mechanisms have implications for repair: feature-drift collapse can be addressed by re-anchoring the victim's prototype, while boundary-shift collapse requires recalibrating the decision boundary across multiple classes simultaneously. \ours{}'s combination of targeted fine-tuning and source replay addresses both mechanisms.
 
-Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE on encoder features for four representative absorber-victim pairs. At M3 (training time), victim and absorber clusters are well-separated; by M12, feature-drift victims (class~56$\to$96) have physically merged with their absorbers, while boundary-shift victims (class~48$\to$14) retain cluster separation but fall on the wrong side of the decision boundary.
+Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE on encoder features for four representative absorber-victim pairs. At M3 (training time), victim and absorber clusters are well-separated; by M12, feature-drift victims (class~56$\to$96) show substantial representation shift toward their absorbers, while boundary-shift victims (class~48$\to$14) retain relative cluster separation but experience increased decision confusion.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_tsne_multi_pair_m12.pdf}
-\caption{t-SNE visualization of four absorber-victim pairs at M-2022-12. Feature-drift pairs (56$\to$96) show cluster merging; boundary-shift pairs (48$\to$14) retain separation but cross the decision boundary.}
+\caption{t-SNE visualization of four absorber-victim pairs at M-2022-12. Feature-drift pairs (56$\to$96) show representation shift toward the absorber; boundary-shift pairs (48$\to$14) retain relative separation but suffer increased confusion. Note that t-SNE is a visualization aid and may not preserve linear separability; Fisher discriminant analysis (\S\ref{sec:mechanisms}) provides quantitative evidence.}
 \label{fig:tsne}
 \end{figure}
 
@@ -595,16 +595,16 @@ Table~\ref{tab:auto_absorber} compares oracle vs.\ auto-discovered absorber list
 
 \begin{table}[t]
 \centering
-\caption{Oracle vs.\ auto-discovered absorber lists (absorber-margin, $B$=1000, 5 seeds).}
+\caption{Oracle vs.\ auto-discovered absorber lists (absorber-margin, $B$=1000, 5 seeds). Oracle and Margin rows evaluate on the fixed 12-class set; Auto evaluates on M11-probe-discovered classes (11 classes, partially overlapping). Collapse F1 and Collapsed count are therefore not directly comparable across rows; macro-F1 (computed over all 178 classes) is comparable.}
 \label{tab:auto_absorber}
 \small
-\begin{tabular}{@{}l ccc@{}}
+\begin{tabular}{@{}l cccc@{}}
 \toprule
-Absorber Source & Macro-F1 & Collapse F1 & Collapsed \\
+Absorber Source & Macro-F1 & Collapse F1 & Collapsed & Eval Set \\
 \midrule
-Oracle (M12 ground truth) & .657$\pm$.002 & .377$\pm$.007 & 3.0 \\
-Auto (M11$\to$M12) & .649$\pm$.003 & .289$\pm$.001 & 5.0 \\
-Margin (no absorber info) & \textbf{.673$\pm$.001} & .233$\pm$.003 & 5.0 \\
+Oracle (M12 ground truth) & .657$\pm$.002 & .377$\pm$.007 & 3.0 & 12-fixed \\
+Auto (M11$\to$M12) & .649$\pm$.003 & .289$\pm$.001 & 5.0 & 11-probe \\
+Margin (no absorber info) & \textbf{.673$\pm$.001} & .233$\pm$.003 & 5.0 & 12-fixed \\
 \bottomrule
 \end{tabular}
 \end{table}

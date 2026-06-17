@@ -240,9 +240,26 @@ def main():
         print(f"  {key:<12} acc={m['accuracy']:.4f}  f1={m['macro_f1']:.4f}")
         del m_model
 
+    # Build synthetic prototypes for TTA-TC v9
+    model.eval()
+    proto_feats, proto_labels = [], []
+    with torch.no_grad():
+        for batch in val_loader:
+            ppi = batch["ppi"].to(device)
+            feats = model.encoder(ppi)
+            proto_feats.append(feats.cpu())
+            proto_labels.extend(batch["label"].numpy())
+    proto_feats = torch.cat(proto_feats)
+    proto_labels_np = np.array(proto_labels)
+    prototypes = torch.zeros(C, proto_feats.shape[1])
+    for c in range(C):
+        mask = proto_labels_np == c
+        if mask.sum() > 0:
+            prototypes[c] = proto_feats[mask].mean(dim=0)
+
     # TTA-TC
     tta_model = copy.deepcopy(model).to(device)
-    engine = TTAEngine(tta_model, tta_cfg)
+    engine = TTAEngine(tta_model, tta_cfg, prototypes=prototypes)
     engine.set_baseline_entropy(baseline_entropy)
     labels, preds = eval_tta(engine, test_loader, device, "tta_tc")
     m = compute_metrics(labels, preds)
@@ -254,7 +271,7 @@ def main():
     print("\n[3/4] Sequential evaluation (2 periods)...")
     tracker = MetricsTracker(source_accuracy=results["static"]["accuracy"])
     tta_model2 = copy.deepcopy(model).to(device)
-    engine2 = TTAEngine(tta_model2, tta_cfg)
+    engine2 = TTAEngine(tta_model2, tta_cfg, prototypes=prototypes)
     engine2.set_baseline_entropy(baseline_entropy)
     for period in ["P1", "P2"]:
         loader_p = make_synthetic_loader(256, C, batch_size=64)
@@ -277,7 +294,7 @@ def main():
         m_model = TTATCModel(model_cfg).to(device)
         m_model.load_state_dict(model.state_dict())
         cfg_i = {**tta_cfg, **abl_cfg}
-        eng = TTAEngine(m_model, cfg_i)
+        eng = TTAEngine(m_model, cfg_i, prototypes=prototypes)
         eng.set_baseline_entropy(baseline_entropy)
         labels_a, preds_a = eval_tta(eng, test_loader, device, name)
         m = compute_metrics(labels_a, preds_a)
