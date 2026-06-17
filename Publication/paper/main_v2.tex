@@ -90,7 +90,7 @@ Our contributions are:
 \begin{enumerate}
   \item \textbf{New failure mode.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift---observed in 6 of the 12 collapsed classes (\S\ref{sec:analysis}).
   \item \textbf{Negative results establishing the problem.} We show that unsupervised TTA methods are ineffective (collapse F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem that existing paradigms do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item \textbf{Unsupervised detection + label-efficient repair.} We propose \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without labels (recall 0.86, F1 0.71) via five signals: prediction count change, Frechet Distance, margin drop, confidence drop, and entropy rise (\S\ref{sec:unsup_detect}). Detected classes are repaired using 1{,}000 target labels plus source-period replay with margin selection, head-only fine-tuning, and knowledge distillation. The end-to-end pipeline requires no labeled probe period (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item \textbf{Unsupervised detection + label-efficient repair.} We propose \ours{}, a collapse-aware maintenance framework combining: (a)~a novel unsupervised collapse detection module that identifies collapsing classes without labels (recall 0.86, F1 0.71) via five signals, serving as both deployment trigger and diagnostic monitor (\S\ref{sec:unsup_detect}); and (b)~a label-efficient repair stage using 1{,}000 target labels plus source-period replay with margin or BADGE selection, head-only fine-tuning, and knowledge distillation (\S\ref{sec:method}, \S\ref{sec:experiments}). The end-to-end pipeline requires no labeled probe period.
 \end{enumerate}
 
 
@@ -434,8 +434,9 @@ Main results, ablation, and BADGE comparisons are averaged over 5 random seeds; 
 Overall macro-F1 (averaged over all 178 classes, thus implicitly covering the 146 classes that are neither collapsed nor in the stable set), collapse-class macro-F1 (averaged over the 12 classes with recall $<0.1$ in the static model at M12), stable-class macro-F1 (averaged over 20 classes with consistently high recall across all periods), and the number of collapsed classes (recall $< 0.1$).
 
 \textbf{\ours{} configuration.}
-Budget $B=1000$, margin-based selection (no absorber knowledge required), replay with $k=5$ samples per class from stable and absorber classes, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, head fine-tuning learning rate $10^{-3}$, 30 epochs.
-We report two settings: (1)~a \textit{diagnostic} setting where the collapse/absorber class list is provided as oracle input (labeled ``oracle'' in tables), and (2)~a \textit{fully autonomous} setting where collapse and absorber classes are discovered by the unsupervised detection module (\S\ref{sec:unsup_detect}) with no oracle information. The autonomous setting is the recommended deployment configuration.
+Budget $B=1000$, margin-based selection (no absorber knowledge required), replay with $k=5$ samples per class, target repeat factor 2, distillation weight $\lambda_{\text{KD}}=0.5$, temperature $T=2.0$, head fine-tuning learning rate $10^{-3}$, 30 epochs.
+Main results use stable+absorber class replay; a detection necessity ablation (\S\ref{sec:e2e}) shows that all-class replay further improves performance (macro-F1: 0.686 vs.\ 0.674).
+We report two settings: (1)~a \textit{diagnostic} setting where the collapse/absorber class list is provided as oracle input (labeled ``oracle'' in tables), and (2)~a \textit{fully autonomous} setting where collapse and absorber classes are discovered by the unsupervised detection module (\S\ref{sec:unsup_detect}) with no oracle information.
 
 \subsection{Main Results}
 
@@ -662,6 +663,30 @@ When evaluated on the same 12-class set, the autonomous pipeline achieves compar
 This confirms that unsupervised detection successfully identifies the relevant collapse region, and CARE's margin selection operates effectively without exact collapse-class knowledge.
 The practical benefit is clear: the autonomous pipeline eliminates the labeled probe period entirely, reducing the new annotation requirement to 1{,}000 target samples per repair cycle (source replay uses existing training data).
 
+\textbf{Role of collapse detection in the pipeline.}
+To isolate the detection module's contribution, we compare four replay class selection strategies, all using margin selection (Table~\ref{tab:detect_necessity}).
+
+\begin{table}[t]
+\centering
+\caption{Detection necessity ablation (margin, $B$=1000, 5 seeds, fixed 12-class eval). All variants use full CARE components; only the replay class set differs.}
+\label{tab:detect_necessity}
+\small
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+Replay Class Selection & Macro-F1 & Collapse F1 & Stable F1 \\
+\midrule
+All classes (no detection) & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & \textbf{.892$\pm$.003} \\
+Detected classes & .674$\pm$.001 & .236$\pm$.003 & .887$\pm$.002 \\
+Oracle classes & .673$\pm$.001 & .232$\pm$.003 & .885$\pm$.003 \\
+Random class subset & .673$\pm$.002 & .238$\pm$.009 & .885$\pm$.004 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Replaying from \textit{all} 178 classes yields the best results (macro-F1: 0.686 vs.\ 0.674 for detected), because broader replay coverage stabilizes more decision boundaries.
+This reveals that the detection module's primary value is \textit{not} in guiding replay class selection---all-class replay is strictly better---but rather in two deployment-critical roles discussed in \S\ref{sec:discussion}: (1)~serving as an unsupervised monitoring and alerting system that identifies \textit{which} classes are degrading, enabling targeted human investigation, and (2)~providing the deployment trigger that determines \textit{when} repair should be activated.
+Based on this finding, we recommend all-class replay as the default repair configuration, with the detection module serving its monitoring role.
+
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
 
@@ -739,11 +764,10 @@ The ablation shows each component's contribution: without replay and distillatio
 
 \textbf{Deployability.}
 \ours{} is designed for fully autonomous deployment:
-(1)~collapsing classes are detected without any labels via the multi-signal risk score (\S\ref{sec:unsup_detect}, recall 0.86);
+(1)~the detection module monitors class health without labels and triggers repair when drift is detected (\S\ref{sec:unsup_detect}, \S\ref{sec:trigger});
 (2)~margin selection requires no absorber information;
-(3)~prototype replay eliminates source data storage (\S\ref{sec:proto_replay});
-(4)~a confidence-based trigger determines when repair is needed (\S\ref{sec:trigger}).
-The end-to-end autonomous pipeline (\S\ref{sec:e2e}) matches the labeled-probe version while requiring 1{,}000 target labels, source-period replay (or stored prototypes, 178~KB), and no oracle class information.
+(3)~all-class replay from training data is recommended (macro-F1: 0.686 vs.\ 0.674 for detected-class replay; Table~\ref{tab:detect_necessity}), with prototype replay as a privacy-preserving alternative (\S\ref{sec:proto_replay});
+(4)~repair requires only 1{,}000 target labels and completes in ${\sim}$3 minutes.
 
 \textbf{Limitations.}
 Three classes (26, 69, 109) remain collapsed after repair, suggesting \ours{} is most effective when the absorber-victim relationship is clear and the victim retains some discriminative features.
@@ -754,7 +778,9 @@ All three produce 11--12 collapsed classes at M12, with static macro-F1 of $0.62
 The ${\sim}$0.008 gap between these audit models (macro-F1 ${\approx}$0.620) and the primary checkpoint (0.629) reflects the effect of deterministic training settings on convergence; the collapse pattern itself is consistent.
 Applying CARE (margin, $B{=}1{,}000$) to each training seed yields macro-F1 of $0.667{\pm}0.007$ and collapse F1 of $0.290{\pm}0.034$ across training seeds ($3{\times}3$ = 9 runs), confirming that the improvement is robust to model initialization.
 Both training-seed variance ($\sigma_{\text{macro}}{=}0.0006$) and fine-tuning-seed variance ($\sigma_{\text{macro}}{\approx}0.001$) are small relative to the CARE improvement ($+$0.044 macro-F1). This confirms that the absorber-collapse pattern is an inherent property of the dataset's temporal drift, not an artifact of a particular training run.
-The repair components (head fine-tuning, replay, distillation) are individually well-known; the primary algorithmic novelty is the unsupervised collapse detection module (\S\ref{sec:unsup_detect}), which is---to our knowledge---the first per-class collapse severity estimator that operates without labels.
+The repair components (head fine-tuning, replay, distillation) are individually well-known.
+The unsupervised collapse detection module (\S\ref{sec:unsup_detect}) is---to our knowledge---the first per-class collapse severity estimator that operates without labels.
+While the detection necessity ablation (\S\ref{sec:e2e}) shows that all-class replay outperforms detected-class replay for the repair step itself, the detection module serves two roles that all-class replay cannot: (1)~\textit{monitoring}: it identifies \textit{which specific classes} are degrading, enabling targeted investigation by network operators---all-class replay repairs blindly without this diagnostic insight; and (2)~\textit{triggering}: the per-class risk scores provide the deployment trigger (\S\ref{sec:trigger}) that determines \textit{when} repair should be activated, without requiring labeled data to detect drift.
 
 \textbf{Computational cost.}
 On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 minutes: feature extraction (${\sim}$40s for 330K samples), margin-based sample selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 150 replay samples).

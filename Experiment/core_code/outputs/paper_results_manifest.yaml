@@ -150,6 +150,18 @@ tables:
     regeneration_command: "bash scripts/run_unsupervised_care_pipeline.sh"
     notes: "Autonomous (0.674 macro, 0.236 collapse F1) matches labeled probe (0.673, 0.233). Confirms unsupervised detection is sufficient."
 
+  table_detect_necessity:  # \label{tab:detect_necessity}
+    description: "Detection necessity ablation: all-class replay vs detected vs oracle vs random (margin, B=1000, 5 seeds)"
+    source_file:
+      - "detection_necessity_ablation/no_detection_all_replay/aggregated_mean_std.csv"
+      - "detection_necessity_ablation/detected_replay/aggregated_mean_std.csv"
+      - "detection_necessity_ablation/oracle_replay/aggregated_mean_std.csv"
+      - "detection_necessity_ablation/random_detected_replay/aggregated_mean_std.csv"
+    collapse_set: "12 classes (fixed eval set)"
+    seeds: 5
+    regeneration_command: "bash scripts/run_detection_necessity_ablation.sh"
+    notes: "All-class replay (0.686 macro) outperforms detected-class (0.674). Detection module's value is monitoring/triggering, not replay guidance."
+
   table_11:  # \label{tab:proto_replay}
     description: "Real vs prototype replay (margin, B=1000, 3 seeds)"
     source_file:
