@@ -71,17 +71,13 @@ python scripts/eval_baselines_with_groups.py \
     --output-dir outputs/baselines_group_metrics_M12
 ```
 
-### Run CARE repair (autonomous pipeline — recommended)
+### Run CARE repair (recommended: all-class replay)
 ```bash
-# End-to-end autonomous pipeline: unsupervised detection → margin repair
-# No oracle class lists needed
-# Args: <config> <checkpoint> <ref_period> <tgt_period> <output_dir> [num_seeds]
-bash scripts/run_unsupervised_care_pipeline.sh \
-    configs/eval_tls22.yaml \
-    outputs/tls22_cnn/best_model.pt \
-    M-2022-4 \
-    M-2022-12 \
-    outputs/autonomous_care_M12
+# Margin selector (lightweight, <1s): macro 0.686
+bash scripts/run_primary_experiments.sh p1
+
+# BADGE selector (strongest, ~20min): macro 0.700
+bash scripts/run_primary_experiments.sh p4
 ```
 
 ### Run CARE repair (diagnostic/oracle mode)

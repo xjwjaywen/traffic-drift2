@@ -115,7 +115,7 @@ tables:
       - "fair_replay_budget/detected_k30/aggregated_mean_std.csv"
       - "fair_replay_budget/all_k1/aggregated_mean_std.csv"
     regeneration_command: "bash scripts/run_primary_experiments.sh p3"
-    notes: "All-class (0.686) > detected-class at matched budget (0.678). Advantage is class coverage, not volume."
+    notes: "All-class (0.686) > targeted stable+absorber at matched budget (0.678). P3 detected_k30 actually uses oracle stable+absorber classes (script default), not detector output. Advantage is class coverage breadth, not volume."
 
   table_6:  # \label{tab:per_class}
     description: "Per-class recovery at M-2022-12 (absorber-margin, B=1000, oracle absorber list, seed 0, non-strict eval)"

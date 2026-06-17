@@ -466,17 +466,20 @@ NOTE            & .630 & .027 & .902 & 12 \\
 FT-Head$^a$     & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
 FT+Replay$^b$   & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
 \midrule
-\multicolumn{5}{l}{\textit{Active selection with 1{,}000 labels + \ours{} components:}} \\
+\multicolumn{5}{l}{\textit{Active selection with 1{,}000 labels + targeted replay$^c$:}} \\
 Entropy         & .600$\pm$.004 & .073$\pm$.013 & .882 & 9.8 \\
 Coreset         & .618$\pm$.008 & .108$\pm$.037 & .878 & 9.2 \\
 Random          & .656$\pm$.006 & .183$\pm$.031 & .890 & 8.0 \\
-BADGE~\cite{ash2020badge}  & \textbf{.688$\pm$.007} & \textbf{.318$\pm$.041} & .889 & \textbf{4.4} \\
-\ours{}-Margin$^c$ & .673$\pm$.001 & .233$\pm$.003 & .884 & 5.0 \\
-\ours{}-Margin$^d$ & .674$\pm$.001 & .236$\pm$.003 & .887 & 5.8 \\
+BADGE~\cite{ash2020badge}  & .688$\pm$.007 & .318$\pm$.041 & .889 & 4.4 \\
+\ours{}-Margin  & .673$\pm$.001 & .233$\pm$.003 & .884 & 5.0 \\
+\midrule
+\multicolumn{5}{l}{\textit{Recommended: 1{,}000 labels + all-class replay (5 seeds):}} \\
+\ours{}-Margin$^d$  & .686$\pm$.001 & .256$\pm$.009 & .892$\pm$.003 & 5.8 \\
+\textbf{\ours{}-BADGE}$^d$ & \textbf{.700$\pm$.003} & \textbf{.333$\pm$.040} & \textbf{.894$\pm$.004} & \textbf{4.0} \\
 \bottomrule
 \multicolumn{5}{l}{\footnotesize $^a$Head-only FT, no replay/distillation; $^b$Head FT + replay, no distillation.}\\
-\multicolumn{5}{l}{\footnotesize $^c$Oracle collapse/absorber list; $^d$Fully autonomous (unsupervised detection, no oracle info).}\\
-\multicolumn{5}{l}{\footnotesize Bold = best score per column. All-class replay further improves Margin$^d$ to .686 (Table~\ref{tab:detect_necessity}).}
+\multicolumn{5}{l}{\footnotesize $^c$Targeted stable+absorber class replay (${\sim}$150 samples); $^d$All-class replay (890 samples).}\\
+\multicolumn{5}{l}{\footnotesize Bold = best score per column. See Table~\ref{tab:detect_necessity} for replay ablation.}
 \end{tabular}
 \end{table}
 
@@ -817,7 +820,7 @@ With the recommended all-class replay, BADGE selection achieves macro-F1 of $0.7
 We recommend BADGE for scheduled maintenance windows and margin for latency-constrained or resource-limited deployments.
 
 \textbf{Computational cost.}
-On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 minutes: feature extraction (${\sim}$40s for 330K samples), margin-based sample selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 150 replay samples).
+On an NVIDIA RTX 3090, a full \ours{} repair cycle at M12 takes approximately 3 minutes with margin selection: feature extraction (${\sim}$40s for 330K samples), sample selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 890 all-class replay samples).
 This is negligible compared to full model retraining (${\sim}$2 hours).
 BADGE selection adds ${\sim}$20 minutes due to k-means++ over gradient embeddings, making \ours{}-Margin preferable for latency-sensitive deployments.
 The repair does not interrupt online inference: the updated head is swapped in atomically after training completes offline.
@@ -857,7 +860,7 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using 1{,}000 target labels ($<$0.3\% of test data) plus source-period replay.
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
 Under strict evaluation (5 seeds), \ours{} with BADGE selection and all-class replay improves macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$; a lightweight margin variant achieves $0.686{\pm}0.001$ with sub-second selection.
-A replay class selection ablation confirms that all-class replay outperforms detected-class replay even at matched replay budgets, establishing that the detection module's value lies in unsupervised monitoring and deployment triggering (recall $\geq$0.86 across M7--M12) rather than replay guidance.
+A replay ablation confirms that all-class replay outperforms targeted-class replay even at matched replay budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that the detection module's value lies in unsupervised monitoring and deployment triggering (recall $\geq$0.86 across M7--M12) rather than replay class selection.
 Gains are consistent across architectures (CNN/Transformer) and training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations).
 
 % ============================================================
