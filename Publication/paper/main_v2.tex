@@ -83,8 +83,7 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
 
 % P5: Results highlight
 We first establish that unsupervised TTA methods cannot address class collapse (all produce collapse-class F1 $<$ 0.03), and that standard active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
-Under strict evaluation (queried samples excluded, 5 seeds), \ours{} improves collapse-class F1 from 0.028 to $0.233{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.673{\pm}0.001$ using only 1{,}000 target repair labels ($<$0.3\% of the test set).
-An autonomous variant further replaces the labeled probe with unsupervised detection, achieving comparable performance ($0.674{\pm}0.001$ macro-F1) with no probe labels at all.
+Under strict evaluation (queried samples excluded, 5 seeds), the fully autonomous \ours{} pipeline---unsupervised collapse detection followed by margin-based repair---improves collapse-class F1 from 0.028 to $0.236{\pm}0.003$ ($8\times$) and overall macro-F1 from 0.629 to $0.674{\pm}0.001$ using only 1{,}000 target repair labels ($<$0.3\% of the test set), with no oracle class information.
 \ours{} generalizes across architectures (CNN and Transformer), drift severity (M7--M12), and supports exemplar-free deployment.
 
 % P6: Contributions
@@ -319,6 +318,7 @@ Classes with $s_c$ above a threshold (or with near-zero target predictions) are 
 
 On CESNET-TLS-Year22 (M4$\to$M12), this detects 12 of 14 collapsed classes with precision 0.60, recall 0.86, and F1 0.71---\textit{without using any labels} (Table~\ref{tab:unsup_detect}).
 Here, 14 denotes all classes with recall $<0.1$ and support $>0$ (no minimum-support filtering); the 12-class evaluation set used elsewhere (\S\ref{sec:experiments}) applies a minimum support threshold ($\geq$50 samples) to ensure stable metrics, excluding two low-support classes (15--16 samples each).
+Crucially, the weights and threshold are \textit{not} period-specific: applying the same parameters to M7 and M9 yields recall 0.86 and 0.90 respectively, confirming that the detector generalizes across drift severity without re-tuning.
 The ablation shows that count drop and Frechet Distance provide the primary detection signal (F1 0.59); adding margin and confidence alone does not improve detection, but entropy rise contributes a complementary signal that lifts recall from 0.71 to 0.86.
 
 \begin{table}[t]
@@ -409,7 +409,7 @@ For QUIC22, we train on W44 and evaluate at W46 and W47.
 
 \textbf{Baselines.}
 We compare three categories:
-\textit{Unsupervised TTA} (0 labels): Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}. We report results with adaptation learning rate $10^{-5}$; a sweep over $\{10^{-3}, 10^{-4}, 10^{-5}\}$ confirms collapse F1 remains below 0.03 at all rates, with higher rates destabilizing Tent and NOTE (macro-F1 drops to 0.21 and 0.54 at $10^{-3}$).
+\textit{Unsupervised TTA} (0 labels): traffic-adapted implementations of Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, CoTTA~\cite{wang2022cotta}, SAR~\cite{niu2023sar}, NOTE~\cite{gong2022note}. We report results with adaptation learning rate $10^{-5}$; a sweep over $\{10^{-3}, 10^{-4}, 10^{-5}\}$ confirms collapse F1 remains below 0.03 at all rates, with higher rates destabilizing Tent and NOTE (macro-F1 drops to 0.21 and 0.54 at $10^{-3}$).
 \textit{Naive supervised} (1{,}000 labels): head-only FT without replay/distillation (FT-Head) and head FT with replay but no distillation (FT+Replay).
 \textit{Active selection} (1{,}000 labels + \ours{} components): entropy, coreset~\cite{sener2018coreset}, BADGE~\cite{ash2020badge}, random, and margin.
 This three-tier comparison separates the question of whether labels are needed (TTA vs.\ supervised), whether \ours{} components help (Naive vs.\ \ours{}), and which selection strategy is best (active methods).
@@ -430,7 +430,7 @@ Table~\ref{tab:main_results} presents the main comparison at M-2022-12 (the most
 
 \begin{table}[t]
 \centering
-\caption{Main results on CESNET-TLS-Year22 at M-2022-12. TTA methods use no labels; active methods use 1{,}000 labels with \ours{} components (strict eval, 5 seeds). The two groups address different operating assumptions.}
+\caption{Main results on CESNET-TLS-Year22 at M-2022-12. TTA methods use no labels; active methods use 1{,}000 labels with \ours{} components (strict eval, 5 seeds). Collapse F1 evaluated on 12-class fixed set.}
 \label{tab:main_results}
 \small
 \begin{tabular}{@{}l cccc@{}}
@@ -454,11 +454,12 @@ Entropy         & .600$\pm$.004 & .073$\pm$.013 & .882 & 9.8 \\
 Coreset         & .618$\pm$.008 & .108$\pm$.037 & .878 & 9.2 \\
 Random          & .656$\pm$.006 & .183$\pm$.031 & .890 & 8.0 \\
 BADGE~\cite{ash2020badge}  & .688$\pm$.007 & .318$\pm$.041 & .889 & 4.4 \\
-\textbf{\ours{}-Margin}$^\star$ & .673$\pm$.001 & .233$\pm$.003 & .884 & 5.0 \\
+\ours{}-Margin$^c$ & .673$\pm$.001 & .233$\pm$.003 & .884 & 5.0 \\
+\textbf{\ours{}-Margin}$^{d\star}$ & \textbf{.674$\pm$.001} & .236$\pm$.003 & .887 & 5.8 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize $^a$Head-only FT, margin selection, no replay/distillation; $^b$Head FT + replay, no distillation.}\\
-\multicolumn{5}{l}{\footnotesize Active methods use \ours{} components (replay + distillation); 5 seeds, strict eval.}\\
-\multicolumn{5}{l}{\footnotesize $^\star$Recommended: lowest macro-F1 variance ($\sigma_{\text{macro}}{=}.001$), $<$1s compute vs.\ ${\sim}$20min BADGE.}
+\multicolumn{5}{l}{\footnotesize $^a$Head-only FT, no replay/distillation; $^b$Head FT + replay, no distillation.}\\
+\multicolumn{5}{l}{\footnotesize $^c$Oracle collapse/absorber list; $^d$Fully autonomous (unsupervised detection, no oracle info).}\\
+\multicolumn{5}{l}{\footnotesize $^\star$Recommended deployment config: no oracle info, $<$1s compute, $\sigma_{\text{macro}}{=}.001$.}
 \end{tabular}
 \end{table}
 
@@ -549,9 +550,9 @@ Both standard AL methods perform \textit{worse} than the static baseline on macr
 
 Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber-victim decision boundaries.
 BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.318{\pm}0.041$)---36\% higher than margin ($0.233{\pm}0.003$)---and also the highest macro-F1 ($0.688$ vs.\ $0.673$).
-BADGE is thus the \textit{strongest} selection strategy for collapse repair within the \ours{} framework.
+BADGE is the \textit{strongest} selection strategy for collapse repair within the \ours{} framework, achieving the best performance on both macro-F1 and collapse F1.
 However, it comes with two practical trade-offs: (1)~higher variance ($\sigma_{\text{macro}}{=}0.007$ vs.\ $0.001$), and (2)~substantially higher computation (PCA-accelerated BADGE requires ${\sim}$20 minutes vs.\ seconds for margin on 330K samples).
-For monthly repair cycles where 20 minutes is acceptable, BADGE is the recommended strategy; for latency-sensitive or resource-constrained deployments, margin provides a reliable and near-instant alternative.
+\ours{} is a repair \textit{framework}: BADGE is the strongest selector when compute allows; margin is the low-cost default that still achieves $8\times$ collapse recovery with near-zero variance.
 
 \begin{figure}[t]
 \centering
@@ -765,7 +766,7 @@ We showed that unsupervised TTA methods cannot address this failure mode (collap
 
 We proposed \ours{}, featuring a novel unsupervised collapse detection module that identifies collapsing classes without any labels (recall 0.86, F1 0.71) and a label-efficient repair stage using only 1{,}000 target labels ($<$0.3\% of test data).
 The end-to-end autonomous pipeline---unsupervised detection, confidence-based trigger, and targeted repair---eliminates the need for labeled probe periods while matching the performance of labeled-probe variants.
-Under strict evaluation, \ours{} improves macro-F1 from 0.629 to $0.673{\pm}0.001$ (5 seeds, labeled-probe) and to $0.674{\pm}0.001$ (3 seeds, autonomous pipeline with detected classes for repair, fixed 12 classes for evaluation), with consistent gains across drift severity (M7--M12), architectures (CNN/Transformer), training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations), and an exemplar-free deployment mode.
+Under strict evaluation (5 seeds), the fully autonomous pipeline improves macro-F1 from 0.629 to $0.674{\pm}0.001$ and collapse-class F1 from 0.028 to $0.236{\pm}0.003$, requiring no oracle class information---only 1{,}000 target labels and unsupervised detection. Gains are consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds ($\sigma_{\text{macro}}{=}0.007$ across 3 training initializations).
 
 % ============================================================
 \bibliographystyle{IEEEtran}
