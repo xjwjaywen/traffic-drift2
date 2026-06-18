@@ -55,32 +55,22 @@ tables:
     regeneration_command: "python scripts/run_detection_ablation.py"
     notes: "No labels used. Best: 5-signal with precision 0.60, recall 0.86, F1 0.71. Weights not tuned on M12."
 
-  table_5:  # \label{tab:main_results}
-    description: "Main results at M-2022-12: TTA (0 labels), naive supervised (1000 labels), active selection with CARE components (1000 labels, 5 seeds, strict eval)"
+  table_main:  # \label{tab:main_results}
+    description: "Main results at M-2022-12: TTA (0 labels) + unified active selection (1000 labels, all-class replay + KD, 5 seeds, strict eval)"
     source_file:
       # TTA rows (Static, Tent, EATA, SAR, CoTTA, NOTE):
-      - "baselines_group_metrics_M12/"
-      # FT-Head:
-      - "ablation_strict/ft_only/aggregated_mean_std.csv"
-      # FT+Replay:
-      - "ablation_strict/ft_replay/aggregated_mean_std.csv"
-      # Active baselines (Entropy, Coreset, Random):
-      - "al_baselines_strict/aggregated_mean_std.csv"
-      # BADGE:
-      - "badge_5seeds_strict/aggregated_mean_std.csv"
-      # CARE-Margin (oracle):
-      - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
-      # CARE-Margin (autonomous):
-      - "autonomous_5seeds_strict/care/aggregated_mean_std.csv"
+      - "baselines_group_metrics_M12/baselines_group_metrics.csv"
+      # Unified AL baselines (Entropy, Coreset, Random, Margin — same pipeline):
+      - "unified_al_baselines/entropy/aggregated_mean_std.csv"
+      - "unified_al_baselines/coreset/aggregated_mean_std.csv"
+      - "unified_al_baselines/random/aggregated_mean_std.csv"
+      - "unified_al_baselines/margin/aggregated_mean_std.csv"
+      # BADGE (all-class replay):
+      - "badge_allreplay_5seeds/aggregated_mean_std.csv"
     collapse_set: "12 classes (support >= 50)"
     seeds: 5
-    regeneration_command: |
-      bash scripts/run_5seeds_strict.sh          # CARE oracle margin
-      bash scripts/run_ablation_strict.sh         # FT-Head, FT+Replay
-      bash scripts/run_al_baselines.sh            # Entropy, Coreset, Random
-      bash scripts/run_badge_5seeds.sh            # BADGE
-      bash scripts/run_unsupervised_care_pipeline.sh  # Autonomous pipeline
-    notes: "Strict eval: queried samples excluded. Bold = best per column. With all-class replay, BADGE reaches 0.700 and margin 0.686 (Table detect_necessity / framework configs in Discussion)."
+    regeneration_command: "bash scripts/run_v3_unified_experiments.sh u2"
+    notes: "All active methods use identical pipeline (all-class replay k=5 + KD). Only the selector varies. BADGE 0.700, Margin 0.686."
 
   table_p1_autonomous_allreplay:
     description: "Autonomous + all-class replay canonical result (margin, B=1000, 5 seeds)"
@@ -131,16 +121,16 @@ tables:
         --replay-distill-weight 0.5 --seed 0 --output-dir outputs/care_seed_0
     notes: "Non-strict evaluation (queried samples included) for diagnostic upper bound with oracle absorber knowledge. 9/12 classes recover above 0.1 recall. Three failures (26, 69, 109) have features fully merged with absorber in encoder space."
 
-  table_7:  # \label{tab:ablation}
-    description: "Compound ablation at M-2022-12 (margin, B=1000, strict eval, 5 seeds): Static vs FT-only vs FT+Replay vs Full CARE"
+  table_ablation:  # \label{tab:ablation}
+    description: "Clean component ablation (margin, B=1000, all-class replay k=5, strict eval, 5 seeds): Static → FT only → FT+Replay → Full CARE. Each step adds exactly one component."
     source_file:
-      - "ablation_strict/ft_only/aggregated_mean_std.csv"
-      - "ablation_strict/ft_replay/aggregated_mean_std.csv"
-      - "ablation_strict/full_care/aggregated_mean_std.csv"
+      - "unified_ablation/ft_only/aggregated_mean_std.csv"
+      - "unified_ablation/ft_replay_noKD/aggregated_mean_std.csv"
+      - "unified_ablation/full_care/aggregated_mean_std.csv"
     collapse_set: "12 classes (support >= 50)"
     seeds: 5
-    regeneration_command: "bash scripts/run_ablation_strict.sh"
-    notes: "Full CARE jump from FT+Replay (.620) to .673 reflects compound effect of distillation + target repeat 2x. Distillation cannot be isolated from replay (needs replay features as KL targets)."
+    regeneration_command: "bash scripts/run_v3_unified_experiments.sh u1"
+    notes: "Clean single-variable ablation. All rows with replay use all-class k=5 (890 samples). FT-only .638, +Replay .659, +KD .686."
 
   table_8:  # \label{tab:auto_absorber}
     description: "Oracle vs auto-discovered absorber lists (absorber-margin, B=1000, 5 seeds)"

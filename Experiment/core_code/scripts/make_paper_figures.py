@@ -89,38 +89,33 @@ def fig_collapse_timeline(output_dir):
 # Figure 2: Strategy comparison
 # ============================================================
 def fig_strategy_comparison(output_dir):
-    """AL strategy comparison using strict 5-seed aggregated data."""
-    path = "outputs/al_baselines_strict/aggregated_mean_std.csv"
-    if not os.path.exists(path):
-        print(f"SKIP fig_strategy_comparison: {path} not found")
+    """AL strategy comparison using unified 5-seed aggregated data (v3)."""
+    base = "outputs/unified_al_baselines"
+    if not os.path.isdir(base):
+        print(f"SKIP fig_strategy_comparison: {base} not found")
         return
 
-    rows = read_csv(path)
     strategies = {}
-    for r in rows:
-        if r["method"] == "static":
-            continue
-        s = r["strategy"]
-        b = int(r["budget"])
-        if s not in strategies:
-            strategies[s] = {"budgets": [], "macro_f1": [], "collapse_f1": [],
-                             "macro_std": [], "collapse_std": []}
-        strategies[s]["budgets"].append(b)
-        strategies[s]["macro_f1"].append(float(r["strict_overall_macro_f1_mean"]))
-        strategies[s]["collapse_f1"].append(float(r["strict_bad_macro_f1_mean"]))
-        strategies[s]["macro_std"].append(float(r.get("strict_overall_macro_f1_std", 0)))
-        strategies[s]["collapse_std"].append(float(r.get("strict_bad_macro_f1_std", 0)))
-
-    # Read static baseline from data instead of hardcoding
     static_macro = 0.629
     static_collapse = 0.028
-    for r in rows:
-        if r.get("method") == "static" or r.get("strategy") == "":
-            static_macro = float(r.get("strict_overall_macro_f1_mean",
-                                       r.get("strict_overall_macro_f1", static_macro)))
-            static_collapse = float(r.get("strict_bad_macro_f1_mean",
-                                          r.get("strict_bad_macro_f1", static_collapse)))
-            break
+    for s_name in ["entropy", "coreset", "random", "margin"]:
+        csv_path = os.path.join(base, s_name, "aggregated_mean_std.csv")
+        if not os.path.exists(csv_path):
+            continue
+        for r in read_csv(csv_path):
+            if r["method"] == "static":
+                static_macro = float(r.get("strict_overall_macro_f1_mean", static_macro))
+                static_collapse = float(r.get("strict_bad_macro_f1_mean", static_collapse))
+                continue
+            b = int(r["budget"])
+            if s_name not in strategies:
+                strategies[s_name] = {"budgets": [], "macro_f1": [], "collapse_f1": [],
+                                      "macro_std": [], "collapse_std": []}
+            strategies[s_name]["budgets"].append(b)
+            strategies[s_name]["macro_f1"].append(float(r["strict_overall_macro_f1_mean"]))
+            strategies[s_name]["collapse_f1"].append(float(r["strict_bad_macro_f1_mean"]))
+            strategies[s_name]["macro_std"].append(float(r.get("strict_overall_macro_f1_std", 0)))
+            strategies[s_name]["collapse_std"].append(float(r.get("strict_bad_macro_f1_std", 0)))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -128,15 +123,11 @@ def fig_strategy_comparison(output_dir):
               "coreset": "#9C27B0", "badge": "#4CAF50"}
     markers = {"random": "o", "entropy": "v", "margin": "s",
                "coreset": "^", "badge": "D"}
-    # Override BADGE with all-class replay 5-seed run (v3 canonical config)
+    # Add BADGE from all-class replay 5-seed run (v3 canonical config)
     badge_path = "outputs/badge_allreplay_5seeds/aggregated_mean_std.csv"
-    if not os.path.exists(badge_path):
-        badge_path = "outputs/badge_5seeds_strict/aggregated_mean_std.csv"
     if os.path.exists(badge_path):
-        strategies.pop("badge", None)
-        badge_rows = read_csv(badge_path)
-        for r in badge_rows:
-            if r["method"] == "static" or r["strategy"] != "badge":
+        for r in read_csv(badge_path):
+            if r["method"] == "static":
                 continue
             s = "badge"
             b = int(r["budget"])
@@ -266,17 +257,9 @@ def fig_ablation(output_dir):
 
     configs = [("Static", 0.629, 0.028, 0.903, 0, 0, 0)]
 
-    # No-label rows
-    r = _load("ablation_v3/replay_only", "0")
-    if r: configs.append(("Replay only", *r))
-    r = _load("ablation_v3/distill_only", "0")
-    if r: configs.append(("Replay+Distill", *r))
-
-    # With-label rows
-    for name, subdir in [("FT only", "ablation_strict/ft_only"),
-                          ("FT+Replay", "ablation_strict/ft_replay"),
-                          ("FT+Distill", "ablation_strict/ft_distill"),
-                          ("Full CARE", "autonomous_allreplay_5seeds/care")]:
+    for name, subdir in [("FT only", "unified_ablation/ft_only"),
+                          ("FT+Replay", "unified_ablation/ft_replay_noKD"),
+                          ("Full CARE", "unified_ablation/full_care")]:
         r = _load(subdir)
         if r:
             configs.append((name, *r))
@@ -294,7 +277,7 @@ def fig_ablation(output_dir):
     x = np.arange(len(names))
     width = 0.25
 
-    fig, ax = plt.subplots(figsize=(11, 4.5))
+    fig, ax = plt.subplots(figsize=(9, 4.5))
     bars1 = ax.bar(x - width, macro, width, yerr=m_std, capsize=2,
                    label="Overall Macro-F1", color="#2196F3", alpha=0.85)
     bars2 = ax.bar(x, collapse, width, yerr=c_std, capsize=2,
@@ -309,14 +292,6 @@ def fig_ablation(output_dir):
     ax.legend(loc="upper left")
     ax.set_ylim(0, 1.05)
     ax.grid(True, alpha=0.2, axis="y")
-
-    # Divider between no-label and with-label blocks
-    if len(configs) >= 4:
-        ax.axvline(x=2.5, color="gray", linestyle=":", alpha=0.5)
-        ax.text(1.0, 1.02, "no target labels", ha="center", fontsize=8,
-                color="gray", transform=ax.get_xaxis_transform())
-        ax.text(5.0, 1.02, "with 1000 target labels", ha="center", fontsize=8,
-                color="gray", transform=ax.get_xaxis_transform())
 
     # Highlight full method
     for bar in [bars1[-1], bars2[-1], bars3[-1]]:
