@@ -400,9 +400,9 @@ CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
 \multicolumn{5}{l}{\textit{Active selection ($B$=1000, all-class replay + KD, 5 seeds):}} \\
-Entropy         & .628$\pm$.004 & .078$\pm$.015 & --- & --- \\
-Coreset         & .634$\pm$.005 & .116$\pm$.042 & --- & --- \\
-Random          & .668$\pm$.004 & .188$\pm$.024 & --- & --- \\
+Entropy         & .628$\pm$.004 & .078$\pm$.015 & .887$\pm$.004 & 10.2 \\
+Coreset         & .634$\pm$.005 & .116$\pm$.042 & .886$\pm$.007 & 8.8 \\
+Random          & .668$\pm$.004 & .188$\pm$.024 & .892$\pm$.006 & 8.2 \\
 \ours{}-Margin  & .686$\pm$.001 & .256$\pm$.009 & .892$\pm$.003 & 5.8 \\
 \textbf{\ours{}-BADGE} & \textbf{.700$\pm$.003} & \textbf{.333$\pm$.040} & \textbf{.894$\pm$.004} & \textbf{4.0} \\
 \bottomrule
@@ -436,8 +436,8 @@ Configuration & Labels & Replay & KD & Macro-F1 & Collapse F1 & Stable F1 & Coll
 \midrule
 Static (no repair) & & & & .629 & .028 & \textbf{.903} & 12 \\
 \midrule
-FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
-FT + Replay & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854 & 4.8 \\
+FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839$\pm$.001 & 7.0 \\
+FT + Replay & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.016 & 4.8 \\
 \textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892 & \textbf{5.8} \\
 \bottomrule
 \end{tabular}
@@ -513,38 +513,37 @@ Its value is \textit{not} in guiding replay class selection---all-class replay i
 \subsection{Multi-Period Analysis}
 \label{sec:multi_period}
 
-Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across five time points with increasing drift severity.
+Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across four time points with increasing drift severity.
 
 \begin{table}[t]
 \centering
-\caption{Multi-period results (margin, $B$=1000, 3 seeds). M10 and M12 use all-class replay; M7/M9/M11 use targeted replay (run before the all-class finding). Collapse F1 uses period-specific auto-discovered class sets except M10/M12 which use the fixed 12-class set. Macro-F1 is comparable across all rows (all 178 classes). \ours{}'s benefit increases with drift severity.}
+\caption{Multi-period results (margin, $B$=1000, all-class replay $k{=}5$, 3 seeds). All periods use the fixed 12-class collapse evaluation set for consistency. \ours{}'s benefit increases with drift severity.}
 \label{tab:multiperiod}
 \small
 \begin{tabular}{@{}l cc cc c@{}}
 \toprule
 & \multicolumn{2}{c}{Static} & \multicolumn{2}{c}{\ours{}} & \\
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
-Period & Macro & Collapse$^\dagger$ & Macro & Collapse$^\dagger$ & $\Delta$Macro \\
+Period & Macro & Collapse & Macro & Collapse & $\Delta$Macro \\
 \midrule
-M7 (light)   & .740 & .023 & .750$\pm$.001 & .456 & +.010 \\
-M9 (medium)  & .691 & .055 & .722$\pm$.001 & .159 & +.031 \\
-M10          & .684 & .258 & .726$\pm$.001 & .396 & +.043 \\
-M11 (heavy)  & .649 & .017 & .689$\pm$.002 & .277 & +.040 \\
-M12 (severe) & .629 & .028 & .686$\pm$.001 & .256 & +.057 \\
+M7 (light)   & .740 & .503 & .776$\pm$.003 & .633$\pm$.028 & +.036 \\
+M9 (medium)  & .691 & .280 & .739$\pm$.003 & .392$\pm$.005 & +.048 \\
+M11 (heavy)  & .649 & .145 & .708$\pm$.002 & .408$\pm$.016 & +.059 \\
+M12 (severe) & .629 & .028 & .686$\pm$.002 & .255$\pm$.012 & +.057 \\
 \bottomrule
-\multicolumn{6}{l}{\footnotesize $^\dagger$Collapse eval sets differ by period; only $\Delta$Macro is directly comparable.}
 \end{tabular}
 \end{table}
 
-\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.010; M12: +0.057).
-Collapse repair is most successful at M7, where the absorber--victim separation in feature space is still partially intact (collapse F1 = 0.456 vs.\ 0.238 at M12).
+\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.036; M11: +0.059).
+Collapse repair is most successful at M7, where the absorber--victim separation in feature space is still partially intact (collapse F1 = 0.633 vs.\ 0.255 at M12).
 This suggests that \textit{early intervention is more effective}: repairing at M7 yields better per-class recovery than waiting until M12.
 
 \subsection{Detection Evaluation}
 \label{sec:detection_eval}
 
 \textbf{Signal ablation.}
-Table~\ref{tab:detect_signals} shows how each signal contributes to detection accuracy at M12 (14 ground-truth collapsed classes).
+Table~\ref{tab:detect_signals} shows how each signal contributes to detection accuracy at M12.
+The detection ground truth uses a recall threshold of 0.15 (more inclusive than the 0.1 threshold used for the 12 collapse classes in repair evaluation), yielding 14 ground-truth collapsed classes.
 
 \begin{table}[t]
 \centering
