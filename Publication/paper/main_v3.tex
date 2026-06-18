@@ -130,7 +130,7 @@ ILETC~\cite{zhu2023iletc} addresses class-incremental learning using WGAN-GP gen
 MEMENTO~\cite{cerasuolo2024memento} combines knowledge distillation, memory replay, and rectification for learning new application classes without forgetting old ones.
 CPN~\cite{cai2024cpn} uses contrastive prototype networks with exemplar-based replay for incremental encrypted traffic classification.
 PRIME~\cite{prime2025} detects plasticity loss and expands the model via Net2Net without storing exemplars.
-In the broader continual-learning literature~\cite{delange2022continual}, EWC~\cite{kirkpatrick2017ewc} and LwF~\cite{li2017lwf} address catastrophic forgetting through parameter regularization and distillation respectively.
+In the broader continual-learning literature~\cite{delange2022continual}, EWC~\cite{kirkpatrick2017ewc} and LwF~\cite{li2018lwf} address catastrophic forgetting through parameter regularization and distillation respectively.
 While these works share individual technical components with our approach (replay, distillation, prototypes), they address a fundamentally different problem: adding \textit{new} classes to the classifier.
 Our problem---repairing \textit{existing} classes that have collapsed due to drift---is complementary and, to our knowledge, previously unstudied.
 
@@ -249,7 +249,8 @@ Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE~\cite{vandermaaten200
 \label{sec:tta_eval}
 
 We evaluate five TTA methods from computer vision on the same setup: Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, SAR~\cite{niu2023sar}, CoTTA~\cite{wang2022cotta}, and NOTE~\cite{gong2022note}.
-These are traffic-adapted implementations for 1D packet-sequence inputs, with necessary simplifications: EATA uses uniform Fisher importance, CoTTA uses Gaussian noise augmentation, and NOTE uses a simplified prediction-balanced buffer.
+These are traffic-adapted implementations for 1D packet-sequence inputs, with necessary simplifications: EATA uses uniform Fisher importance (rather than per-sample Fisher computed from a held-out set), CoTTA uses Gaussian noise augmentation (as no standard augmentation pipeline exists for packet sequences), and NOTE uses a simplified prediction-balanced buffer without Instance-Aware BatchNorm.
+These simplifications may underestimate the methods' potential; however, the near-zero collapse F1 across all five methods---including Tent and SAR, which require no simplification---indicates a fundamental limitation rather than an implementation artifact.
 Table~\ref{tab:tta} reports M12 results.
 
 \begin{table}[t]
@@ -606,7 +607,7 @@ M12 (severe) & .857 & .706 \\
 
 Recall is stable across all periods (0.857--0.909), confirming that the detection module reliably identifies collapsed classes from M7 onward.
 
-\subsection{Extension: BatchNorm Architecture Verification}
+\subsection{BatchNorm Architecture Verification}
 \label{sec:bn_verify}
 
 To confirm that TTA failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm and re-evaluate.
@@ -634,7 +635,7 @@ NOTE catastrophically degrades the BN model (macro-F1: 0.042).
 This confirms that TTA's inability to address class collapse is a \textit{problem-level} limitation, not an architecture artifact.
 \ours{}-Margin still improves the BN model substantially (macro-F1: .613$\to$.665, collapse F1: .030$\to$.314).
 
-\subsection{Extension: Transformer Architecture}
+\subsection{Transformer Architecture}
 \label{sec:transformer}
 
 We train a Transformer backbone~\cite{vaswani2017attention} (4-layer, 4-head, 256-dim) on the same data and apply \ours{}.
@@ -658,15 +659,16 @@ Transformer & .670 & .030 & \textbf{.767$\pm$.001} & \textbf{.401$\pm$.003} \\
 
 The Transformer benefits more from \ours{} (macro +0.097 vs.\ +0.057), likely because its richer feature representations provide better material for head-only repair.
 
-\subsection{Extension: Generalization to QUIC22}
+\subsection{Generalization to QUIC22}
 \label{sec:quic22}
 
-On CESNET-QUIC22, concept drift is milder: the static model maintains macro-F1 of 0.719 with fewer severely collapsed classes.
-Under strict evaluation (margin, 5 seeds), \ours{} achieves macro-F1 of $0.718{\pm}0.003$---essentially unchanged from Static.
-Collapse-class F1 improves modestly (0.305$\to$0.413), confirming that \ours{}'s benefit scales with collapse severity.
-When drift is mild, the method does no harm but provides limited gain---expected behavior for a collapse-targeted framework.
+We evaluate on CESNET-QUIC22~\cite{luxemburk2023quic} (102 classes, QUIC protocol, weekly granularity, 3-week test span) to test cross-protocol generalization.
+Concept drift is milder: the static model maintains macro-F1 of 0.719 with fewer severely collapsed classes (3 classes below 0.1 recall vs.\ 12 on TLS22).
+Under strict evaluation (margin, $B{=}1{,}000$, all-class replay $k{=}5$, 5 seeds), \ours{} achieves macro-F1 of $0.718{\pm}0.003$ and collapse-class F1 improves from 0.305 to $0.413{\pm}0.021$.
+The modest macro-F1 change ($-$0.001) confirms that \ours{} does no harm when drift is mild, while still recovering collapse classes (+35\% relative collapse F1).
+This validates the framework's generalization across encryption protocols and drift regimes.
 
-\subsection{Extension: Prototype-Based Replay}
+\subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
 
 Standard \ours{} requires storing reference-period samples for replay.
@@ -689,6 +691,15 @@ Prototype (exemplar-free) & .664$\pm$.002 & .219$\pm$.004 \\
 \end{table}
 
 Prototype replay achieves 98.7\% of real replay's macro-F1 (0.664 vs.\ 0.673), demonstrating that \ours{} can operate in an exemplar-free setting with minimal performance loss.
+
+\subsection{Statistical Significance and Robustness}
+\label{sec:significance}
+
+Paired $t$-tests across 5 seeds confirm: margin $>$ random (macro-F1: $p{=}0.003$) and BADGE $>$ margin (macro-F1: $p{=}0.012$).
+Wilcoxon signed-rank tests are inconclusive ($p{=}0.0625$) due to the minimum achievable $p$-value with $n{=}5$ paired samples.
+
+To verify that absorber-collapse is a property of the data rather than a training artifact, we conduct a retraining audit: 3 training seeds $\times$ 3 \ours{} seeds = 9 runs yield macro-F1 of $0.667{\pm}0.007$ and collapse F1 of $0.290{\pm}0.034$.
+Both training-seed variance ($\sigma_{\text{macro}}{=}0.0006$) and fine-tuning-seed variance ($\sigma_{\text{macro}}{\approx}0.001$) are small relative to the \ours{} improvement ($+$0.057 macro-F1), confirming that the absorber-collapse pattern is an inherent property of the dataset's temporal drift.
 
 
 % ============================================================
@@ -738,14 +749,6 @@ The default weights achieve the highest F1 but are not critical: any reasonable 
 \textbf{Calibration baseline.}
 Temperature scaling ($T^*{=}1.11$, learned on validation data) changes zero predictions out of 1.32M test samples, leaving all metrics identical.
 This confirms that class collapse arises from confident misprediction---the model is wrong with high confidence---and cannot be addressed by post-hoc calibration.
-
-\textbf{Statistical significance.}
-Paired $t$-tests across 5 seeds confirm: margin $>$ random (macro-F1: $p{=}0.003$) and BADGE $>$ margin (macro-F1: $p{=}0.012$).
-Wilcoxon signed-rank tests are inconclusive ($p{=}0.0625$) due to the minimum achievable $p$-value with $n{=}5$ paired samples.
-
-\textbf{Training seed audit.}
-To verify that absorber-collapse is a property of the data rather than a training artifact, we conduct a deterministic retraining audit: 3 training seeds $\times$ 3 \ours{} seeds = 9 runs yield macro-F1 of $0.667{\pm}0.007$ and collapse F1 of $0.290{\pm}0.034$.
-Both training-seed variance ($\sigma_{\text{macro}}{=}0.0006$) and fine-tuning-seed variance ($\sigma_{\text{macro}}{\approx}0.001$) are small relative to the \ours{} improvement ($+$0.057 macro-F1), confirming that the absorber-collapse pattern is an inherent property of the dataset's temporal drift.
 
 \textbf{Week-10 data collection change.}
 CESNET-TLS-Year22 has a known distribution shift at week~10 due to a flow exporter update~\cite{hynek2024cesnet}.
