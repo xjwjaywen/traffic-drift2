@@ -100,7 +100,7 @@ Our contributions are:
 
 \subsection{Concept Drift in Encrypted Traffic Classification}
 
-Encrypted traffic classifiers rely on statistical features of packet sequences---packet sizes, directions, and inter-packet times---since payload inspection is infeasible under TLS/QUIC encryption~\cite{luxemburk2023quic}.
+Encrypted traffic classifiers rely on statistical features of packet sequences---packet sizes, directions, and inter-packet times---since payload inspection is infeasible under TLS/QUIC encryption~\cite{luxemburk2023quic, rezaei2019deep, vanede2020flowprint, holland2021nprint}.
 These features are inherently non-stationary: application updates change protocol behavior, certificate rotations alter handshake patterns, and CDN migrations shift server-side characteristics~\cite{soukup2025drift, malekghaini2023drift}.
 
 Luxemburk and Hynek~\cite{luxemburk2023quic} first quantified temporal degradation on the CESNET-QUIC22 dataset, reporting 13.5\% accuracy loss in one week.
@@ -121,7 +121,7 @@ CoTTA~\cite{wang2022cotta} uses augmentation-averaged pseudo-labels with stochas
 NOTE~\cite{gong2022note} handles non-i.i.d.\ test streams with prediction-balanced sampling.
 
 These methods were designed for image-corruption benchmarks (ImageNet-C) and assume BatchNorm-based architectures.
-Our primary classifier uses GroupNorm for stability under non-i.i.d.\ traffic batches.
+Our primary classifier uses GroupNorm~\cite{wu2018groupnorm} for stability under non-i.i.d.\ traffic batches.
 To disentangle ``TTA fails because of GroupNorm'' from ``TTA fails because of class collapse,'' we additionally train a BatchNorm variant and verify that TTA methods remain ineffective on both architectures (\S\ref{sec:bn_verify}).
 
 \subsection{Continual Learning for Traffic Classification}
@@ -133,6 +133,17 @@ PRIME~\cite{prime2025} detects plasticity loss and expands the model via Net2Net
 In the broader continual-learning literature~\cite{delange2022continual}, EWC~\cite{kirkpatrick2017ewc} and LwF~\cite{li2017lwf} address catastrophic forgetting through parameter regularization and distillation respectively.
 While these works share individual technical components with our approach (replay, distillation, prototypes), they address a fundamentally different problem: adding \textit{new} classes to the classifier.
 Our problem---repairing \textit{existing} classes that have collapsed due to drift---is complementary and, to our knowledge, previously unstudied.
+
+\subsection{Domain Adaptation and Class Imbalance}
+
+Unsupervised domain adaptation (UDA) methods such as DANN~\cite{ganin2016dann} and CDAN~\cite{long2018cdan} align source and target feature distributions globally.
+However, UDA assumes all classes shift uniformly, whereas absorber-collapse is inherently \textit{class-asymmetric}: only specific victim classes degrade while absorbers and stable classes remain functional.
+Global alignment would dilute the repair signal across 178 classes, most of which need no correction.
+CADE~\cite{yang2021cade} detects concept drift samples for security applications via contrastive explanation, but targets novel-class detection rather than intra-class collapse.
+
+The absorber-collapse pattern superficially resembles class imbalance, where dominant classes suppress minorities~\cite{kang2020decoupling, menon2021longtail}.
+A key distinction is that collapse is \textit{caused by drift}, not by inherent data imbalance: victim classes may be well-represented at training time but collapse due to post-deployment distribution shift.
+Standard long-tail remedies (re-weighting, logit adjustment) cannot address this because the test-time class frequencies are unknown without labels.
 
 \subsection{Active Learning Under Drift}
 
@@ -146,6 +157,15 @@ Our experiments show that standard active learning strategies (entropy, coreset)
 \section{Empirical Analysis: Class Collapse Under Drift}
 \label{sec:analysis}
 
+\subsection{Problem Formulation}
+\label{sec:problem}
+
+Let $f_\phi: \mathcal{X} \to \mathbb{R}^d$ denote a frozen feature encoder and $h_\theta: \mathbb{R}^d \to \mathbb{R}^C$ a classification head, jointly trained on a source period $\mathcal{D}^{\text{src}}$ with $C$ application classes.
+At a later target period $t$, the data distribution shifts: $P_t(\mathbf{x}, y) \neq P_{\text{src}}(\mathbf{x}, y)$.
+We define a class $c$ as \textit{collapsed} at period $t$ if its recall $R_c^{(t)} = \text{TP}_c / ({\text{TP}_c + \text{FN}_c}) < \tau$ for a threshold $\tau$ (we use $\tau{=}0.1$).
+A collapsed class $c$ has a \textit{primary absorber} $a(c) = \arg\max_{j \neq c}\, n_{c \to j}$, where $n_{c \to j}$ counts samples with true label $c$ predicted as $j$.
+The goal of collapse-aware repair is: given a small label budget $B \ll |\mathcal{D}^{\text{tgt}}|$ and optional source replay data, update $h_\theta$ so that $R_c^{(t)}$ recovers for collapsed classes while preserving performance on stable classes.
+
 \subsection{Experimental Setup}
 \label{sec:setup_analysis}
 
@@ -156,7 +176,7 @@ Each flow is represented by Per-Packet Information (PPI): packet sizes, directio
 We train a CNN classifier (3-layer 1D convolution with GroupNorm, 8 groups, 256-dim hidden layer, 178 classes) on March 2022 alone (M3) and evaluate on M4--M12, giving a minimum time gap of one month and maximum of nine months.
 Training uses a joint classification + self-supervised objective: cross-entropy loss plus three auxiliary SSL tasks (masked packet-feature prediction, packet-order prediction, and flow-statistics reconstruction) with SSL weight 1.0, mask ratio 0.15, and auxiliary loss weights $\alpha{=}0.2$, $\beta{=}0.1$.
 The SSL tasks improve encoder generalization but are not used during \ours{} repair (which freezes the encoder and updates only the classification head).
-Training runs for 30 epochs with AdamW (lr$=10^{-3}$, weight decay$=10^{-4}$), batch size 1024, and 20\% validation split.
+Training runs for 30 epochs with AdamW~\cite{loshchilov2019adamw} (lr$=10^{-3}$, weight decay$=10^{-4}$), batch size 1024, and 20\% validation split.
 
 \subsection{The Absorber-Collapse Pattern}
 \label{sec:absorber}
@@ -223,7 +243,7 @@ The two mechanisms have different implications for repair: feature-drift collaps
 \label{fig:tsne}
 \end{figure}
 
-Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE on encoder features for four representative absorber--victim pairs.
+Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE~\cite{vandermaaten2008tsne} on encoder features for four representative absorber--victim pairs.
 
 \subsection{Why General TTA Methods Fail}
 \label{sec:tta_eval}
@@ -680,6 +700,12 @@ Prototype replay achieves 98.7\% of real replay's macro-F1 (0.664 vs.\ 0.673), d
 In our experiments, we use M4 as the reference period; a comparison shows that using the training month M3 yields equivalent results (macro-F1: $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$), so replay can reuse training data at zero additional labeling cost.
 In ISP deployment, target labels can be obtained through DPI-based labeling on a monitored subnet, SNI-based ground truth for TLS traffic, or periodic manual verification.
 Repair is triggered only when the detection module identifies drift, so labeling cost is incurred only when needed.
+
+\textbf{Detection false positives and deployment cost.}
+The detection module achieves precision 0.60 at M12, meaning 40\% of flagged classes are false positives.
+However, false positives do \textit{not} trigger unnecessary labeling: the detection module triggers a single repair cycle covering all classes, not per-class repairs.
+Once triggered, the 1{,}000-label active selection and all-class replay repair all collapsed classes simultaneously regardless of which specific classes the detector flagged.
+The detection module's primary deployment value is its high recall ($\geq$0.86), ensuring that repair is triggered whenever collapse occurs.
 
 \textbf{Stable-class trade-off.}
 Stable-class F1 decreases from 0.903 (Static) to 0.892 ($-$1.2\%) under Full \ours{} with all-class replay.
