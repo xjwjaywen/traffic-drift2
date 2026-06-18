@@ -393,9 +393,9 @@ Method & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 \midrule
 \multicolumn{5}{l}{\textit{No labeled target data:}} \\
 Static          & .629 & .028 & .903 & 12 \\
-Tent            & .631 & .030 & .903 & 12 \\
+Tent            & .631 & .026 & .903 & 12 \\
 EATA            & .629 & .028 & .903 & 12 \\
-SAR             & .629 & .030 & .901 & 12 \\
+SAR             & .629 & .026 & .901 & 11 \\
 CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
@@ -696,7 +696,7 @@ The ablation shows each component's role: without replay and distillation, degra
 \ours{} is designed for autonomous deployment:
 (1)~the detection module monitors class health and triggers repair without labels;
 (2)~margin selection requires no absorber knowledge;
-(3)~all-class replay from training data is the default, with prototype replay as a privacy-preserving alternative;
+(3)~all-class replay from labeled reference-period data is the default (equivalently, training data; \S\ref{sec:discussion}), with prototype replay as a privacy-preserving alternative;
 (4)~repair completes in ${\sim}$3 minutes on an NVIDIA RTX 3090.
 The updated head is swapped in atomically after training completes offline, so repair does not interrupt online inference.
 

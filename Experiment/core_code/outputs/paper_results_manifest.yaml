@@ -1,7 +1,7 @@
 # Paper Results Manifest
 # Maps each table/figure in Publication/paper/main_v3.tex to its canonical data source.
 # All source_file paths are relative to Experiment/core_code/outputs/ unless noted.
-# Generated from CANONICAL_SOURCES.md and main_v2.tex cross-reference.
+# Generated from CANONICAL_SOURCES.md and main_v3.tex cross-reference.
 
 tables:
 
@@ -253,7 +253,7 @@ figures:
     source_file: "per_class_collapse_tls22_monthly/collapse_timeline.csv"
     supporting_files:
       - "per_class_collapse_tls22_monthly/collapse_period_summary.csv"
-    regeneration_command: "python scripts/make_paper_figures.py --figure collapse_timeline"
+    regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "Classes exhibit both abrupt collapse (e.g. class 56 at M5) and gradual decline (e.g. class 104 over M5-M9). Threshold line at recall = 0.1."
 
   fig_2:  # \label{fig:ablation_bar}
@@ -263,7 +263,7 @@ figures:
       - "ablation_strict/ft_only/aggregated_mean_std.csv"
       - "ablation_strict/ft_replay/aggregated_mean_std.csv"
       - "ablation_strict/full_care/aggregated_mean_std.csv"
-    regeneration_command: "python scripts/make_paper_figures.py --figure ablation_bar"
+    regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "Only full CARE simultaneously improves collapse F1 (red) while maintaining stable F1 (green)."
 
   fig_3:  # \label{fig:tta_failure}
@@ -278,7 +278,7 @@ figures:
       - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
       - "care_multiperiod/M_2022_11/aggregated_mean_std.csv"
       - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
-    regeneration_command: "python scripts/make_paper_figures.py --figure tta_failure"
+    regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "All TTA baselines track Static closely on both metrics. CARE provides increasing benefit as drift severity grows."
 
   fig_4:  # \label{fig:strategy_comparison}
@@ -287,7 +287,7 @@ figures:
     source_file:
       - "al_baselines_strict/"
       - "badge_5seeds_strict/"
-    regeneration_command: "python scripts/make_paper_figures.py --figure strategy_comparison"
+    regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "Margin consistently outperforms entropy and coreset, which fall below Static baseline. Strict evaluation."
 
   fig_6:  # \label{fig:tsne}
@@ -304,7 +304,7 @@ figures:
     description: "Label efficiency curve with error bars (5 seeds): macro-F1 as a function of label budget B"
     output_file: "Publication/figures/fig_budget_sweep.pdf"
     source_file: "care_5seeds_strict_cnn/aggregated_mean_std.csv"
-    regeneration_command: "python scripts/make_paper_figures.py --figure budget_sweep"
+    regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "200 labels already improve macro to 0.637; 1000 labels reach 0.673 +/- 0.001 with diminishing returns beyond."
 
   discussion_replay_source:

@@ -128,8 +128,10 @@ def fig_strategy_comparison(output_dir):
               "coreset": "#9C27B0", "badge": "#4CAF50"}
     markers = {"random": "o", "entropy": "v", "margin": "s",
                "coreset": "^", "badge": "D"}
-    # Override BADGE with dedicated 5-seed run (al_baselines_strict has only 2 seeds)
-    badge_path = "outputs/badge_5seeds_strict/aggregated_mean_std.csv"
+    # Override BADGE with all-class replay 5-seed run (v3 canonical config)
+    badge_path = "outputs/badge_allreplay_5seeds/aggregated_mean_std.csv"
+    if not os.path.exists(badge_path):
+        badge_path = "outputs/badge_5seeds_strict/aggregated_mean_std.csv"
     if os.path.exists(badge_path):
         strategies.pop("badge", None)
         badge_rows = read_csv(badge_path)

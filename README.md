@@ -19,7 +19,7 @@ All 5 TTA methods fail on class collapse (F1 < 0.03). CARE is a framework: BADGE
 
 ```
 ├── Publication/              # Paper draft and figures
-│   ├── paper/main_v2.tex     # LaTeX source (CARE paper, latest)
+│   ├── paper/main_v3.tex     # LaTeX source (CARE paper, latest)
 │   └── figures/              # 5 publication figures
 │
 ├── Experiment/core_code/     # Main experiment codebase
