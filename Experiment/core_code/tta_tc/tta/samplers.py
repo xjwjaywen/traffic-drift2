@@ -17,20 +17,20 @@ def _entropy(logits: torch.Tensor) -> torch.Tensor:
 
 
 def random_sampler(features, static_logits, pred_classes, budget, num_classes,
-                   generator=None):
+                   generator=None, **kwargs):
     N = features.size(0)
     return torch.randperm(N, device=features.device, generator=generator)[:budget]
 
 
 def entropy_sampler(features, static_logits, pred_classes, budget, num_classes,
-                    generator=None):
+                    generator=None, **kwargs):
     """Pick top-budget by predictive entropy (highest = most uncertain)."""
     h = _entropy(static_logits)
     return torch.topk(h, k=min(budget, h.size(0)), largest=True).indices
 
 
 def margin_sampler(features, static_logits, pred_classes, budget, num_classes,
-                   generator=None):
+                   generator=None, **kwargs):
     """Pick top-budget by smallest top-2 margin (smallest = most uncertain)."""
     top2 = torch.topk(static_logits, k=2, dim=1).values
     margin = top2[:, 0] - top2[:, 1]
@@ -38,7 +38,7 @@ def margin_sampler(features, static_logits, pred_classes, budget, num_classes,
 
 
 def coreset_sampler(features, static_logits, pred_classes, budget, num_classes,
-                    generator=None):
+                    generator=None, **kwargs):
     """k-center greedy on normalized features (no source seeds)."""
     N = features.size(0)
     f = F.normalize(features, dim=1)
@@ -67,7 +67,7 @@ def coreset_sampler(features, static_logits, pred_classes, budget, num_classes,
 
 
 def class_balanced_random_sampler(features, static_logits, pred_classes, budget,
-                                  num_classes, generator=None):
+                                  num_classes, generator=None, **kwargs):
     """
     Stratified random by predicted class — gives long-tail classes coverage.
     """
