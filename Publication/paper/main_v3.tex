@@ -242,9 +242,9 @@ Table~\ref{tab:tta} reports M12 results.
 Method & Macro-F1 & Collapse F1 & Stable F1 \\
 \midrule
 Static      & .629 & .028 & .903 \\
-Tent        & .631 & .030 & .903 \\
+Tent        & .631 & .026 & .903 \\
 EATA        & .629 & .028 & .903 \\
-SAR         & .629 & .030 & .901 \\
+SAR         & .629 & .026 & .901 \\
 CoTTA       & .629 & .027 & .903 \\
 NOTE        & .630 & .027 & .902 \\
 \bottomrule
@@ -438,7 +438,7 @@ Configuration & Labels & Replay & Distill & Macro-F1 & Collapse F1 & Stable F1 &
 \midrule
 Static (no repair) & & & & .629 & .028 & \textbf{.903} & 12 \\
 Replay only & & \checkmark & & .563$\pm$.007 & .044$\pm$.019 & .816 & 10.2 \\
-Distill only & & \checkmark & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888 & 10.8 \\
+Replay + Distill & & \checkmark & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888 & 10.8 \\
 \midrule
 FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
 FT + Replay & \checkmark & \checkmark & & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
@@ -457,7 +457,7 @@ FT + Distill & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887 
 
 Key findings:
 \begin{itemize}
-  \item \textbf{Without target labels}: Neither replay alone (.563 macro, \textit{worse} than static) nor distillation alone (.618) can repair collapse. Source-domain signals cannot correct target-domain confusion without target supervision. This establishes that \textit{target labels are the essential ingredient}.
+  \item \textbf{Without target labels}: Neither replay alone (.563 macro, \textit{worse} than static) nor replay+distillation (.618) can repair collapse. Source-domain signals cannot correct target-domain confusion without target supervision. This establishes that \textit{target labels are the essential ingredient}.
   \item \textbf{FT only} (labels alone): Repairs collapse classes (.028$\to$.134) but severely damages stable classes (.903$\to$.839)---catastrophic forgetting.
   \item \textbf{FT + Replay}: Improves collapse repair (.134$\to$.223) but does not recover stable classes (.839). Macro-F1 drops below FT-only (.620 vs.\ .638) because replay dilutes the target signal without regularization.
   \item \textbf{FT + Distill}: Achieves .670 macro and recovers stable F1 to .887, demonstrating strong regularization from distillation. However, collapse repair is lower than FT+Replay (.152 vs.\ .223).
