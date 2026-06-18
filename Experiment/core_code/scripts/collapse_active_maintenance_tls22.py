@@ -272,6 +272,7 @@ def select_indices(
     nearest_proto=None,
     features=None,
     prototypes=None,
+    ref_pred_counts=None,
 ):
     n = logits.shape[0]
     budget = min(int(budget), n)
@@ -341,8 +342,8 @@ def select_indices(
         return badge_selection(features, logits, num_classes, budget, seed)
 
     if strategy == "absorber_aware":
-        if features is None or prototypes is None:
-            raise ValueError("absorber_aware requires features and prototypes")
+        if features is None:
+            raise ValueError("absorber_aware requires features")
         from tta_tc.tta.samplers import absorber_aware_sampler
         gen = torch.Generator()
         gen.manual_seed(int(seed))
@@ -354,6 +355,7 @@ def select_indices(
             num_classes=num_classes,
             generator=gen,
             source_prototypes=prototypes,
+            ref_pred_counts=ref_pred_counts,
         )
 
     if strategy in {
@@ -682,6 +684,12 @@ def main():
     static_preds = logits.argmax(dim=1).numpy()
     nearest_distance, nearest_proto = prototype_distance_signals(features, prototypes, valid_mask)
 
+    ref_preds = ref_outputs["logits"].argmax(dim=1)
+    ref_pred_counts = torch.zeros(num_classes)
+    for c in range(num_classes):
+        ref_pred_counts[c] = (ref_preds == c).sum()
+
+
     rows = []
     per_class_rows = []
     selected_rows = []
@@ -720,6 +728,7 @@ def main():
                 nearest_proto=nearest_proto,
                 features=features,
                 prototypes=prototypes,
+                ref_pred_counts=ref_pred_counts,
             )
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
