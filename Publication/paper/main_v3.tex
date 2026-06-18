@@ -427,19 +427,23 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 
 \begin{table}[t]
 \centering
-\caption{Component ablation at M-2022-12 (margin, $B$=1000, strict eval, 5 seeds). Each row adds one component to isolate its independent contribution.}
+\caption{Component ablation at M-2022-12 (strict eval, 5 seeds). Top block: without target labels (no repair signal). Bottom block: with 1{,}000 target labels (margin selection). Each row isolates one or two components.}
 \label{tab:ablation}
 \small
-\begin{tabular}{@{}l cccc@{}}
+\begin{tabular}{@{}l ccc cccc@{}}
 \toprule
-Configuration & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
+ & \multicolumn{3}{c}{Components} & & & & \\
+\cmidrule(lr){2-4}
+Configuration & Labels & Replay & Distill & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 \midrule
-Static (no repair)      & .629 & .028 & \textbf{.903} & 12 \\
+Static (no repair) & & & & .629 & .028 & \textbf{.903} & 12 \\
+Replay only & & \checkmark & & .563$\pm$.007 & .044$\pm$.019 & .816 & 10.2 \\
+Distill only & & \checkmark & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888 & 10.8 \\
 \midrule
-FT only                 & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
-FT + Replay             & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
-FT + Distill            & .670$\pm$.000 & .152$\pm$.007 & .887 & --- \\
-\textbf{Full \ours{}}   & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892 & \textbf{5.8} \\
+FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
+FT + Replay & \checkmark & \checkmark & & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
+FT + Distill & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887 & 7.8 \\
+\textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892 & \textbf{5.8} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -451,12 +455,13 @@ FT + Distill            & .670$\pm$.000 & .152$\pm$.007 & .887 & --- \\
 \label{fig:ablation_bar}
 \end{figure}
 
-Key findings from each component's independent contribution:
+Key findings:
 \begin{itemize}
-  \item \textbf{FT only} (labels alone): Repairs collapse classes (F1: .028$\to$.134) but severely damages stable classes (.903$\to$.839), demonstrating that targeted labels alone cause catastrophic forgetting.
-  \item \textbf{FT + Replay} (labels + replay, no distillation): Further improves collapse repair (.134$\to$.223) but does not recover stable classes (.839). Replay alone is insufficient to anchor 178-class decision boundaries. Macro-F1 actually drops below FT-only (.620 vs.\ .638) because replay samples dilute the target signal without the regularization that distillation provides.
-  \item \textbf{FT + Distill} (labels + distillation, no replay): Achieves the highest macro-F1 among partial configurations (.670) and recovers stable-class F1 to .887, demonstrating that distillation alone provides strong regularization. However, collapse repair is lower than FT+Replay (.152 vs.\ .223) because without replay the model lacks explicit multi-class anchoring.
-  \item \textbf{Full \ours{}} (all three): The best overall trade-off---highest macro-F1 (.686), highest collapse F1 (.256), and near-full stable-class recovery (.892). Replay and distillation are complementary: replay provides the multi-class feature anchors that distillation needs to enforce soft-label consistency.
+  \item \textbf{Without target labels}: Neither replay alone (.563 macro, \textit{worse} than static) nor distillation alone (.618) can repair collapse. Source-domain signals cannot correct target-domain confusion without target supervision. This establishes that \textit{target labels are the essential ingredient}.
+  \item \textbf{FT only} (labels alone): Repairs collapse classes (.028$\to$.134) but severely damages stable classes (.903$\to$.839)---catastrophic forgetting.
+  \item \textbf{FT + Replay}: Improves collapse repair (.134$\to$.223) but does not recover stable classes (.839). Macro-F1 drops below FT-only (.620 vs.\ .638) because replay dilutes the target signal without regularization.
+  \item \textbf{FT + Distill}: Achieves .670 macro and recovers stable F1 to .887, demonstrating strong regularization from distillation. However, collapse repair is lower than FT+Replay (.152 vs.\ .223).
+  \item \textbf{Full \ours{}}: The only configuration achieving the best trade-off---highest macro-F1 (.686), highest collapse F1 (.256), and near-full stable recovery (.892). Replay and distillation are complementary: replay provides multi-class feature anchors, distillation enforces soft-label consistency.
 \end{itemize}
 
 \subsection{Selection Strategy Comparison}
@@ -514,11 +519,11 @@ Its value is \textit{not} in guiding replay class selection---all-class replay i
 \subsection{Multi-Period Analysis}
 \label{sec:multi_period}
 
-Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across four time points with increasing drift severity.
+Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across five time points with increasing drift severity.
 
 \begin{table}[t]
 \centering
-\caption{Multi-period results (margin, targeted replay, $B$=1000, 3 seeds). \ours{}'s benefit increases with drift severity.}
+\caption{Multi-period results (margin, $B$=1000). M10 uses all-class replay (3 seeds); M7/M9/M11/M12 use targeted replay (3 seeds). \ours{}'s benefit increases with drift severity.}
 \label{tab:multiperiod}
 \small
 \begin{tabular}{@{}l cc cc c@{}}
@@ -527,15 +532,16 @@ Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across four time point
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
 Period & Macro & Collapse & Macro & Collapse & $\Delta$Macro \\
 \midrule
-M7 (light)  & .740 & .023 & .750$\pm$.001 & .456 & +.010 \\
-M9 (medium) & .691 & .055 & .722$\pm$.001 & .159 & +.031 \\
-M11 (heavy) & .649 & .017 & .689$\pm$.002 & .277 & +.040 \\
-M12 (severe)& .629 & .031 & .674$\pm$.002 & .238 & +.045 \\
+M7 (light)   & .740 & .023 & .750$\pm$.001 & .456 & +.010 \\
+M9 (medium)  & .691 & .055 & .722$\pm$.001 & .159 & +.031 \\
+M10          & .684 & .258 & .726$\pm$.001 & .396 & +.043 \\
+M11 (heavy)  & .649 & .017 & .689$\pm$.002 & .277 & +.040 \\
+M12 (severe) & .629 & .031 & .686$\pm$.001 & .256 & +.057 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.010; M12: +0.045).
+\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.010; M12: +0.057).
 Collapse repair is most successful at M7, where the absorber--victim separation in feature space is still partially intact (collapse F1 = 0.456 vs.\ 0.238 at M12).
 This suggests that \textit{early intervention is more effective}: repairing at M7 yields better per-class recovery than waiting until M12.
 
@@ -576,9 +582,9 @@ Table~\ref{tab:trigger} validates the deployment trigger: detection recall is $\
 \toprule
 Period & Recall & F1 \\
 \midrule
-M7 (light)   & .857 & --- \\
-M9 (medium)  & .900 & --- \\
-M11 (heavy)  & .909 & --- \\
+M7 (light)   & .857 & .444 \\
+M9 (medium)  & .900 & .600 \\
+M11 (heavy)  & .909 & .645 \\
 M12 (severe) & .857 & .706 \\
 \bottomrule
 \end{tabular}
