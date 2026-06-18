@@ -1,0 +1,39 @@
+# Training config: CESNET-QUICEXT-25 with 1D-CNN backbone
+# Train on M-2024-6 (first month), test on M-2024-8
+
+data:
+  dataset: quicext25
+  data_dir: /data/xjw/CESNET-QUICEXT-25
+  size: XS
+  train_period: "M-2024-6"
+  test_period: "M-2024-8"
+  batch_size: 1024
+  num_workers: 16
+  val_ratio: 0.2
+
+model:
+  backbone: cnn
+  hidden_dim: 256
+  norm_type: gn
+  num_groups: 8
+  flow_stats_dim: 0
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+  fsr_target_dim: 6
+
+ssl:
+  alpha: 0.2
+  beta: 0.1
+  mask_ratio: 0.15
+  enable_mpfp: true
+  enable_pop: true
+  enable_fsr: true
+
+training:
+  epochs: 30
+  lr: 0.001
+  weight_decay: 0.0001
+  ssl_weight: 1.0
+
+output_dir: outputs/quicext25_cnn

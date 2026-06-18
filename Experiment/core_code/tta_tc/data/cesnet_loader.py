@@ -225,6 +225,9 @@ def build_dataloaders(cfg: dict):
         except ImportError:
             from cesnet_datazoo.datasets import CESNET_TLS22
             dataset = CESNET_TLS22(data_dir, size=size)
+    elif dataset_name == "quicext25":
+        from cesnet_datazoo.datasets import CESNET_QUICEXT_25
+        dataset = CESNET_QUICEXT_25(data_dir, size=size)
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
@@ -289,6 +292,9 @@ def build_sequential_test_loaders(cfg: dict):
         except ImportError:
             from cesnet_datazoo.datasets import CESNET_TLS22
             DatasetClass = CESNET_TLS22
+    elif dataset_name == "quicext25":
+        from cesnet_datazoo.datasets import CESNET_QUICEXT_25
+        DatasetClass = CESNET_QUICEXT_25
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 

@@ -1,0 +1,62 @@
+# Evaluation config: CESNET-QUICEXT-25 long-term evaluation
+# Train on M-2024-6, test across 11 months (M-2024-7 to M-2025-5)
+
+data:
+  dataset: quicext25
+  data_dir: /data/xjw/CESNET-QUICEXT-25
+  size: XS
+  train_period: "M-2024-6"
+  test_period: "M-2024-8"
+  test_periods:
+    - "M-2024-7"
+    - "M-2024-8"
+    - "M-2024-9"
+    - "M-2024-10"
+    - "M-2024-11"
+    - "M-2024-12"
+    - "M-2025-1"
+    - "M-2025-2"
+    - "M-2025-3"
+    - "M-2025-4"
+    - "M-2025-5"
+  batch_size: 256
+  num_workers: 4
+
+methods:
+  - static
+  - bn_adapt
+  - tent
+  - eata
+  - cotta
+  - sar
+  - note
+  - mvfc
+  - tta_tc
+
+tta:
+  adapt_lr: 0.00001
+  adapt_mode: encoder
+  adapt_batch_size: 64
+  ema_momentum: 0.999
+  restore_prob: 0.01
+  fisher_alpha: 2000.0
+  entropy_threshold: 0.5
+  energy_threshold: -5.0
+  entropy_filter_ratio: 0.4
+  buffer_size: 2000
+  adapt_steps: 1
+  min_drifted_classes: 3
+  abrupt_adapt_steps: 10
+  drift_lr_gamma: 3.0
+  label_budget_per_period: 500
+  proto_blend: 0.2
+  tta_blend: 0.8
+  spa_temperature: 0.1
+  mvfc_num_views: 2
+  mvfc_mask_prob: 0.10
+  mvfc_size_noise: 0.05
+  mvfc_ipt_noise: 0.10
+  mvfc_dir_dropout: 0.05
+  mvfc_weight: 1.0
+
+output_dir: outputs/eval_quicext25
