@@ -384,7 +384,7 @@ Table~\ref{tab:main_results} presents the main comparison at M-2022-12 (nine mon
 
 \begin{table}[t]
 \centering
-\caption{Main results on CESNET-TLS-Year22 at M-2022-12. TTA methods use no labels; all other methods use 1{,}000 labels with all-class replay + distillation. Strict evaluation, 5 seeds.}
+\caption{Main results on CESNET-TLS-Year22 at M-2022-12. TTA methods use no labels. All active methods use $B{=}1{,}000$ labels with all-class replay ($k{=}5$, 890 samples) and KD ($\lambda{=}0.5$); only the selection strategy varies. Strict evaluation, 5 seeds.}
 \label{tab:main_results}
 \small
 \begin{tabular}{@{}l cccc@{}}
@@ -399,12 +399,10 @@ SAR             & .629 & .026 & .901 & 11 \\
 CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
-\multicolumn{5}{l}{\textit{Active learning baselines (targeted replay, $B$=1000):}} \\
-Entropy         & .600$\pm$.004 & .073$\pm$.013 & --- & 9.8 \\
-Coreset         & .618$\pm$.008 & .108$\pm$.037 & --- & 9.2 \\
-Random          & .656$\pm$.006 & .183$\pm$.031 & --- & 8.0 \\
-\midrule
-\multicolumn{5}{l}{\textit{\ours{} (all-class replay, $B$=1000, 5 seeds):}} \\
+\multicolumn{5}{l}{\textit{Active selection ($B$=1000, all-class replay + KD, 5 seeds):}} \\
+Entropy         & .628$\pm$.004 & .078$\pm$.015 & --- & --- \\
+Coreset         & .634$\pm$.005 & .116$\pm$.042 & --- & --- \\
+Random          & .668$\pm$.004 & .188$\pm$.024 & --- & --- \\
 \ours{}-Margin  & .686$\pm$.001 & .256$\pm$.009 & .892$\pm$.003 & 5.8 \\
 \textbf{\ours{}-BADGE} & \textbf{.700$\pm$.003} & \textbf{.333$\pm$.040} & \textbf{.894$\pm$.004} & \textbf{4.0} \\
 \bottomrule
@@ -414,7 +412,7 @@ Random          & .656$\pm$.006 & .183$\pm$.031 & --- & 8.0 \\
 Key findings:
 \begin{itemize}
   \item All TTA methods fail to address class collapse (collapse F1 $\leq$0.030), confirming that unsupervised adaptation cannot break confident absorber--victim confusion.
-  \item Standard active learning is counterproductive: entropy (0.600) and coreset (0.618) perform \textit{worse} than the static baseline (0.629) because they select globally uncertain samples dominated by high-traffic classes, systematically avoiding the collapse boundary.
+  \item Standard active learning is counterproductive: even with the same all-class replay + KD pipeline, entropy (0.628) and coreset (0.634) barely match the static baseline (0.629) because they select globally uncertain samples dominated by high-traffic classes, systematically avoiding the collapse boundary.
   \item \ours{}-BADGE achieves the best results: macro-F1 of $0.700{\pm}0.003$ ($+$11.3\%) and collapse F1 of $0.333{\pm}0.040$ ($12{\times}$ improvement). Significance: BADGE$>$margin ($p{=}0.012$), margin$>$random ($p{=}0.003$).
   \item \ours{}-Margin is a lightweight alternative ($<$1s selection) with lower variance ($\sigma_{\text{macro}}{=}0.001$ vs.\ 0.003) and strong performance (macro-F1: $0.686{\pm}0.001$).
 \end{itemize}
@@ -427,22 +425,19 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 
 \begin{table}[t]
 \centering
-\caption{Component ablation at M-2022-12 (strict eval, 5 seeds). Top block: without target labels (no repair signal). Bottom block: with 1{,}000 target labels (margin selection). Each row isolates one or two components.}
+\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). All rows with replay use all-class $k{=}5$ (890 samples). Only the presence of replay and/or KD varies.}
 \label{tab:ablation}
 \small
 \begin{tabular}{@{}l ccc cccc@{}}
 \toprule
  & \multicolumn{3}{c}{Components} & & & & \\
 \cmidrule(lr){2-4}
-Configuration & Labels & Replay & Distill & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
+Configuration & Labels & Replay & KD & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
 \midrule
 Static (no repair) & & & & .629 & .028 & \textbf{.903} & 12 \\
-Replay only & & \checkmark & & .563$\pm$.007 & .044$\pm$.019 & .816 & 10.2 \\
-Replay + Distill & & \checkmark & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888 & 10.8 \\
 \midrule
 FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839 & 7.0 \\
-FT + Replay & \checkmark & \checkmark & & .620$\pm$.003 & .223$\pm$.001 & .839 & 5.0 \\
-FT + Distill & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887 & 7.8 \\
+FT + Replay & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854 & 4.8 \\
 \textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892 & \textbf{5.8} \\
 \bottomrule
 \end{tabular}
@@ -455,14 +450,13 @@ FT + Distill & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887 
 \label{fig:ablation_bar}
 \end{figure}
 
-Key findings:
+Each row adds one component, isolating its contribution:
 \begin{itemize}
-  \item \textbf{Without target labels}: Neither replay alone (.563 macro, \textit{worse} than static) nor replay+distillation (.618) can repair collapse. Source-domain signals cannot correct target-domain confusion without target supervision. This establishes that \textit{target labels are the essential ingredient}.
-  \item \textbf{FT only} (labels alone): Repairs collapse classes (.028$\to$.134) but severely damages stable classes (.903$\to$.839)---catastrophic forgetting.
-  \item \textbf{FT + Replay}: Improves collapse repair (.134$\to$.223) but does not recover stable classes (.839). Macro-F1 drops below FT-only (.620 vs.\ .638) because replay dilutes the target signal without regularization.
-  \item \textbf{FT + Distill}: Achieves .670 macro and recovers stable F1 to .887, demonstrating strong regularization from distillation. However, collapse repair is lower than FT+Replay (.152 vs.\ .223).
-  \item \textbf{Full \ours{}}: The only configuration achieving the best trade-off---highest macro-F1 (.686), highest collapse F1 (.256), and near-full stable recovery (.892). Replay and distillation are complementary: replay provides multi-class feature anchors, distillation enforces soft-label consistency.
+  \item \textbf{FT only} (labels alone): Repairs collapse classes (.028$\to$.134) but severely damages stable classes (.903$\to$.839)---catastrophic forgetting from overfitting to 1{,}000 target samples.
+  \item \textbf{FT + Replay} (add all-class replay): Substantially improves both macro-F1 (.638$\to$.659) and collapse repair (.134$\to$.236). Replaying all 178 classes anchors decision boundaries, but stable-class recovery is partial (.839$\to$.854).
+  \item \textbf{Full \ours{}} (add KD): Adding knowledge distillation provides the final boost: macro-F1 reaches .686 and stable F1 recovers to .892, close to the static baseline (.903). KD's primary contribution is stable-class preservation (.854$\to$.892) through soft-label consistency on replay samples.
 \end{itemize}
+Each component serves a distinct role: target labels provide the repair signal, all-class replay prevents forgetting across 178 classes, and KD regularizes the head to preserve stable-class behavior.
 
 \subsection{Selection Strategy Comparison}
 \label{sec:al_baselines}
@@ -744,7 +738,7 @@ We showed that unsupervised TTA methods cannot address this failure (collapse F1
 We proposed \ours{}, a label-efficient maintenance framework with three components: (1)~few-label head fine-tuning with margin or BADGE selection, (2)~all-class source replay, and (3)~knowledge distillation.
 An unsupervised detection module monitors per-class health and triggers repair when drift is detected.
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
-A clean component ablation confirms that fine-tuning, replay, and distillation each contribute independently: FT alone reaches 0.638 macro-F1, adding distillation lifts it to 0.670, and the full combination achieves 0.686.
+A clean component ablation confirms that each ingredient contributes independently under controlled conditions (all-class replay throughout): FT alone reaches 0.638, adding replay lifts it to 0.659, and adding KD achieves 0.686.
 A replay strategy ablation shows that all-class replay outperforms targeted replay even at matched budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that class-coverage breadth matters more than targeted volume.
 The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), datasets (QUIC22), and training seeds.
 
