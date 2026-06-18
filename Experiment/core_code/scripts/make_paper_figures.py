@@ -184,12 +184,10 @@ def fig_strategy_comparison(output_dir):
 # Figure 3: Budget sweep (best strategy)
 # ============================================================
 def fig_budget_sweep(output_dir):
-    """Budget sweep using strict 5-seed aggregated data."""
-    path = "outputs/care_5seeds_strict_cnn/aggregated_mean_std.csv"
+    """Budget sweep using all-class replay 5-seed data (v3 canonical config)."""
+    path = "outputs/budget_sweep_allreplay/aggregated_mean_std.csv"
     if not os.path.exists(path):
-        path = "outputs/al_baselines_strict/aggregated_mean_std.csv"
-    if not os.path.exists(path):
-        print(f"SKIP fig_budget_sweep: no aggregated data found")
+        print(f"SKIP fig_budget_sweep: {path} not found")
         return
 
     rows = read_csv(path)
@@ -205,24 +203,19 @@ def fig_budget_sweep(output_dir):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    for strategy, color, marker in [
-        ("random", "#2196F3", "o"),
-        ("margin", "#F44336", "s"),
-    ]:
-        data = [(int(r["budget"]),
-                 float(r["strict_overall_macro_f1_mean"]),
-                 float(r["strict_bad_macro_f1_mean"]),
-                 float(r.get("strict_overall_macro_f1_std", 0)),
-                 float(r.get("strict_bad_macro_f1_std", 0)))
-                for r in rows if r["strategy"] == strategy and r["method"] != "static"]
-        if not data:
-            continue
+    data = [(int(r["budget"]),
+             float(r["strict_overall_macro_f1_mean"]),
+             float(r["strict_bad_macro_f1_mean"]),
+             float(r.get("strict_overall_macro_f1_std", 0)),
+             float(r.get("strict_bad_macro_f1_std", 0)))
+            for r in rows if r["strategy"] == "margin" and r["method"] != "static"]
+    if data:
         data.sort()
         budgets, macros, collapses, m_std, c_std = zip(*data)
-        ax1.errorbar(budgets, macros, yerr=m_std, marker=marker, color=color,
-                     label=strategy, capsize=3, linewidth=1.5)
-        ax2.errorbar(budgets, collapses, yerr=c_std, marker=marker, color=color,
-                     label=strategy, capsize=3, linewidth=1.5)
+        ax1.errorbar(budgets, macros, yerr=m_std, marker="s", color="#F44336",
+                     label="CARE-Margin", capsize=3, linewidth=1.5)
+        ax2.errorbar(budgets, collapses, yerr=c_std, marker="s", color="#F44336",
+                     label="CARE-Margin", capsize=3, linewidth=1.5)
 
     ax1.axhline(y=static_macro, color="gray", linestyle="--", alpha=0.6, label="Static")
     ax2.axhline(y=static_collapse, color="gray", linestyle="--", alpha=0.6, label="Static")
@@ -247,33 +240,46 @@ def fig_budget_sweep(output_dir):
 # Figure 4: Ablation bar chart
 # ============================================================
 def fig_ablation(output_dir):
-    # Load from ablation CSV artifacts (strict evaluation, 5-seed, margin@1000)
+    """V3 7-row ablation: Static, Replay-only, Replay+Distill, FT, FT+Replay,
+    FT+Distill, Full CARE. Reads from ablation_strict/ and ablation_v3/."""
     import csv as _csv
-    ablation_base = os.path.join(os.path.dirname(output_dir), "Experiment",
-                                 "core_code", "outputs", "ablation_strict")
-    if not os.path.isdir(ablation_base):
-        ablation_base = os.path.join(os.path.dirname(__file__), "..",
-                                     "outputs", "ablation_strict")
+    base = os.path.join(os.path.dirname(__file__), "..", "outputs")
+
+    def _load(subdir, budget="1000"):
+        csv_path = os.path.join(base, subdir, "aggregated_mean_std.csv")
+        if not os.path.exists(csv_path):
+            return None
+        with open(csv_path) as f:
+            for row in _csv.DictReader(f):
+                if row.get("method") != "static" and row.get("budget", "") == budget:
+                    return (
+                        float(row["strict_overall_macro_f1_mean"]),
+                        float(row["strict_bad_macro_f1_mean"]),
+                        float(row.get("strict_stable_macro_f1_mean", 0)),
+                        float(row["strict_overall_macro_f1_std"]),
+                        float(row["strict_bad_macro_f1_std"]),
+                        float(row.get("strict_stable_macro_f1_std", 0)),
+                    )
+        return None
+
     configs = [("Static", 0.629, 0.028, 0.903, 0, 0, 0)]
-    for name, dirname in [("FT only", "ft_only"), ("FT+Replay", "ft_replay"),
-                          ("CARE (full)", "full_care")]:
-        csv_path = os.path.join(ablation_base, dirname, "aggregated_mean_std.csv")
-        if os.path.exists(csv_path):
-            with open(csv_path) as f:
-                for row in _csv.DictReader(f):
-                    if row.get("budget") == "1000":
-                        configs.append((
-                            name,
-                            float(row["strict_overall_macro_f1_mean"]),
-                            float(row["strict_bad_macro_f1_mean"]),
-                            float(row["strict_stable_macro_f1_mean"]),
-                            float(row["strict_overall_macro_f1_std"]),
-                            float(row["strict_bad_macro_f1_std"]),
-                            float(row["strict_stable_macro_f1_std"]),
-                        ))
-                        break
+
+    # No-label rows
+    r = _load("ablation_v3/replay_only", "0")
+    if r: configs.append(("Replay only", *r))
+    r = _load("ablation_v3/distill_only", "0")
+    if r: configs.append(("Replay+Distill", *r))
+
+    # With-label rows
+    for name, subdir in [("FT only", "ablation_strict/ft_only"),
+                          ("FT+Replay", "ablation_strict/ft_replay"),
+                          ("FT+Distill", "ablation_strict/ft_distill"),
+                          ("Full CARE", "autonomous_allreplay_5seeds/care")]:
+        r = _load(subdir)
+        if r:
+            configs.append((name, *r))
         else:
-            raise FileNotFoundError(f"{csv_path} not found — run ablation experiments first")
+            print(f"  WARN: {subdir} not found, skipping {name}")
 
     names = [c[0] for c in configs]
     macro = [c[1] for c in configs]
@@ -286,7 +292,7 @@ def fig_ablation(output_dir):
     x = np.arange(len(names))
     width = 0.25
 
-    fig, ax = plt.subplots(figsize=(9, 4.5))
+    fig, ax = plt.subplots(figsize=(11, 4.5))
     bars1 = ax.bar(x - width, macro, width, yerr=m_std, capsize=2,
                    label="Overall Macro-F1", color="#2196F3", alpha=0.85)
     bars2 = ax.bar(x, collapse, width, yerr=c_std, capsize=2,
@@ -295,12 +301,20 @@ def fig_ablation(output_dir):
                    label="Stable-Class F1", color="#4CAF50", alpha=0.85)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(names, rotation=20, ha="right")
+    ax.set_xticklabels(names, rotation=25, ha="right", fontsize=9)
     ax.set_ylabel("Macro-F1")
-    ax.set_title("Ablation Study: Component Contribution")
+    ax.set_title("Component Ablation")
     ax.legend(loc="upper left")
     ax.set_ylim(0, 1.05)
     ax.grid(True, alpha=0.2, axis="y")
+
+    # Divider between no-label and with-label blocks
+    if len(configs) >= 4:
+        ax.axvline(x=2.5, color="gray", linestyle=":", alpha=0.5)
+        ax.text(1.0, 1.02, "no target labels", ha="center", fontsize=8,
+                color="gray", transform=ax.get_xaxis_transform())
+        ax.text(5.0, 1.02, "with 1000 target labels", ha="center", fontsize=8,
+                color="gray", transform=ax.get_xaxis_transform())
 
     # Highlight full method
     for bar in [bars1[-1], bars2[-1], bars3[-1]]:
