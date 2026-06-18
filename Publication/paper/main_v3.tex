@@ -75,7 +75,7 @@ Critically, we show that all five evaluated TTA methods---including state-of-the
 We propose \ours{}, a collapse-aware repair framework with three complementary components:
 \begin{enumerate}
   \item \textbf{Few-label fine-tuning.} We actively select $B{=}1{,}000$ informative target samples via margin or BADGE sampling and fine-tune only the classification head, keeping the encoder frozen.
-  \item \textbf{All-class source replay.} $k{=}5$ exemplars per class (890 samples total) from the original training data are mixed into fine-tuning to prevent catastrophic forgetting.
+  \item \textbf{All-class source replay.} $k{=}5$ exemplars per class (890 samples total) from labeled reference-period data are mixed into fine-tuning to prevent catastrophic forgetting. We use M4 as the reference period; an equivalence experiment confirms that using the training month (M3) yields nearly identical results (macro-F1: $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$), so the replay data can be sourced from either the training pipeline or a nearby labeled period.
   \item \textbf{Knowledge distillation.} A KL-divergence loss between the updated and original heads on replay samples anchors the overall prediction behavior.
 \end{enumerate}
 An unsupervised detection module, based on five complementary signals (prediction count ratio, Fr\'{e}chet distance, margin drop, confidence drop, entropy rise), monitors per-class health and triggers repair when drift is detected---it serves as a deployment trigger and diagnostic monitor, not as a mechanism for selecting replay classes.
@@ -301,12 +301,12 @@ We recommend BADGE as the strongest selector when compute permits, and margin as
 \subsection{Head Fine-Tuning with All-Class Source Replay}
 \label{sec:ft_replay}
 
-We fine-tune only the classification head $h_\theta$ using the selected target labels combined with $k{=}5$ samples per class from the training data (all-class source replay, 890 samples total):
+We fine-tune only the classification head $h_\theta$ using the selected target labels combined with $k{=}5$ samples per class from labeled reference-period data (all-class source replay, 890 samples total):
 \begin{equation}
   \mathcal{L}_{\text{ft}} = \frac{1}{|D_{\text{target}} \cup D_{\text{replay}}|} \sum_{(x,y)} \ell_{\text{CE}}(h_\theta(f(x)), y)
 \end{equation}
 where $f(\cdot)$ is the frozen encoder.
-All-class replay prevents the head from overfitting to the small target sample and maintains decision boundaries for all 178 classes---a critical advantage over targeted replay, as confirmed by the replay strategy ablation (\S\ref{sec:replay_ablation}).
+All-class replay prevents the head from overfitting to the small target sample and maintains decision boundaries for all 178 classes. This is a critical advantage over targeted replay, as confirmed by the replay strategy ablation (\S\ref{sec:replay_ablation}).
 
 \subsection{Knowledge Distillation}
 \label{sec:distill}
@@ -448,6 +448,8 @@ FT + Distill & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887 
 \end{tabular}
 \end{table}
 
+% NOTE: fig_ablation_bar.pdf must be regenerated to match the 7-row v3 ablation table.
+% Run: python scripts/make_paper_figures.py --output-dir ../../Publication/figures
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_ablation_bar.pdf}
@@ -523,21 +525,22 @@ Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across five time point
 
 \begin{table}[t]
 \centering
-\caption{Multi-period results (margin, $B$=1000). M10 uses all-class replay (3 seeds); M7/M9/M11/M12 use targeted replay (3 seeds). \ours{}'s benefit increases with drift severity.}
+\caption{Multi-period results (margin, $B$=1000, 3 seeds). M10 and M12 use all-class replay; M7/M9/M11 use targeted replay (run before the all-class finding). Collapse F1 uses period-specific auto-discovered class sets except M10/M12 which use the fixed 12-class set. Macro-F1 is comparable across all rows (all 178 classes). \ours{}'s benefit increases with drift severity.}
 \label{tab:multiperiod}
 \small
 \begin{tabular}{@{}l cc cc c@{}}
 \toprule
 & \multicolumn{2}{c}{Static} & \multicolumn{2}{c}{\ours{}} & \\
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
-Period & Macro & Collapse & Macro & Collapse & $\Delta$Macro \\
+Period & Macro & Collapse$^\dagger$ & Macro & Collapse$^\dagger$ & $\Delta$Macro \\
 \midrule
 M7 (light)   & .740 & .023 & .750$\pm$.001 & .456 & +.010 \\
 M9 (medium)  & .691 & .055 & .722$\pm$.001 & .159 & +.031 \\
 M10          & .684 & .258 & .726$\pm$.001 & .396 & +.043 \\
 M11 (heavy)  & .649 & .017 & .689$\pm$.002 & .277 & +.040 \\
-M12 (severe) & .629 & .031 & .686$\pm$.001 & .256 & +.057 \\
+M12 (severe) & .629 & .028 & .686$\pm$.001 & .256 & +.057 \\
 \bottomrule
+\multicolumn{6}{l}{\footnotesize $^\dagger$Collapse eval sets differ by period; only $\Delta$Macro is directly comparable.}
 \end{tabular}
 \end{table}
 
@@ -682,8 +685,8 @@ Prototype replay achieves 98.7\% of real replay's macro-F1 (0.664 vs.\ 0.673), d
 \label{sec:discussion}
 
 \textbf{Label cost and deployment model.}
-\ours{} requires 1{,}000 target labels per repair cycle ($<$0.3\% of the ${\sim}$330K monthly test set) plus 890 all-class replay samples from existing training data.
-The replay incurs zero additional labeling effort---it reuses the original training data directly.
+\ours{} requires 1{,}000 target labels per repair cycle ($<$0.3\% of the ${\sim}$330K monthly test set) plus 890 all-class replay samples from a labeled reference period.
+In our experiments, we use M4 as the reference period; a comparison shows that using the training month M3 yields equivalent results (macro-F1: $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$), so replay can reuse training data at zero additional labeling cost.
 In ISP deployment, target labels can be obtained through DPI-based labeling on a monitored subnet, SNI-based ground truth for TLS traffic, or periodic manual verification.
 Repair is triggered only when the detection module identifies drift, so labeling cost is incurred only when needed.
 

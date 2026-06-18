@@ -1,5 +1,5 @@
 # Paper Results Manifest
-# Maps each table/figure in Publication/paper/main_v2.tex to its canonical data source.
+# Maps each table/figure in Publication/paper/main_v3.tex to its canonical data source.
 # All source_file paths are relative to Experiment/core_code/outputs/ unless noted.
 # Generated from CANONICAL_SOURCES.md and main_v2.tex cross-reference.
 

@@ -1,6 +1,6 @@
 # Canonical Sources for Paper Tables and Figures
 
-Maps each table/figure in `Publication/paper/main_v2.tex` to its data source.
+Maps each table/figure in `Publication/paper/main_v3.tex` to its data source.
 All paths relative to `Experiment/core_code/`.
 
 ## Tables
