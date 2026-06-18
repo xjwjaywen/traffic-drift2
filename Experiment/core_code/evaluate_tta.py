@@ -437,7 +437,7 @@ def main():
     parser.add_argument("--methods", type=str, default=None,
                         help="Comma-separated method override (e.g., 'tta_tc,knn_labeled,ft_head')")
     parser.add_argument("--sampler", type=str, default=None,
-                        choices=["random", "entropy", "margin", "coreset", "class_balanced"],
+                        choices=["random", "entropy", "margin", "coreset", "class_balanced", "absorber_aware"],
                         help="Active sampling strategy override")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed for sampling and torch")

@@ -111,12 +111,150 @@ def class_balanced_random_sampler(features, static_logits, pred_classes, budget,
     return selected
 
 
+def absorber_aware_sampler(features, static_logits, pred_classes, budget, num_classes,
+                           generator=None, source_prototypes=None,
+                           aas_ratio=0.7, margin_ratio=0.2, pair_threshold=0.005):
+    """Absorption-guided sampling (AAS): scores each sample by how likely it sits
+    on an absorber-victim decision boundary, using only unlabeled target data and
+    reference-period prototypes.
+
+    Builds a pseudo absorption graph from prototype-vs-head disagreement, then
+    scores candidates with:
+        score(x) = collapse_risk(v) * p(a|x) * proto_affinity(x,v) * exp(-|z_a - z_v|)
+    where a = predicted class (absorber candidate), v = nearest prototype (victim candidate).
+
+    Budget split: 70% AAS-scored, 20% global margin, 10% random.
+    """
+    N = features.size(0)
+    budget = min(budget, N)
+    device = features.device
+
+    if source_prototypes is None:
+        return margin_sampler(features, static_logits, pred_classes, budget,
+                              num_classes, generator)
+
+    # --- Prototype assignment ---
+    feat_norm = F.normalize(features, dim=1)
+    proto_norm = F.normalize(source_prototypes, dim=1)
+    proto_sims = feat_norm @ proto_norm.T  # (N, C)
+    proto_classes = proto_sims.argmax(dim=1)
+
+    # --- Per-class collapse risk ---
+    # collapse_risk(v) = 1 - pred_count(v) / proto_count(v)
+    # High when many prototype-v samples are predicted as something else.
+    pred_counts = torch.zeros(num_classes, device=device)
+    proto_counts = torch.zeros(num_classes, device=device)
+    for c in range(num_classes):
+        pred_counts[c] = (pred_classes == c).sum()
+        proto_counts[c] = (proto_classes == c).sum()
+    collapse_risk = (1.0 - pred_counts / proto_counts.clamp(min=1)).clamp(min=0)
+
+    # --- Build pseudo absorption graph (only disagreeing samples) ---
+    disagree_mask = pred_classes != proto_classes
+    absorption_flow = torch.zeros(num_classes, num_classes, device=device)
+    if disagree_mask.any():
+        pred_d = pred_classes[disagree_mask]
+        proto_d = proto_classes[disagree_mask]
+        for i in range(pred_d.size(0)):
+            absorption_flow[pred_d[i], proto_d[i]] += 1
+
+    flow_threshold = max(1, int(N * pair_threshold))
+    significant_pairs = absorption_flow >= flow_threshold  # (C, C) bool
+
+    if not significant_pairs.any():
+        return margin_sampler(features, static_logits, pred_classes, budget,
+                              num_classes, generator)
+
+    # --- Budget allocation: 70% AAS / 20% margin / 10% random ---
+    aas_budget = max(1, int(budget * aas_ratio))
+    margin_budget = max(1, int(budget * margin_ratio))
+    random_budget = budget - aas_budget - margin_budget
+
+    # --- Identify significant (absorber, victim) pairs and allocate AAS budget ---
+    pair_indices = torch.nonzero(significant_pairs, as_tuple=False)  # (K, 2)
+    pair_flows = absorption_flow[pair_indices[:, 0], pair_indices[:, 1]]
+
+    pair_weights = pair_flows / pair_flows.sum()
+    pair_budgets = (pair_weights * aas_budget).long()
+    shortfall = aas_budget - pair_budgets.sum().item()
+    if shortfall > 0:
+        top_pairs = torch.argsort(pair_flows, descending=True)[:shortfall]
+        pair_budgets[top_pairs] += 1
+
+    # --- Per-pair boundary sampling scored by composite formula ---
+    probs = F.softmax(static_logits, dim=1)
+    selected = []
+    used = torch.zeros(N, dtype=torch.bool, device=device)
+
+    for k in range(pair_indices.size(0)):
+        absorber_cls = pair_indices[k, 0].item()
+        victim_cls = pair_indices[k, 1].item()
+        b = pair_budgets[k].item()
+        if b <= 0:
+            continue
+
+        # Primary candidates: predicted as absorber, prototype nearest is victim
+        candidates = torch.nonzero(
+            (pred_classes == absorber_cls) & (proto_classes == victim_cls) & ~used,
+            as_tuple=False
+        ).squeeze(1)
+        if candidates.numel() == 0:
+            candidates = torch.nonzero(
+                (pred_classes == absorber_cls) & ~used,
+                as_tuple=False
+            ).squeeze(1)
+        if candidates.numel() == 0:
+            continue
+
+        cr = collapse_risk[victim_cls]
+        pa = probs[candidates, absorber_cls]
+        aff = proto_sims[candidates, victim_cls].clamp(min=0)
+        pair_unc = torch.exp(-(static_logits[candidates, absorber_cls]
+                               - static_logits[candidates, victim_cls]).abs())
+        score = cr * pa * aff * pair_unc
+
+        k_sel = min(b, candidates.size(0))
+        top_k = torch.topk(score, k=k_sel, largest=True).indices
+        chosen = candidates[top_k]
+        selected.append(chosen)
+        used[chosen] = True
+
+    # (b) Global margin samples (covers non-collapse uncertainty)
+    remaining_idx = torch.nonzero(~used, as_tuple=False).squeeze(1)
+    if remaining_idx.numel() > 0:
+        top2 = torch.topk(static_logits[remaining_idx], k=2, dim=1).values
+        m = top2[:, 0] - top2[:, 1]
+        k = min(margin_budget, remaining_idx.size(0))
+        top_k = torch.topk(m, k=k, largest=False).indices
+        chosen = remaining_idx[top_k]
+        selected.append(chosen)
+        used[chosen] = True
+
+    # (c) Random samples (stable-class preservation + exploration)
+    remaining_idx = torch.nonzero(~used, as_tuple=False).squeeze(1)
+    if remaining_idx.numel() > 0 and random_budget > 0:
+        k = min(random_budget, remaining_idx.size(0))
+        if generator is not None:
+            perm = torch.randperm(remaining_idx.size(0), device=device,
+                                  generator=generator)[:k]
+        else:
+            perm = torch.randperm(remaining_idx.size(0), device=device)[:k]
+        selected.append(remaining_idx[perm])
+
+    if not selected:
+        return margin_sampler(features, static_logits, pred_classes, budget,
+                              num_classes, generator)
+
+    return torch.cat(selected)[:budget]
+
+
 SAMPLERS = {
     "random": random_sampler,
     "entropy": entropy_sampler,
     "margin": margin_sampler,
     "coreset": coreset_sampler,
     "class_balanced": class_balanced_random_sampler,
+    "absorber_aware": absorber_aware_sampler,
 }
 
 

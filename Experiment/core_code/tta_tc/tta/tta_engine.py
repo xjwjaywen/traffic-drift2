@@ -118,6 +118,7 @@ class TTAEngine:
             budget=budget,
             num_classes=self.num_classes,
             generator=gen,
+            source_prototypes=self.source_prototypes,
         )
         queried_labels = all_labels.to(self.device)[idx]
         queried_features = all_features[idx]
