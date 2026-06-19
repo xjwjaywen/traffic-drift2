@@ -481,6 +481,67 @@ def fit_head(
     return head
 
 
+def fit_full_model(
+    model,
+    train_ppi,
+    train_labels,
+    lr,
+    epochs,
+    batch_size,
+    weight_decay,
+    device,
+    distill_model=None,
+    distill_weight=0.0,
+    distill_temperature=2.0,
+    seed=None,
+):
+    """Fine-tune entire model (encoder + head) on selected samples."""
+    ft_model = copy.deepcopy(model).to(device)
+    for p in ft_model.parameters():
+        p.requires_grad_(True)
+    opt = torch.optim.AdamW(ft_model.parameters(), lr=lr, weight_decay=weight_decay)
+    x = train_ppi.to(device)
+    y = torch.as_tensor(train_labels, dtype=torch.long, device=device)
+    n = x.shape[0]
+    use_distill = distill_weight > 0.0 and distill_model is not None
+    if use_distill:
+        distill_model.eval()
+        temp = float(distill_temperature)
+    gen = torch.Generator(device=device)
+    gen.manual_seed(seed if seed is not None else 0)
+    ft_model.train()
+    for _ in range(epochs):
+        perm = torch.randperm(n, device=device, generator=gen)
+        for start in range(0, n, batch_size):
+            idx = perm[start : start + batch_size]
+            logits = ft_model(x[idx])
+            loss = F.cross_entropy(logits, y[idx])
+            if use_distill:
+                with torch.no_grad():
+                    teacher_logits = distill_model(x[idx])
+                student_log_probs = F.log_softmax(logits / temp, dim=1)
+                teacher_probs = F.softmax(teacher_logits / temp, dim=1)
+                distill_loss = F.kl_div(
+                    student_log_probs, teacher_probs, reduction="batchmean"
+                ) * (temp ** 2)
+                loss = loss + float(distill_weight) * distill_loss
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+    return ft_model
+
+
+@torch.no_grad()
+def predict_full_model(model, ppi, device, chunk_size=8192):
+    """Predict using full model on raw PPI."""
+    preds = []
+    model.eval()
+    for start in range(0, ppi.shape[0], chunk_size):
+        chunk = ppi[start : start + chunk_size].to(device)
+        preds.append(model(chunk).argmax(dim=1).cpu())
+    return torch.cat(preds).numpy()
+
+
 @torch.no_grad()
 def predict_head(head, features, device, chunk_size=8192):
     preds = []
@@ -576,6 +637,12 @@ def main():
         default=2.0,
         help="Temperature for replay distillation.",
     )
+    parser.add_argument(
+        "--ft-depth",
+        choices=["head", "full"],
+        default="head",
+        help="Fine-tuning depth: 'head' (default) or 'full' (encoder+head).",
+    )
     parser.add_argument("--min-prototype-support", type=int, default=1)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
@@ -615,7 +682,8 @@ def main():
     if ref_classes != num_classes:
         print(f"WARNING: reference loader classes={ref_classes}, model classes={num_classes}")
     ref_outputs = proto.collect_outputs(
-        model, ref_loader, device, desc=f"Reference {args.reference_period}"
+        model, ref_loader, device, desc=f"Reference {args.reference_period}",
+        keep_ppi=(args.ft_depth == "full" and args.replay_mode not in ("none", "proto_all", "proto_stable_absorber")),
     )
     prototypes, proto_support, valid_mask = proto.build_prototypes(
         ref_outputs["features"],
@@ -676,11 +744,13 @@ def main():
     if loader_classes != num_classes:
         print(f"WARNING: loader classes={loader_classes}, model classes={num_classes}")
     outputs = proto.collect_outputs(
-        model, loader, device, desc=f"Collect {args.target_period}"
+        model, loader, device, desc=f"Collect {args.target_period}",
+        keep_ppi=(args.ft_depth == "full"),
     )
     features = outputs["features"]
     logits = outputs["logits"]
     labels = outputs["labels"]
+    all_ppi = outputs.get("ppi")
     static_preds = logits.argmax(dim=1).numpy()
     nearest_distance, nearest_proto = prototype_distance_signals(features, prototypes, valid_mask)
 
@@ -750,22 +820,50 @@ def main():
                     replay_idx,
                     args.target_repeat,
                 )
-            head = fit_head(
-                model,
-                train_features,
-                train_labels,
-                args.ft_lr,
-                args.ft_epochs,
-                args.ft_batch_size,
-                args.ft_weight_decay,
-                device,
-                distill_features=replay_features,
-                distill_logits=replay_logits,
-                distill_weight=args.replay_distill_weight,
-                distill_temperature=args.distill_temperature,
-                seed=args.seed,
-            )
-            preds = predict_head(head, features, device)
+            if args.ft_depth == "full" and all_ppi is not None:
+                train_ppi_parts = [all_ppi[idx]] * max(1, int(args.target_repeat))
+                train_lbl_parts = [torch.as_tensor(selected_labels, dtype=torch.long)] * max(1, int(args.target_repeat))
+                if use_proto_replay and replay_features is not None and replay_features.shape[0] > 0:
+                    pass
+                elif replay_idx.numel() > 0 and "ppi" in ref_outputs:
+                    train_ppi_parts.append(ref_outputs["ppi"][replay_idx])
+                    train_lbl_parts.append(torch.as_tensor(
+                        ref_outputs["labels"][replay_idx.numpy()], dtype=torch.long))
+                full_train_ppi = torch.cat(train_ppi_parts, dim=0)
+                full_train_labels = torch.cat(train_lbl_parts, dim=0)
+                ft_model = fit_full_model(
+                    model,
+                    full_train_ppi,
+                    full_train_labels,
+                    args.ft_lr * 0.1,
+                    args.ft_epochs,
+                    args.ft_batch_size,
+                    args.ft_weight_decay,
+                    device,
+                    distill_model=model if args.replay_distill_weight > 0 else None,
+                    distill_weight=args.replay_distill_weight,
+                    distill_temperature=args.distill_temperature,
+                    seed=args.seed,
+                )
+                preds = predict_full_model(ft_model, all_ppi, device)
+                del ft_model
+            else:
+                head = fit_head(
+                    model,
+                    train_features,
+                    train_labels,
+                    args.ft_lr,
+                    args.ft_epochs,
+                    args.ft_batch_size,
+                    args.ft_weight_decay,
+                    device,
+                    distill_features=replay_features,
+                    distill_logits=replay_logits,
+                    distill_weight=args.replay_distill_weight,
+                    distill_temperature=args.distill_temperature,
+                    seed=args.seed,
+                )
+                preds = predict_head(head, features, device)
 
             # --- Strict evaluation: exclude queried samples ---
             eval_mask = np.ones(len(labels), dtype=bool)
@@ -781,8 +879,9 @@ def main():
 
             selected_collapse = int(np.isin(selected_labels, collapse_classes).sum())
             selected_absorber = int(np.isin(selected_preds, absorber_classes).sum())
+            method_label = "active_full_ft" if args.ft_depth == "full" else "active_head_ft"
             rows.append({
-                "method": "active_head_ft",
+                "method": method_label,
                 "strategy": strategy,
                 "budget": int(idx.numel()),
                 "replay_mode": args.replay_mode,
@@ -791,7 +890,7 @@ def main():
                 "replay_distill_weight": args.replay_distill_weight,
                 "distill_temperature": args.distill_temperature,
                 "replay_samples": int(replay_idx.numel()),
-                "head_train_samples": int(train_features.shape[0]),
+                "head_train_samples": int(train_features.shape[0]) if args.ft_depth == "head" else "",
                 "selected_collapse_labels": selected_collapse,
                 "selected_absorber_preds": selected_absorber,
                 "selected_mean_proto_distance": float(selected_distance.mean()) if selected_distance.size else "",

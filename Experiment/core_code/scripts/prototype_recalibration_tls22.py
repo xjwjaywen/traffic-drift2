@@ -73,11 +73,12 @@ def make_test_loader(eval_cfg, period):
 
 
 @torch.no_grad()
-def collect_outputs(model, loader, device, desc):
+def collect_outputs(model, loader, device, desc, keep_ppi=False):
     """Collect frozen features, logits, and labels for one period."""
     all_features = []
     all_logits = []
     all_labels = []
+    all_ppi = []
 
     model.eval()
     for batch in tqdm(loader, desc=desc):
@@ -91,12 +92,17 @@ def collect_outputs(model, loader, device, desc):
         all_features.append(features.cpu())
         all_logits.append(logits.cpu())
         all_labels.append(labels.cpu())
+        if keep_ppi:
+            all_ppi.append(batch["ppi"])
 
-    return {
+    result = {
         "features": torch.cat(all_features, dim=0),
         "logits": torch.cat(all_logits, dim=0),
         "labels": torch.cat(all_labels, dim=0).numpy(),
     }
+    if keep_ppi:
+        result["ppi"] = torch.cat(all_ppi, dim=0)
+    return result
 
 
 def build_prototypes(features, labels, num_classes, min_support):
