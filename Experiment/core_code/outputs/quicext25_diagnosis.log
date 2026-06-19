@@ -1,0 +1,39 @@
+M-2024-7: collapsed=1, classes=[21]
+M-2024-8: collapsed=2, classes=[21, 25]
+M-2024-9: collapsed=3, classes=[17, 21, 25]
+M-2024-10: collapsed=3, classes=[17, 21, 25]
+M-2024-11: collapsed=4, classes=[8, 17, 21, 25]
+M-2024-12: collapsed=3, classes=[17, 21, 25]
+M-2025-1: collapsed=4, classes=[8, 17, 21, 25]
+M-2025-2: collapsed=4, classes=[8, 17, 21, 25]
+M-2025-3: collapsed=5, classes=[8, 17, 21, 23, 25]
+M-2025-4: collapsed=4, classes=[17, 21, 23, 25]
+M-2025-5: collapsed=4, classes=[17, 21, 23, 25]
+
+=== Absorber-Victim Analysis at M-2025-5 ===
+Victim class 17 (recall=0.0595, support=504):
+  -> absorbed by class 12: 101/504 (20.0%)
+  -> absorbed by class 30: 101/504 (20.0%)
+  -> absorbed by class 43: 99/504 (19.6%)
+Victim class 21 (recall=0.0000, support=640):
+  -> absorbed by class 12: 521/640 (81.4%)
+  -> absorbed by class 43: 33/640 (5.2%)
+  -> absorbed by class 19: 33/640 (5.2%)
+Victim class 23 (recall=0.0166, support=361):
+  -> absorbed by class 12: 213/361 (59.0%)
+  -> absorbed by class 43: 84/361 (23.3%)
+  -> absorbed by class 24: 18/361 (5.0%)
+Victim class 25 (recall=0.0060, support=992):
+  -> absorbed by class 29: 334/992 (33.7%)
+  -> absorbed by class 43: 284/992 (28.6%)
+  -> absorbed by class 27: 207/992 (20.9%)
+
+Stable classes (recall>0.5 all periods): 22 classes
+Stable class IDs: [0, 3, 4, 5, 6, 7, 10, 11, 12, 19, 24, 26, 27, 29, 30, 33, 34, 37, 38, 39, 40, 43]
+
+Absorber classes (pred/true > 1.5): [11, 33, 36]
+  Class 11: pred_count=4720, true_count=1919, ratio=2.46
+  Class 33: pred_count=450, true_count=219, ratio=2.05
+  Class 36: pred_count=1679, true_count=568, ratio=2.96
+
+Saved to outputs/quicext25_diagnosis.json
