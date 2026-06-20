@@ -34,7 +34,7 @@ All paths relative to `Experiment/core_code/`.
 | Fig 2 | `fig_ablation_bar.pdf` | `outputs/unified_ablation/*/aggregated_mean_std.csv` |
 | Fig 3 | `fig_tta_failure.pdf` | `outputs/tta_multiperiod/{M7,M9,M11,M12}/` + `outputs/care_multiperiod_allreplay/*/` |
 | Fig 4 | `fig_strategy_comparison.pdf` | `outputs/unified_al_baselines/` + `outputs/badge_allreplay_5seeds/` |
-| Fig 5 | `fig_budget_sweep.pdf` | `outputs/care_5seeds_strict_cnn/aggregated_mean_std.csv` |
+| Fig 5 | `fig_budget_sweep.pdf` | `outputs/budget_sweep_allreplay/aggregated_mean_std.csv` |
 
 ## Collapse Set Definitions
 

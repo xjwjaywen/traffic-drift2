@@ -555,7 +555,7 @@ M12 (severe) & .629 & .028 & .686$\pm$.002 & .255$\pm$.012 & +.057 \\
 \end{tabular}
 \end{table}
 
-\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.036; M11: +0.059).
+\ours{} is effective at all drift levels, with increasing benefit as drift severity grows (M7: +0.036; M11: +0.060).
 Collapse repair is most successful at M7, where the absorber--victim separation in feature space is still partially intact (collapse F1 = 0.633 vs.\ 0.255 at M12).
 This suggests that \textit{early intervention is more effective}: repairing at M7 yields better per-class recovery than waiting until M12.
 
@@ -664,9 +664,9 @@ The Transformer benefits more from \ours{} (macro +0.097 vs.\ +0.057), likely be
 
 We evaluate on CESNET-QUICEXT-25~\cite{cesnetquicext25} (44 classes, QUIC protocol, monthly granularity, 11-month test span) to test cross-protocol generalization.
 We train on M-2024-6 and evaluate at M-2025-5 (11 months later), where 4 classes collapse below 0.1 recall with clear absorber patterns (\eg{}, class~21 is 81.4\% absorbed by class~12).
-Under strict evaluation (BADGE, $B{=}1{,}000$, prototype all-class replay $k{=}5$, 5 seeds), \ours{} raises macro-F1 from $0.507{\pm}0.005$ to $0.565{\pm}0.002$ ($+$11.4\%) and collapse-class F1 from $0.043{\pm}0.010$ to $0.074{\pm}0.016$ ($+$72\% relative).
-The margin variant achieves $0.560{\pm}0.006$ with comparable collapse repair ($0.075{\pm}0.017$).
-This validates the framework's generalization across encryption protocols, class scales (44 vs.\ 178), and drift regimes.
+Under strict evaluation (BADGE, $B{=}1{,}000$, prototype all-class replay $k{=}5$, 5 seeds), \ours{} raises macro-F1 from $0.507{\pm}0.005$ to $0.565{\pm}0.002$ ($+$11.4\%) and collapse-class F1 from $0.043{\pm}0.010$ to $0.074{\pm}0.016$.
+The margin variant achieves $0.560{\pm}0.006$ with comparable collapse F1 ($0.075{\pm}0.017$).
+The macro-F1 improvement confirms the framework transfers across protocols and class scales (44 vs.\ 178), though collapse repair remains modest in absolute terms on this dataset.
 
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
@@ -732,9 +732,9 @@ The updated head is swapped in atomically after training completes offline, so r
 
 \textbf{Fine-tuning depth.}
 We compare head-only repair (default) with full-model fine-tuning (encoder + head, lr scaled by $0.1{\times}$) under the same 1{,}000-label budget (margin, all-class replay $k{=}5$, 5 seeds).
-Full fine-tuning achieves macro-F1 of $0.678{\pm}0.001$ and collapse F1 of $0.256{\pm}0.005$, underperforming head-only repair ($0.686{\pm}0.001$ and $0.256{\pm}0.009$ respectively).
-With only 1{,}000 target labels, the encoder's ${\sim}$200K parameters are underconstrained, and gradient updates degrade the learned feature representations rather than improving them.
-This validates our design choice of freezing the encoder and repairing only the classification head.
+Full fine-tuning achieves macro-F1 of $0.678{\pm}0.001$ and collapse F1 of $0.256{\pm}0.005$, while head-only repair reaches $0.686{\pm}0.001$ and $0.256{\pm}0.009$ respectively.
+Collapse recovery is comparable, but full fine-tuning slightly hurts overall and stable-class performance under the same label budget, likely because the encoder's ${\sim}$200K parameters are underconstrained with only 1{,}000 labels.
+This supports our design choice of freezing the encoder and repairing only the classification head.
 
 \textbf{Limitations.}
 Three classes (26, 69, 109) remain collapsed after repair, suggesting that \ours{} is most effective when the victim retains some discriminative features at the encoder level.
@@ -774,7 +774,7 @@ An unsupervised detection module monitors per-class health and triggers repair w
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
 A clean component ablation confirms that each ingredient contributes independently under controlled conditions (all-class replay throughout): FT alone reaches 0.638, adding replay lifts it to 0.659, and adding KD achieves 0.686.
 A replay strategy ablation shows that all-class replay outperforms targeted replay even at matched budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that class-coverage breadth matters more than targeted volume.
-The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), datasets (QUICEXT-25), and training seeds.
+The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds; an evaluation on QUICEXT-25 shows macro-F1 improvement on a different protocol and class scale, though collapse repair remains limited on that dataset.
 
 % ============================================================
 \bibliographystyle{IEEEtran}

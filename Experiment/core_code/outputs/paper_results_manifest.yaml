@@ -332,7 +332,7 @@ figures:
   fig_5:  # \label{fig:budget_sweep}
     description: "Label efficiency curve with error bars (5 seeds): macro-F1 as a function of label budget B"
     output_file: "Publication/figures/fig_budget_sweep.pdf"
-    source_file: "care_5seeds_strict_cnn/aggregated_mean_std.csv"
+    source_file: "budget_sweep_allreplay/aggregated_mean_std.csv"
     regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "200 labels already improve macro to 0.637; 1000 labels reach 0.673 +/- 0.001 with diminishing returns beyond."
 

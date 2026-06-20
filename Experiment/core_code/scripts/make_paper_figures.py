@@ -234,7 +234,7 @@ def fig_budget_sweep(output_dir):
 # ============================================================
 def fig_ablation(output_dir):
     """V3 7-row ablation: Static, Replay-only, Replay+Distill, FT, FT+Replay,
-    FT+Distill, Full CARE. Reads from ablation_strict/ and ablation_v3/."""
+    FT+Distill, Full CARE. Reads from unified_ablation/."""
     import csv as _csv
     base = os.path.join(os.path.dirname(__file__), "..", "outputs")
 
