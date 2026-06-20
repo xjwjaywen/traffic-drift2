@@ -289,11 +289,11 @@ figures:
     description: "Ablation study bar chart (Static vs FT-only vs FT+Replay vs Full CARE, showing collapse F1 and stable F1)"
     output_file: "Publication/figures/fig_ablation_bar.pdf"
     source_file:
-      - "ablation_strict/ft_only/aggregated_mean_std.csv"
-      - "ablation_strict/ft_replay/aggregated_mean_std.csv"
-      - "ablation_strict/full_care/aggregated_mean_std.csv"
+      - "unified_ablation/ft_only/aggregated_mean_std.csv"
+      - "unified_ablation/ft_replay_noKD/aggregated_mean_std.csv"
+      - "unified_ablation/full_care/aggregated_mean_std.csv"
     regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
-    notes: "Only full CARE simultaneously improves collapse F1 (red) while maintaining stable F1 (green)."
+    notes: "Only full CARE simultaneously improves collapse F1 (red) while maintaining stable F1 (green). Source updated from ablation_strict/ to unified_ablation/."
 
   fig_3:  # \label{fig:tta_failure}
     description: "Overall macro-F1 and collapse-class F1 across time points for TTA baselines vs CARE"
@@ -303,10 +303,10 @@ figures:
       - "tta_multiperiod/M9/baselines_group_metrics.csv"
       - "tta_multiperiod/M11/baselines_group_metrics.csv"
       - "tta_multiperiod/M12/baselines_group_metrics.csv"
-      - "care_multiperiod/M_2022_7/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_11/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_7/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_9/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_11/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_12/aggregated_mean_std.csv"
     regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "All TTA baselines track Static closely on both metrics. CARE provides increasing benefit as drift severity grows."
 
@@ -314,10 +314,10 @@ figures:
     description: "Selection strategy comparison across label budgets (margin vs entropy vs coreset vs random)"
     output_file: "Publication/figures/fig_strategy_comparison.pdf"
     source_file:
-      - "al_baselines_strict/"
-      - "badge_5seeds_strict/"
+      - "unified_al_baselines/"
+      - "badge_allreplay_5seeds/"
     regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
-    notes: "Margin consistently outperforms entropy and coreset, which fall below Static baseline. Strict evaluation."
+    notes: "Margin consistently outperforms entropy and coreset, which fall below Static baseline. Strict evaluation. Source updated from al_baselines_strict/ + badge_5seeds_strict/."
 
   fig_6:  # \label{fig:tsne}
     description: "t-SNE visualization of 4 absorber-victim pairs at M-2022-12"
@@ -335,6 +335,25 @@ figures:
     source_file: "care_5seeds_strict_cnn/aggregated_mean_std.csv"
     regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "200 labels already improve macro to 0.637; 1000 labels reach 0.673 +/- 0.001 with diminishing returns beyond."
+
+  quicext25_generalization:
+    description: "QUICEXT-25 generalization (§6.7): BADGE and margin with proto_all replay, 5 seeds"
+    source_file: "care_quicext25_canonical/aggregated_mean_std.csv"
+    collapse_set: "4 QUICEXT-25 collapse classes"
+    seeds: 5
+    regeneration_command: |
+      for SEED in 0 1 2 3 4; do
+        python scripts/collapse_active_maintenance_tls22.py \
+          --config configs/eval_quicext25.yaml --checkpoint outputs/quicext25_cnn/best_model.pt \
+          --reference-period M-2024-1 --target-period M-2024-12 \
+          --strategies badge margin --budgets 1000 \
+          --replay-mode proto_all --replay-per-class 5 --target-repeat 2 \
+          --replay-distill-weight 0.5 --distill-temperature 2.0 \
+          --seed "${SEED}" \
+          --output-dir "outputs/care_quicext25_canonical/seed_${SEED}"
+      done
+      python scripts/aggregate_seeds.py --base-dir outputs/care_quicext25_canonical --num-seeds 5
+    notes: "BADGE@1000 macro .565±.002, margin@1000 .560±.006. Uses proto_all replay (no real source data needed). Supersedes care_quic22_strict/."
 
   discussion_replay_source:
     description: "Replay source comparison (inline in Discussion): M3 vs M4 vs no-replay"
@@ -407,3 +426,18 @@ superseded:
     reason: "Uses detected (not fixed-12) eval set"
   - path: "unsupervised_collapse_detection_v4/"
     replaced_by: "detection_ablation/"
+  - path: "ablation_strict/"
+    replaced_by: "unified_ablation/"
+    reason: "Clean single-variable ablation with all-class replay"
+  - path: "al_baselines_strict/"
+    replaced_by: "unified_al_baselines/"
+    reason: "Unified pipeline, all selectors use same replay+KD"
+  - path: "badge_5seeds_strict/"
+    replaced_by: "badge_allreplay_5seeds/"
+    reason: "All-class replay"
+  - path: "care_quic22_strict/"
+    replaced_by: "care_quicext25_canonical/"
+    reason: "Newer QUICEXT-25 dataset, proto_all replay"
+  - path: "care_multiperiod/"
+    replaced_by: "care_multiperiod_allreplay/"
+    reason: "Was stable_absorber replay + auto-discovered eval"
