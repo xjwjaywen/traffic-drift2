@@ -672,6 +672,7 @@ def main():
     print(f"Num classes: {num_classes}")
     print(f"Collapse classes: {collapse_classes}")
     print(f"Absorber classes: {absorber_classes}")
+    print(f"Fine-tuning depth: {args.ft_depth}")
     print(
         f"Replay: mode={args.replay_mode} per_class={args.replay_per_class} "
         f"target_repeat={args.target_repeat} "
@@ -960,6 +961,7 @@ def main():
         "replay_classes": replay_classes,
         "min_prototype_support": args.min_prototype_support,
         "num_valid_prototypes": int(valid_mask.sum()),
+        "ft_depth": args.ft_depth,
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)

@@ -23,6 +23,7 @@ All paths relative to `Experiment/core_code/`.
 | Tab 12 (Architecture) | `arch` | CNN: `outputs/care_5seeds_strict_cnn/`; Transformer: `outputs/care_transformer_multiperiod/M_2022_12/aggregated_mean_std.csv` | 12 (support≥50) | 5/3 |
 | TTA lr sweep (inline) | — | `outputs/tta_lr_sweep/{lr_1e-3,lr_1e-4,lr_1e-5}/` | 12 (support≥50) | 1 |
 | Training seed audit (inline) | — | `outputs/multiseed_audit/{trainseed0,trainseed1,trainseed2}/care/` | 12 (support≥50) | 3×3 |
+| FT depth (inline Discussion) | — | `outputs/full_ft_baseline/seed_{0..4}/results_by_budget.csv` | 12 (support≥50) | 5 |
 
 ## Figures
 

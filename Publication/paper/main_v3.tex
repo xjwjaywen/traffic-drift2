@@ -730,6 +730,12 @@ The ablation shows each component's role: without replay and distillation, degra
 (4)~repair completes in ${\sim}$3 minutes on an NVIDIA RTX 3090.
 The updated head is swapped in atomically after training completes offline, so repair does not interrupt online inference.
 
+\textbf{Fine-tuning depth.}
+We compare head-only repair (default) with full-model fine-tuning (encoder + head, lr scaled by $0.1{\times}$) under the same 1{,}000-label budget (margin, all-class replay $k{=}5$, 5 seeds).
+Full fine-tuning achieves macro-F1 of $0.667{\pm}0.001$ and collapse F1 of $0.207{\pm}0.004$, underperforming head-only repair ($0.686{\pm}0.001$ and $0.256{\pm}0.009$ respectively).
+With only 1{,}000 target labels, the encoder's ${\sim}$200K parameters are underconstrained, and gradient updates degrade the learned feature representations rather than improving them.
+This validates our design choice of freezing the encoder and repairing only the classification head.
+
 \textbf{Limitations.}
 Three classes (26, 69, 109) remain collapsed after repair, suggesting that \ours{} is most effective when the victim retains some discriminative features at the encoder level.
 Since \ours{} updates only the classification head, it cannot recover classes whose encoder-level features have fully merged with the absorber---for such extreme cases, encoder adaptation or retraining may be necessary at higher cost.

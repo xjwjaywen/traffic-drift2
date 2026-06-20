@@ -235,6 +235,29 @@ tables:
     regeneration_command: "bash scripts/run_full_audit_experiments.sh"
     notes: "Static macro-F1 0.620 +/- 0.001 across training seeds (vs primary checkpoint 0.629 due to deterministic cuDNN). CARE macro 0.667 +/- 0.007 across all 9 runs."
 
+  table_inline_ft_depth:
+    description: "Full fine-tuning vs head-only baseline (inline in Discussion, margin, B=1000, all-class replay k=5, 5 seeds)"
+    source_file:
+      - "full_ft_baseline/seed_0/results_by_budget.csv"
+      - "full_ft_baseline/seed_1/results_by_budget.csv"
+      - "full_ft_baseline/seed_2/results_by_budget.csv"
+      - "full_ft_baseline/seed_3/results_by_budget.csv"
+      - "full_ft_baseline/seed_4/results_by_budget.csv"
+    collapse_set: "12 classes (support >= 50)"
+    seeds: 5
+    regeneration_command: |
+      for seed in 0 1 2 3 4; do
+        python scripts/collapse_active_maintenance_tls22.py \
+          --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
+          --reference-period M-2022-4 --target-period M-2022-12 \
+          --strategies margin --budgets 1000 \
+          --replay-mode all --replay-per-class 5 --target-repeat 2 \
+          --replay-distill-weight 0.5 --distill-temperature 2.0 \
+          --ft-depth full --seed $seed \
+          --output-dir outputs/full_ft_baseline/seed_$seed
+      done
+    notes: "Full FT: macro 0.667±0.001, collapse 0.207±0.004, stable 0.895±0.004. Underperforms head-only (0.686/0.256/0.892). Confirms encoder overfits with 1000 labels. CSV method column = 'active_full_ft'."
+
 figures:
 
   fig_1:  # \label{fig:collapse_timeline}
