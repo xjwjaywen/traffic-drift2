@@ -494,8 +494,10 @@ def fit_full_model(
     distill_weight=0.0,
     distill_temperature=2.0,
     seed=None,
+    is_replay=None,
 ):
-    """Fine-tune entire model (encoder + head) on selected samples."""
+    """Fine-tune entire model (encoder + head) on selected samples.
+    KD is applied only on replay samples (where is_replay=True) for fairness with fit_head."""
     ft_model = copy.deepcopy(model).to(device)
     for p in ft_model.parameters():
         p.requires_grad_(True)
@@ -507,6 +509,10 @@ def fit_full_model(
     if use_distill:
         distill_model.eval()
         temp = float(distill_temperature)
+        if is_replay is not None:
+            replay_flag = torch.as_tensor(is_replay, dtype=torch.bool, device=device)
+        else:
+            replay_flag = None
     gen = torch.Generator(device=device)
     gen.manual_seed(seed if seed is not None else 0)
     ft_model.train()
@@ -517,14 +523,18 @@ def fit_full_model(
             logits = ft_model(x[idx])
             loss = F.cross_entropy(logits, y[idx])
             if use_distill:
-                with torch.no_grad():
-                    teacher_logits = distill_model(x[idx])
-                student_log_probs = F.log_softmax(logits / temp, dim=1)
-                teacher_probs = F.softmax(teacher_logits / temp, dim=1)
-                distill_loss = F.kl_div(
-                    student_log_probs, teacher_probs, reduction="batchmean"
-                ) * (temp ** 2)
-                loss = loss + float(distill_weight) * distill_loss
+                batch_replay = replay_flag[idx] if replay_flag is not None else None
+                replay_idx = idx[batch_replay] if batch_replay is not None else idx
+                if replay_idx.numel() > 0:
+                    replay_logits = ft_model(x[replay_idx]) if batch_replay is not None else logits
+                    with torch.no_grad():
+                        teacher_logits = distill_model(x[replay_idx])
+                    student_log_probs = F.log_softmax(replay_logits / temp, dim=1)
+                    teacher_probs = F.softmax(teacher_logits / temp, dim=1)
+                    distill_loss = F.kl_div(
+                        student_log_probs, teacher_probs, reduction="batchmean"
+                    ) * (temp ** 2)
+                    loss = loss + float(distill_weight) * distill_loss
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -824,14 +834,17 @@ def main():
             if args.ft_depth == "full" and all_ppi is not None:
                 train_ppi_parts = [all_ppi[idx]] * max(1, int(args.target_repeat))
                 train_lbl_parts = [torch.as_tensor(selected_labels, dtype=torch.long)] * max(1, int(args.target_repeat))
+                replay_mask_parts = [torch.zeros(len(idx), dtype=torch.bool)] * max(1, int(args.target_repeat))
                 if use_proto_replay and replay_features is not None and replay_features.shape[0] > 0:
                     pass
                 elif replay_idx.numel() > 0 and "ppi" in ref_outputs:
                     train_ppi_parts.append(ref_outputs["ppi"][replay_idx])
                     train_lbl_parts.append(torch.as_tensor(
                         ref_outputs["labels"][replay_idx.numpy()], dtype=torch.long))
+                    replay_mask_parts.append(torch.ones(replay_idx.numel(), dtype=torch.bool))
                 full_train_ppi = torch.cat(train_ppi_parts, dim=0)
                 full_train_labels = torch.cat(train_lbl_parts, dim=0)
+                full_replay_mask = torch.cat(replay_mask_parts, dim=0)
                 ft_model = fit_full_model(
                     model,
                     full_train_ppi,
@@ -845,6 +858,7 @@ def main():
                     distill_weight=args.replay_distill_weight,
                     distill_temperature=args.distill_temperature,
                     seed=args.seed,
+                    is_replay=full_replay_mask,
                 )
                 preds = predict_full_model(ft_model, all_ppi, device)
                 del ft_model
