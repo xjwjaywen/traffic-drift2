@@ -149,16 +149,32 @@ tables:
     notes: "CAUTION: Collapse F1 and Collapsed count are NOT directly comparable across rows because eval sets differ. Only macro-F1 (over all 178 classes) is comparable. Margin (no absorber info) achieves highest macro-F1 (0.673)."
 
   table_9:  # \label{tab:multiperiod}
-    description: "Multi-period CARE results at M7, M9, M11, M12 (margin, B=1000, 3 seeds)"
+    description: "Multi-period CARE results at M7, M9, M11, M12 (margin, B=1000, all-class replay k=5, fixed 12-class eval, 3 seeds)"
     source_file:
-      - "care_multiperiod/M_2022_7/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_11/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
-    collapse_set: "Auto-discovered per period (class counts vary)"
+      - "care_multiperiod_allreplay/M_2022_7/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_9/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_11/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_12/aggregated_mean_std.csv"
+    collapse_set: "12 classes (fixed, support >= 50)"
     seeds: 3
-    regeneration_command: "bash scripts/run_multiperiod_care.sh"
-    notes: "CARE benefit increases with drift severity (M7: +0.010, M12: +0.045 macro). Early intervention (M7) yields better per-class recovery."
+    regeneration_command: |
+      for TARGET in M-2022-7 M-2022-9 M-2022-11 M-2022-12; do
+        SLUG=$(echo "${TARGET}" | tr '-' '_')
+        for SEED in 0 1 2; do
+          python scripts/collapse_active_maintenance_tls22.py \
+            --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
+            --reference-period M-2022-4 --target-period "${TARGET}" \
+            --strategies margin --budgets 1000 \
+            --collapse-classes 56,163,174,48,38,69,104,47,66,10,109,26 \
+            --eval-collapse-classes 56,163,174,48,38,69,104,47,66,10,109,26 \
+            --replay-mode all --replay-per-class 5 --target-repeat 2 \
+            --replay-distill-weight 0.5 --distill-temperature 2.0 \
+            --seed "${SEED}" \
+            --output-dir "outputs/care_multiperiod_allreplay/${SLUG}/seed_${SEED}"
+        done
+        python scripts/aggregate_seeds.py --base-dir "outputs/care_multiperiod_allreplay/${SLUG}" --num-seeds 3
+      done
+    notes: "All-class replay, fixed 12-class eval set, consistent with main results pipeline. Supersedes care_multiperiod/ (which used stable_absorber replay + auto-discovered eval)."
 
   table_10:  # \label{tab:e2e}
     description: "End-to-end autonomous pipeline vs labeled-probe (margin, B=1000, M12, fixed 12-class eval)"

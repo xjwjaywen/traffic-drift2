@@ -17,7 +17,7 @@ All paths relative to `Experiment/core_code/`.
 | Tab 6 (Per-class recovery) | `per_class` | `outputs/care_seed_0/per_collapse_class_m12.csv` (non-strict, absorber_margin@1000, oracle) | 12 (support≥50) | seed 0 |
 | Tab 7 (Ablation) | `ablation` | `outputs/ablation_strict/{ft_only,ft_replay,full_care}/aggregated_mean_std.csv` | 12 (support≥50) | 5 |
 | Tab 8 (Auto absorber) | `auto_absorber` | Oracle: `outputs/care_5seeds_strict_cnn/` (absorber_margin, 12-fixed eval); Auto: `outputs/care_auto_absorber_m11_to_m12/` (11-probe eval); Margin: `outputs/care_5seeds_strict_cnn/` (margin, 12-fixed eval) | **MIXED**: Oracle/Margin=12-fixed, Auto=11-probe | 5 |
-| Tab 9 (Multi-period) | `multiperiod` | `outputs/care_multiperiod/{M_2022_7,M_2022_9,M_2022_11,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period | 3 |
+| Tab 9 (Multi-period) | `multiperiod` | `outputs/care_multiperiod_allreplay/{M_2022_7,M_2022_9,M_2022_11,M_2022_12}/aggregated_mean_std.csv` | 12 (fixed, support≥50) | 3 |
 | Tab 10 (E2E autonomous) | `e2e` | Labeled probe: `outputs/care_5seeds_strict_cnn/`; Autonomous: `outputs/autonomous_5seeds_strict/care/aggregated_mean_std.csv` | 12 (fixed eval set) | 5/5 |
 | Tab 11 (Proto replay) | `proto_replay` | `outputs/proto_replay_comparison/{real_replay,proto_replay}/aggregated_mean_std.csv` | 12 (support≥50) | 3 |
 | Tab 12 (Architecture) | `arch` | CNN: `outputs/care_5seeds_strict_cnn/`; Transformer: `outputs/care_transformer_multiperiod/M_2022_12/aggregated_mean_std.csv` | 12 (support≥50) | 5/3 |
@@ -51,3 +51,4 @@ All `aggregated_mean_std.csv` use sample std (ddof=1) via `scripts/aggregate_see
 - `autonomous_pipeline_final/` — 3-seed version, superseded by `autonomous_5seeds_strict/`
 - `unsupervised_care_pipeline/` — uses detected (not fixed-12) eval set; superseded
 - `unsupervised_collapse_detection_v4/` — superseded by `detection_ablation/`
+- `care_multiperiod/` — superseded by `care_multiperiod_allreplay/` (was stable_absorber replay + auto-discovered eval)
