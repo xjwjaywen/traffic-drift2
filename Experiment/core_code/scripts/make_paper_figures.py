@@ -311,7 +311,7 @@ def fig_ablation(output_dir):
 def fig_tta_failure(output_dir):
     """Line chart: macro-F1 across M7/M9/M11/M12 for Static vs TTA vs CARE.
 
-    Reads TTA data from tta_multiperiod/ and CARE from care_multiperiod/.
+    Reads TTA data from tta_multiperiod/ and CARE from care_multiperiod_allreplay/.
     """
     periods = ["M7", "M9", "M11", "M12"]
     period_keys = ["M_2022_7", "M_2022_9", "M_2022_11", "M_2022_12"]
@@ -332,7 +332,7 @@ def fig_tta_failure(output_dir):
     def load_care_series():
         macro, coll = [], []
         for pk in period_keys:
-            csv_path = f"outputs/care_multiperiod/{pk}/aggregated_mean_std.csv"
+            csv_path = f"outputs/care_multiperiod_allreplay/{pk}/aggregated_mean_std.csv"
             if not os.path.exists(csv_path):
                 raise FileNotFoundError(f"{csv_path} not found")
             for row in read_csv(csv_path):
