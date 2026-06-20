@@ -84,7 +84,7 @@ An unsupervised detection module, based on five complementary signals (predictio
 We first establish that unsupervised TTA methods cannot address class collapse (all produce collapse-class F1 ${<}0.03$), and that standard active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
 Under strict evaluation (queried samples excluded, five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$ ($12{\times}$) using 1{,}000 target labels ($<$0.3\% of the test set) plus 890 all-class replay samples; a lightweight margin variant achieves $0.686{\pm}0.001$ with sub-second selection time.
 A clean component ablation confirms that each ingredient---fine-tuning, replay, and distillation---contributes independently, with the full combination yielding the best trade-off between collapse repair and stable-class preservation.
-\ours{} generalizes across architectures (CNN and Transformer), drift severity (M7--M12), datasets (CESNET-QUIC22), and supports exemplar-free deployment via prototype replay.
+\ours{} generalizes across architectures (CNN and Transformer), drift severity (M7--M12), datasets (CESNET-QUICEXT-25), and supports exemplar-free deployment via prototype replay.
 
 Our contributions are:
 \begin{enumerate}
@@ -376,7 +376,7 @@ The full training loss is:
 \label{sec:exp_setup}
 
 \textbf{Datasets.}
-We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic) as our primary benchmark and CESNET-QUIC22~\cite{luxemburk2023quic} (102 classes, 4 weeks, QUIC traffic) for generalization.
+We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic) as our primary benchmark and CESNET-QUICEXT-25~\cite{cesnetquicext25} (44 classes, 12 months, QUIC traffic) for generalization.
 For TLS22, we train on M-2022-3 and evaluate at M7, M9, M11, and M12.
 
 \textbf{Baselines.}
@@ -659,14 +659,14 @@ Transformer & .670 & .030 & \textbf{.767$\pm$.001} & \textbf{.401$\pm$.003} \\
 
 The Transformer benefits more from \ours{} (macro +0.097 vs.\ +0.057), likely because its richer feature representations provide better material for head-only repair.
 
-\subsection{Generalization to QUIC22}
-\label{sec:quic22}
+\subsection{Generalization to QUICEXT-25}
+\label{sec:quicext25}
 
-We evaluate on CESNET-QUIC22~\cite{luxemburk2023quic} (102 classes, QUIC protocol, weekly granularity, 3-week test span) to test cross-protocol generalization.
-Concept drift is milder: the static model maintains macro-F1 of 0.719 with fewer severely collapsed classes (3 classes below 0.1 recall vs.\ 12 on TLS22).
-Under strict evaluation (margin, $B{=}1{,}000$, all-class replay $k{=}5$, 5 seeds), \ours{} achieves macro-F1 of $0.718{\pm}0.003$ and collapse-class F1 improves from 0.305 to $0.413{\pm}0.021$.
-The modest macro-F1 change ($-$0.001) confirms that \ours{} does no harm when drift is mild, while still recovering collapse classes (+35\% relative collapse F1).
-This validates the framework's generalization across encryption protocols and drift regimes.
+We evaluate on CESNET-QUICEXT-25~\cite{cesnetquicext25} (44 classes, QUIC protocol, monthly granularity, 11-month test span) to test cross-protocol generalization.
+We train on M-2024-6 and evaluate at M-2025-5 (11 months later), where 4 classes collapse below 0.1 recall with clear absorber patterns (\eg{}, class~21 is 81.4\% absorbed by class~12).
+Under strict evaluation (BADGE, $B{=}1{,}000$, prototype all-class replay $k{=}5$, 5 seeds), \ours{} raises macro-F1 from $0.507{\pm}0.005$ to $0.565{\pm}0.002$ ($+$11.4\%) and collapse-class F1 from $0.043{\pm}0.010$ to $0.074{\pm}0.016$ ($+$72\% relative).
+The margin variant achieves $0.560{\pm}0.006$ with comparable collapse repair ($0.075{\pm}0.017$).
+This validates the framework's generalization across encryption protocols, class scales (44 vs.\ 178), and drift regimes.
 
 \subsection{Prototype-Based Replay}
 \label{sec:proto_replay}
@@ -739,7 +739,7 @@ This validates our design choice of freezing the encoder and repairing only the 
 \textbf{Limitations.}
 Three classes (26, 69, 109) remain collapsed after repair, suggesting that \ours{} is most effective when the victim retains some discriminative features at the encoder level.
 Since \ours{} updates only the classification head, it cannot recover classes whose encoder-level features have fully merged with the absorber---for such extreme cases, encoder adaptation or retraining may be necessary at higher cost.
-On QUIC22, where drift is mild, macro-F1 improvement is negligible; \ours{} is designed for collapse-heavy regimes.
+On QUICEXT-25, the absolute collapse F1 remains low (0.074) despite a 72\% relative improvement, reflecting the difficulty of recovering classes whose features have fully merged in encoder space.
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods~\cite{cai2024cpn}.
 
 \textbf{Computational cost.}
@@ -774,7 +774,7 @@ An unsupervised detection module monitors per-class health and triggers repair w
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
 A clean component ablation confirms that each ingredient contributes independently under controlled conditions (all-class replay throughout): FT alone reaches 0.638, adding replay lifts it to 0.659, and adding KD achieves 0.686.
 A replay strategy ablation shows that all-class replay outperforms targeted replay even at matched budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that class-coverage breadth matters more than targeted volume.
-The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), datasets (QUIC22), and training seeds.
+The framework generalizes across drift severity (M7--M12), architectures (CNN/Transformer), datasets (QUICEXT-25), and training seeds.
 
 % ============================================================
 \bibliographystyle{IEEEtran}
