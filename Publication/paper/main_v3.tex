@@ -732,7 +732,7 @@ The updated head is swapped in atomically after training completes offline, so r
 
 \textbf{Fine-tuning depth.}
 We compare head-only repair (default) with full-model fine-tuning (encoder + head, lr scaled by $0.1{\times}$) under the same 1{,}000-label budget (margin, all-class replay $k{=}5$, 5 seeds).
-Full fine-tuning achieves macro-F1 of $0.667{\pm}0.001$ and collapse F1 of $0.207{\pm}0.004$, underperforming head-only repair ($0.686{\pm}0.001$ and $0.256{\pm}0.009$ respectively).
+Full fine-tuning achieves macro-F1 of $0.678{\pm}0.001$ and collapse F1 of $0.256{\pm}0.005$, underperforming head-only repair ($0.686{\pm}0.001$ and $0.256{\pm}0.009$ respectively).
 With only 1{,}000 target labels, the encoder's ${\sim}$200K parameters are underconstrained, and gradient updates degrade the learned feature representations rather than improving them.
 This validates our design choice of freezing the encoder and repairing only the classification head.
 

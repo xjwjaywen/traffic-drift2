@@ -254,11 +254,11 @@ tables:
   table_inline_ft_depth:
     description: "Full fine-tuning vs head-only baseline (inline in Discussion, margin, B=1000, all-class replay k=5, 5 seeds)"
     source_file:
-      - "full_ft_baseline/seed_0/results_by_budget.csv"
-      - "full_ft_baseline/seed_1/results_by_budget.csv"
-      - "full_ft_baseline/seed_2/results_by_budget.csv"
-      - "full_ft_baseline/seed_3/results_by_budget.csv"
-      - "full_ft_baseline/seed_4/results_by_budget.csv"
+      - "full_ft_baseline_fair_kd/seed_0/results_by_budget.csv"
+      - "full_ft_baseline_fair_kd/seed_1/results_by_budget.csv"
+      - "full_ft_baseline_fair_kd/seed_2/results_by_budget.csv"
+      - "full_ft_baseline_fair_kd/seed_3/results_by_budget.csv"
+      - "full_ft_baseline_fair_kd/seed_4/results_by_budget.csv"
     collapse_set: "12 classes (support >= 50)"
     seeds: 5
     regeneration_command: |
@@ -272,7 +272,7 @@ tables:
           --ft-depth full --seed $seed \
           --output-dir outputs/full_ft_baseline/seed_$seed
       done
-    notes: "Full FT: macro 0.667±0.001, collapse 0.207±0.004, stable 0.895±0.004. Underperforms head-only (0.686/0.256/0.892). Confirms encoder overfits with 1000 labels. CSV method column = 'active_full_ft'."
+    notes: "Full FT (fair KD — only on replay): macro 0.678±0.001, collapse 0.256±0.005, stable 0.892±0.004. Underperforms head-only (0.686/0.256/0.892). Supersedes full_ft_baseline/ which applied KD on all samples unfairly."
 
 figures:
 

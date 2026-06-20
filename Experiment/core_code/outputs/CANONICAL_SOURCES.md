@@ -23,7 +23,7 @@ All paths relative to `Experiment/core_code/`.
 | Tab 12 (Architecture) | `arch` | CNN: `outputs/care_5seeds_strict_cnn/`; Transformer: `outputs/care_transformer_multiperiod/M_2022_12/aggregated_mean_std.csv` | 12 (support≥50) | 5/3 |
 | TTA lr sweep (inline) | — | `outputs/tta_lr_sweep/{lr_1e-3,lr_1e-4,lr_1e-5}/` | 12 (support≥50) | 1 |
 | Training seed audit (inline) | — | `outputs/multiseed_audit/{trainseed0,trainseed1,trainseed2}/care/` | 12 (support≥50) | 3×3 |
-| FT depth (inline Discussion) | — | `outputs/full_ft_baseline/seed_{0..4}/results_by_budget.csv` | 12 (support≥50) | 5 |
+| FT depth (inline Discussion) | — | `outputs/full_ft_baseline_fair_kd/seed_{0..4}/results_by_budget.csv` | 12 (support≥50) | 5 |
 | QUICEXT-25 generalization | `quicext25` | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` | 4 (QUICEXT-25 collapse classes) | 5 |
 
 ## Figures
@@ -57,3 +57,4 @@ All `aggregated_mean_std.csv` use sample std (ddof=1) via `scripts/aggregate_see
 - `al_baselines_strict/` — superseded by `unified_al_baselines/` (unified pipeline, all selectors use same replay+KD)
 - `badge_5seeds_strict/` — superseded by `badge_allreplay_5seeds/` (all-class replay)
 - `care_quic22_strict/` — superseded by `care_quicext25_canonical/` (newer dataset, all-class proto replay)
+- `full_ft_baseline/` — superseded by `full_ft_baseline_fair_kd/` (KD only on replay, fair comparison with head-only)
