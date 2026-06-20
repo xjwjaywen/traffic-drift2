@@ -176,20 +176,15 @@ tables:
       done
     notes: "All-class replay, fixed 12-class eval set, consistent with main results pipeline. Supersedes care_multiperiod/ (which used stable_absorber replay + auto-discovered eval)."
 
-  table_10:  # \label{tab:e2e}
-    description: "End-to-end autonomous pipeline vs labeled-probe (margin, B=1000, M12, fixed 12-class eval)"
+  table_10_legacy:  # removed from main_v3.tex; retained for reference
+    description: "[LEGACY] End-to-end autonomous pipeline vs labeled-probe (margin, B=1000, M12, fixed 12-class eval). Not in current paper."
     source_file:
-      # Labeled probe:
       - "care_5seeds_strict_cnn/aggregated_mean_std.csv"
-      # Autonomous:
       - "autonomous_5seeds_strict/care/aggregated_mean_std.csv"
-    supporting_files:
-      - "autonomous_5seeds_strict/detection/detection_summary.json"
-      - "autonomous_5seeds_strict/detection/per_class_fd.csv"
     collapse_set: "12 classes (fixed eval set)"
     seeds: "5/5"
     regeneration_command: "bash scripts/run_unsupervised_care_pipeline.sh"
-    notes: "Autonomous (0.674 macro, 0.236 collapse F1) matches labeled probe (0.673, 0.233). Confirms unsupervised detection is sufficient."
+    notes: "LEGACY: removed from main_v3.tex. Autonomous (0.674 macro) matched labeled probe (0.673). Data retained for potential appendix."
 
   table_detect_necessity:  # \label{tab:detect_necessity}
     description: "Detection necessity ablation: all-class replay vs detected vs oracle vs random (margin, B=1000, 5 seeds)"
@@ -345,7 +340,7 @@ figures:
       for SEED in 0 1 2 3 4; do
         python scripts/collapse_active_maintenance_tls22.py \
           --config configs/eval_quicext25.yaml --checkpoint outputs/quicext25_cnn/best_model.pt \
-          --reference-period M-2024-1 --target-period M-2024-12 \
+          --reference-period M-2024-6 --target-period M-2025-5 \
           --strategies badge margin --budgets 1000 \
           --replay-mode proto_all --replay-per-class 5 --target-repeat 2 \
           --replay-distill-weight 0.5 --distill-temperature 2.0 \
@@ -353,7 +348,7 @@ figures:
           --output-dir "outputs/care_quicext25_canonical/seed_${SEED}"
       done
       python scripts/aggregate_seeds.py --base-dir outputs/care_quicext25_canonical --num-seeds 5
-    notes: "BADGE@1000 macro .565±.002, margin@1000 .560±.006. Uses proto_all replay (no real source data needed). Supersedes care_quic22_strict/."
+    notes: "BADGE@1000 macro .565±.002, margin@1000 .560±.006. Uses proto_all replay (no real source data needed). Supersedes care_quic22_strict/. TODO: per-seed results not yet committed; only aggregate CSV in repo."
 
   discussion_replay_source:
     description: "Replay source comparison (inline in Discussion): M3 vs M4 vs no-replay"

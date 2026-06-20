@@ -8,7 +8,7 @@ All paths relative to `Experiment/core_code/`.
 | Paper Table | Label | Source | Collapse Set | Seeds |
 |---|---|---|---|---|
 | Tab 1 (Absorber pairs) | `absorber_pairs` | `outputs/per_class_collapse_tls22_monthly/collapse_classes.csv` | 12 (support≥50) | — |
-| Tab 2 (TTA baselines GN) | `tta_baselines` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period (M7: 2, M9: 7, M12: 10 classes) | 1 (TTA) / 3 (CARE) |
+| Tab 2 (TTA baselines GN) | `tta_baselines` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod_allreplay/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period (M7: 2, M9: 7, M12: 10 classes) | 1 (TTA) / 3 (CARE) |
 | Tab 3 (TTA baselines BN) | `bn_tta` | `outputs/care_bn_strict/aggregated_mean_std.csv` + `outputs/bn_tta_baselines_M12/` | 12 (support≥50) | 3 (CARE) |
 | Tab 4 (Detection ablation) | `unsup_detect` | `outputs/detection_ablation/ablation_summary.json` | 14 (support>0) | — |
 | Tab 5 (Main results) | `main_results` | TTA: `outputs/baselines_group_metrics_M12/`; Unified AL (entropy/coreset/random/margin): `outputs/unified_al_baselines/{entropy,coreset,random,margin}/aggregated_mean_std.csv`; BADGE all-class: `outputs/badge_allreplay_5seeds/aggregated_mean_std.csv` | 12 (support≥50) | 5 |

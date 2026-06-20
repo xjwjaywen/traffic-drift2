@@ -46,7 +46,7 @@ NUM_SEEDS="${6:-5}"
 
 echo ""
 echo "=== Step 2: CARE Repair (${NUM_SEEDS} seeds) ==="
-echo "Using DETECTED classes for replay, FIXED 12 classes for evaluation"
+echo "Using all-class replay; detected classes for monitoring/eval metadata only"
 for SEED in $(seq 0 $((NUM_SEEDS - 1))); do
     echo "--- Seed ${SEED} ---"
     EXTRA=""
