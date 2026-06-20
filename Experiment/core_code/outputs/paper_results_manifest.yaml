@@ -17,20 +17,20 @@ tables:
     regeneration_command: "python scripts/summarize_per_class_collapse.py"
     notes: "Collapse pairs identified from confusion matrix analysis across M4-M12. Fisher trajectory data in fisher_trajectory_results.txt provides the two-mechanism characterization (feature drift vs boundary shift)."
 
-  table_2:  # \label{tab:tta_baselines}
+  table_2:  # \label{tab:tta}
     description: "TTA baselines on GroupNorm CNN at M7, M9, M12 (Tent, EATA, SAR, CoTTA, NOTE vs Static and CARE)"
     source_file:
       - "tta_multiperiod/M7/baselines_group_metrics.csv"
       - "tta_multiperiod/M9/baselines_group_metrics.csv"
       - "tta_multiperiod/M12/baselines_group_metrics.csv"
     care_row_sources:
-      - "care_multiperiod/M_2022_7/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_9/aggregated_mean_std.csv"
-      - "care_multiperiod/M_2022_12/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_7/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_9/aggregated_mean_std.csv"
+      - "care_multiperiod_allreplay/M_2022_12/aggregated_mean_std.csv"
     collapse_set: "Auto-discovered per period (M7: 2, M9: 7, M12: 10 evaluation classes)"
     seeds: "1 (TTA) / 3 (CARE)"
     regeneration_command: "python evaluate_tta.py --dataset tls22 --periods M7 M9 M12"
-    notes: "TTA methods use adaptation lr 1e-5. CARE row uses margin selection with auto-discovered absorbers, strict eval."
+    notes: "TTA methods use adaptation lr 1e-5. CARE row uses margin selection with auto-discovered absorbers, strict eval. care_row_sources updated to care_multiperiod_allreplay/ (all-class replay, fixed 12-class eval)."
 
   table_3:  # \label{tab:bn_tta}
     description: "TTA on BatchNorm architecture at M-2022-12 (verifies TTA failure is not GroupNorm artifact)"
