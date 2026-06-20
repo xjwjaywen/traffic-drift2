@@ -66,7 +66,7 @@ for SEED in $(seq 0 $((NUM_SEEDS - 1))); do
         --strategies "margin" \
         --budgets "1000" \
         ${EXTRA} \
-        --replay-mode stable_absorber \
+        --replay-mode all \
         --replay-per-class 5 \
         --replay-distill-weight 0.5 \
         --target-repeat 2 \

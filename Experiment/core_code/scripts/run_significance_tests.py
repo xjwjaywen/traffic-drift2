@@ -1,17 +1,17 @@
 """
 Statistical significance tests for Table 5 comparisons.
 
-Reads per-seed results from care_5seeds_strict_cnn/ and badge_5seeds_strict/,
+Reads per-seed results from unified_al_baselines/ and badge_allreplay_5seeds/,
 then runs paired t-tests and Wilcoxon signed-rank tests for:
   - margin vs random (macro-F1, collapse-F1)
-  - margin vs BADGE (macro-F1, collapse-F1)
+  - BADGE vs margin (macro-F1, collapse-F1)
 
 Output: JSON with test statistics and p-values.
 
 Usage from Experiment/core_code/:
     python scripts/run_significance_tests.py \
-      --care-dir outputs/care_5seeds_strict_cnn \
-      --badge-dir outputs/badge_5seeds_strict \
+      --care-dir outputs/unified_al_baselines \
+      --badge-dir outputs/badge_allreplay_5seeds \
       --output-dir outputs/significance_tests
 """
 import argparse
@@ -30,18 +30,42 @@ sys.path.insert(0, os.path.dirname(SCRIPT_DIR))
 
 
 def load_seed_results(base_dir, num_seeds=5):
-    """Load results_by_budget.csv from each seed directory."""
+    """Load results_by_budget.csv from each seed directory.
+
+    Supports two layouts:
+      - flat: base_dir/seed_*/results_by_budget.csv
+      - nested: base_dir/{strategy}/seed_*/results_by_budget.csv
+    """
     all_rows = []
+    # Try flat layout first
+    flat_found = False
     for seed in range(num_seeds):
         path = os.path.join(base_dir, f"seed_{seed}", "results_by_budget.csv")
-        if not os.path.exists(path):
-            print(f"WARNING: missing {path}")
+        if os.path.exists(path):
+            flat_found = True
+            with open(path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    row["_seed"] = seed
+                    all_rows.append(row)
+    if flat_found:
+        return all_rows
+    # Try nested layout: base_dir/{subdir}/seed_*/results_by_budget.csv
+    for subdir in sorted(os.listdir(base_dir)):
+        subpath = os.path.join(base_dir, subdir)
+        if not os.path.isdir(subpath):
             continue
-        with open(path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                row["_seed"] = seed
-                all_rows.append(row)
+        for seed in range(num_seeds):
+            path = os.path.join(subpath, f"seed_{seed}", "results_by_budget.csv")
+            if not os.path.exists(path):
+                continue
+            with open(path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    row["_seed"] = seed
+                    all_rows.append(row)
+    if not all_rows:
+        print(f"WARNING: no seed results found in {base_dir} (tried flat and nested layouts)")
     return all_rows
 
 
@@ -123,9 +147,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Statistical significance tests for CARE strategy comparisons."
     )
-    parser.add_argument("--care-dir", default="outputs/care_5seeds_strict_cnn",
-                        help="Directory with CARE 5-seed results (margin, random)")
-    parser.add_argument("--badge-dir", default="outputs/badge_5seeds_strict",
+    parser.add_argument("--care-dir", default="outputs/unified_al_baselines",
+                        help="Directory with per-strategy subdirs (margin/, random/, etc.), each containing seed_*/results_by_budget.csv")
+    parser.add_argument("--badge-dir", default="outputs/badge_allreplay_5seeds",
                         help="Directory with BADGE 5-seed results")
     parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--budget", type=int, default=1000,
