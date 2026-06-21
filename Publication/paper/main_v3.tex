@@ -88,7 +88,7 @@ A clean component ablation confirms that each ingredient---fine-tuning, replay, 
 
 Our contributions are:
 \begin{enumerate}
-  \item \textbf{Failure mode discovery.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift, distinct from uniform degradation or class imbalance. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift---with per-class quantitative evidence across all 12 collapse classes (\S\ref{sec:analysis}).
+  \item \textbf{Failure mode discovery.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift, distinct from uniform degradation or class imbalance. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift---with per-class quantitative evidence for the 10 classes with stable Fisher estimates and per-class recovery evidence for all 12 (\S\ref{sec:analysis}).
   \item \textbf{Negative results.} We show that five TTA methods (collapse F1 ${<}0.03$) and two standard active learning strategies (entropy, coreset) all fail on class collapse, establishing it as a distinct problem that existing approaches do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
   \item \textbf{Collapse-aware evaluation.} We introduce complementary metrics---collapse-class F1, per-class recovery status, stable-class preservation, and strict query exclusion---that reveal failure modes invisible to aggregate macro-F1 (\S\ref{sec:experiments}).
   \item \textbf{Label-efficient maintenance framework.} We propose \ours{}, a validated maintenance protocol combining margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. Each component's contribution is isolated via a 7-configuration ablation; an unsupervised detection module (recall $\geq$0.80) serves as a diagnostic monitor (\S\ref{sec:method}, \S\ref{sec:experiments}).
@@ -594,7 +594,7 @@ A natural question is whether collapse classes receive enough labels from margin
 Across 5 seeds, collapse classes collectively receive only 10/200 (5.0\%), 20/500 (4.0\%), and 39/1{,}000 (3.9\%) of the budget---far below their 6.7\% share of classes (12/178).
 Yet macro collapse recall improves steadily: 0.122 (B=200, 2 recovered), 0.157 (B=500, 2 recovered), 0.250 (B=1{,}000, 4 recovered).
 Three classes (47, 10, 109) receive \emph{zero} labels at all budgets under margin selection; classes~47 and 10 are nevertheless recovered by BADGE (Table~\ref{tab:per_class_recovery}), which allocates 2.2 and 1.8 labels respectively via gradient-diverse sampling.
-Class~109 receives 0--1.6 labels across both selectors and all budgets, explaining its persistent failure: the class is too rare ($n{=}393$) and collapses too late (M12) for either selector to reach it.
+Class~109 receives zero labels under margin at all budgets (200--1{,}000) and under BADGE at $B{=}1{,}000$, explaining its persistent failure: the class is too rare ($n{=}393$) and collapses too late (M12) for either selector to reach it.
 These results confirm that repair depends primarily on \textit{all-class replay anchoring} rather than direct label allocation to collapse classes.
 
 \subsection{Replay Strategy Ablation}

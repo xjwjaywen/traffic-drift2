@@ -10,11 +10,12 @@ All paths relative to `Experiment/core_code/`.
 | Absorber pairs | `tab:absorber_pairs` | `outputs/per_class_collapse_tls22_monthly/collapse_classes.csv` | 12 (support≥50) | — |
 | TTA baselines (GN) | `tab:tta` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod_allreplay/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period | 1 (TTA) / 3 (CARE) |
 | Main results | `tab:main_results` | Unified AL: `outputs/unified_al_baselines/{entropy,coreset,random,margin}/aggregated_mean_std.csv`; BADGE: `outputs/badge_allreplay_5seeds/aggregated_mean_std.csv` | 12 (support≥50) | 5 |
-| Component ablation | `tab:ablation` | `outputs/unified_ablation/{ft_only,ft_replay_noKD,full_care}/aggregated_mean_std.csv` | 12 (support≥50) | 5 |
+| Component ablation (7 configs) | `tab:ablation` | `outputs/unified_ablation/{ft_only,ft_replay_noKD,full_care}/aggregated_mean_std.csv` + `outputs/ablation_v3/replay_only_allreplay/aggregated_mean_std.csv` + `outputs/ablation_strict/kd_only/aggregated_mean_std.csv` + `outputs/unified_ablation/full_care/` (FT+KD = full_care minus replay) | 12 (support≥50) | 5 |
 | Replay ablation | `tab:replay_ablation` | `outputs/detection_necessity_ablation/` + `outputs/fair_replay_budget/{all_k5,detected_k30,all_k1}/` | 12 (fixed) | 5 |
 | Multi-period | `tab:multiperiod` | `outputs/care_multiperiod_allreplay/{M_2022_7,M_2022_9,M_2022_11,M_2022_12}/aggregated_mean_std.csv` | 12 (fixed, support≥50) | 3 |
-| Detection signals | `tab:detect_signals` | `outputs/detection_ablation/ablation_summary.json` | 14 (support>0) | — |
-| Detection trigger | `tab:trigger` | `outputs/detection_trigger_eval/{M7,M9,M11,M12}/detection_summary.json` | per-period ground truth | — |
+| Detection signals | `tab:detect_signals` | `outputs/detection_unified_metrics.json` | 12 (recall<0.1, support≥50) | — |
+| Detection trigger | `tab:trigger` | `outputs/detection_unified_metrics.json` | 12 (recall<0.1, support≥50) | — |
+| Fisher mechanism | `tab:fisher` | `outputs/fisher_mechanism_analysis.csv` | 10 with stable estimates (of 12) | — |
 | BN architecture | `tab:bn` | `outputs/care_bn_strict/aggregated_mean_std.csv` + `outputs/bn_tta_baselines_M12/` | 12 (support≥50) | 3 (CARE) |
 | Transformer | `tab:transformer` | CNN: `outputs/care_5seeds_strict_cnn/`; Transformer: `outputs/care_transformer_multiperiod/M_2022_12/aggregated_mean_std.csv` | 12 (support≥50) | 5/3 |
 | Proto replay | `tab:proto_replay` | `outputs/proto_replay_comparison/{real_replay,proto_replay}/aggregated_mean_std.csv` | 12 (support≥50) | 3 |
@@ -25,25 +26,27 @@ All paths relative to `Experiment/core_code/`.
 | Description | Source | Seeds |
 |---|---|---|
 | TTA lr sweep | `outputs/tta_lr_sweep/{lr_1e-3,lr_1e-4,lr_1e-5}/` | 1 |
+| TTA hyperparam sweep | `outputs/tta_hyperparam_sweep/sweep_summary.csv` | 1 |
 | Training seed audit | `outputs/multiseed_audit/{trainseed0,trainseed1,trainseed2}/care/` | 3×3 |
 | FT depth (Discussion) | `outputs/full_ft_baseline_fair_kd/seed_{0..4}/results_by_budget.csv` | 5 |
 | QUICEXT-25 generalization (§6.7) | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` | 5 |
 | Significance tests | `outputs/significance_tests/significance_tests.json` | — |
+| M3 vs M4 replay | `outputs/m3_vs_m4_replay_comparison.csv` | 3 |
+| Label budget per-class coverage | `outputs/label_budget_perclass_coverage.csv` | 5 |
 
 ## Figures
 
 | Figure | File | Source |
 |---|---|---|
 | Fig 1 | `fig_collapse_timeline.pdf` | `outputs/per_class_collapse_tls22_monthly/collapse_timeline.csv` |
-| Fig 2 | `fig_ablation_bar.pdf` | `outputs/unified_ablation/*/aggregated_mean_std.csv` |
-| Fig 3 | `fig_tta_failure.pdf` | `outputs/tta_multiperiod/{M7,M9,M11,M12}/` + `outputs/care_multiperiod_allreplay/*/` |
+| Fig 2 | `fig_tsne_multi_pair_m12.pdf` | `outputs/visualizations/` (t-SNE of victim-absorber pairs at M12) |
+| Fig 3 | `fig_ablation_bar.pdf` | `outputs/unified_ablation/*/aggregated_mean_std.csv` |
 | Fig 4 | `fig_strategy_comparison.pdf` | `outputs/unified_al_baselines/` + `outputs/badge_allreplay_5seeds/` |
 | Fig 5 | `fig_budget_sweep.pdf` | `outputs/budget_sweep_allreplay/aggregated_mean_std.csv` |
 
 ## Collapse Set Definitions
 
-- **12 classes** (main evaluation): recall < 0.1 AND support ≥ 50 at M-2022-12
-- **14 classes** (detection ground truth): recall < 0.1 AND support > 0 at M-2022-12
+- **12 classes** (main evaluation + detection ground truth): recall < 0.1 AND support ≥ 50 at M-2022-12
 - **3 classes** (QUICEXT-25): classes 21, 23, 25 (recall < 0.1 at M-2025-5)
 - **Auto-discovered**: per-period probe-based discovery (class counts vary by period)
 
