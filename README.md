@@ -53,8 +53,13 @@ All 5 TTA methods fail on class collapse (F1 < 0.03). CARE is a framework: BADGE
 ```bash
 conda create -n traffic-ncde python=3.10
 conda activate traffic-ncde
-# Option A: install from requirements (flexible versions)
+```
+
+Install dependencies (choose one):
+```bash
+# Option A: flexible versions
 pip install -r Experiment/core_code/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+
 # Option B: exact tested versions (recommended for reproducibility)
 pip install -r requirements.lock.txt --extra-index-url https://download.pytorch.org/whl/cu121
 ```

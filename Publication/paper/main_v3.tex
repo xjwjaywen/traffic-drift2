@@ -90,7 +90,7 @@ Our contributions are:
 \begin{enumerate}
   \item \textbf{New failure mode.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift (\S\ref{sec:analysis}).
   \item \textbf{Negative results establishing the problem.} We show that unsupervised TTA methods are ineffective (collapse F1 ${<}0.03$) and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item \textbf{Label-efficient repair framework.} We propose \ours{}, combining pair-agnostic margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. An unsupervised detection module (recall $\geq 0.86$, F1 0.71) provides a deployment trigger and diagnostic monitoring (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item \textbf{Label-efficient repair framework.} We propose \ours{}, combining pair-agnostic margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. An unsupervised detection module (recall $\geq$0.86 across M7--M12, M12 F1 = 0.71) provides a deployment trigger and diagnostic monitoring (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
 
 
@@ -615,7 +615,7 @@ To confirm that TTA failure is not caused by our use of GroupNorm, we train an i
 
 \begin{table}[t]
 \centering
-\caption{BatchNorm architecture at M-2022-12. TTA collapse F1 remains near zero even with functional BN-Adapt. NOTE catastrophically degrades.}
+\caption{BatchNorm architecture at M-2022-12. TTA collapse F1 remains near zero even with functional BN-Adapt~\cite{schneider2020bn}. NOTE catastrophically degrades.}
 \label{tab:bn}
 \small
 \begin{tabular}{@{}l cc@{}}
