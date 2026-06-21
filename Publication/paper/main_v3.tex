@@ -5,7 +5,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{xcolor}
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 \usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{subcaption}
@@ -335,7 +335,7 @@ All-class replay prevents the head from overfitting to the small target sample a
 
 On replay samples, we add a KL-divergence loss~\cite{hinton2015distilling} between the updated head $h_\theta$ and the original (frozen) head $h_{\theta_0}$:
 \begin{equation}
-  \mathcal{L}_{\text{KD}} = \frac{1}{|D_{\text{replay}}|} \sum_{x \in D_{\text{replay}}} D_{\text{KL}}\!\left(\sigma\!\left(\frac{h_{\theta_0}(f(x))}{T}\right) \,\Big\|\, \sigma\!\left(\frac{h_\theta(f(x))}{T}\right)\right)
+  \mathcal{L}_{\text{KD}} = \frac{1}{|D_{\text{rpl}}|} \!\sum_{x \in D_{\text{rpl}}} D_{\text{KL}}\!\!\left(\sigma\!\!\left(\frac{h_{\theta_0}\!(f(x))}{T}\right) \!\Big\|\! \sigma\!\!\left(\frac{h_\theta\!(f(x))}{T}\right)\!\right)
 \end{equation}
 where $T$ is the temperature and $\sigma$ is softmax.
 Distillation is applied only on replay samples (not target samples) because the teacher model's predictions on replay data represent its \textit{correct} behavior on the source distribution.
@@ -406,12 +406,13 @@ Table~\ref{tab:main_results} presents the main comparison at M-2022-12 (nine mon
 
 \begin{table}[t]
 \centering
-\caption{Main results on CESNET-TLS-Year22 at M-2022-12. TTA methods use no labels. All active methods use $B{=}1{,}000$ labels with all-class replay ($k{=}5$, 890 samples) and KD ($\lambda{=}0.5$); only the selection strategy varies. Strict evaluation, 5 seeds.}
+\caption{Main results on CESNET-TLS-Year22 at M-2022-12. TTA methods use no labels. Active methods use $B{=}1{,}000$ labels with all-class replay ($k{=}5$, 890 samples) and KD ($\lambda{=}0.5$). Strict eval, 5 seeds.}
 \label{tab:main_results}
-\small
+\scriptsize
+\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l cccc@{}}
 \toprule
-Method & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
+Method & Macro & Col.\ F1 & Stb.\ F1 & \#Col \\
 \midrule
 \multicolumn{5}{l}{\textit{No labeled target data:}} \\
 Static          & .629 & .028 & .903 & 12 \\
@@ -421,7 +422,7 @@ SAR             & .629 & .026 & .901 & 11 \\
 CoTTA           & .629 & .027 & .903 & 12 \\
 NOTE            & .630 & .027 & .902 & 12 \\
 \midrule
-\multicolumn{5}{l}{\textit{Active selection ($B$=1000, all-class replay + KD, 5 seeds):}} \\
+\multicolumn{5}{l}{\textit{Active ($B$=1000, all-class replay+KD, 5 seeds):}} \\
 Entropy         & .628$\pm$.004 & .078$\pm$.015 & .887$\pm$.004 & 10.2 \\
 Coreset         & .634$\pm$.005 & .116$\pm$.042 & .886$\pm$.007 & 8.8 \\
 Random          & .668$\pm$.004 & .188$\pm$.024 & .892$\pm$.006 & 8.2 \\
@@ -447,19 +448,20 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 
 \begin{table}[t]
 \centering
-\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). All rows with replay use all-class $k{=}5$ (890 samples). Only the presence of replay and/or KD varies.}
+\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). All rows with replay use all-class $k{=}5$ (890 samples).}
 \label{tab:ablation}
-\small
-\begin{tabular}{@{}l ccc cccc@{}}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l ccc ccc c@{}}
 \toprule
  & \multicolumn{3}{c}{Components} & & & & \\
 \cmidrule(lr){2-4}
-Configuration & Labels & Replay & KD & Macro-F1 & Collapse F1 & Stable F1 & Collapsed \\
+Config. & Lbl & Rpl & KD & Macro & Col.\ F1 & Stb.\ F1 & \#Col \\
 \midrule
-Static (no repair) & & & & .629 & .028 & \textbf{.903} & 12 \\
+Static & & & & .629 & .028 & \textbf{.903} & 12 \\
 \midrule
 FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839$\pm$.001 & 7.0 \\
-FT + Replay & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.016 & 4.8 \\
+FT+Rpl & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.016 & 4.8 \\
 \textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892 & \textbf{5.8} \\
 \bottomrule
 \end{tabular}
@@ -511,16 +513,17 @@ Table~\ref{tab:replay_ablation} compares replay strategies under matched conditi
 
 \begin{table}[t]
 \centering
-\caption{Replay strategy ablation (margin, $B$=1000, 5 seeds). All-class replay ($k{=}5$) is the best configuration; the advantage comes from class-coverage breadth, not replay volume.}
+\caption{Replay strategy ablation (margin, $B$=1000, 5 seeds). All-class $k{=}5$ is best; advantage is class-coverage breadth, not volume.}
 \label{tab:replay_ablation}
-\small
-\begin{tabular}{@{}l ccc@{}}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l cc c@{}}
 \toprule
-Replay Configuration & Macro-F1 & Collapse F1 & Replay$_n$ \\
+Replay Config. & Macro & Col.\ F1 & $n_{\text{rpl}}$ \\
 \midrule
-All-class $k{=}5$ (890 samples) & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & 890 \\
-Targeted $k{=}30$ (${\sim}$900 samples) & .678$\pm$.001 & .243$\pm$.003 & $\sim$900 \\
-All-class $k{=}1$ (178 samples) & .680$\pm$.003 & .231$\pm$.015 & 178 \\
+All-class $k{=}5$ (890) & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & 890 \\
+Targeted $k{=}30$ (${\sim}$900) & .678$\pm$.001 & .243$\pm$.003 & $\sim$900 \\
+All-class $k{=}1$ (178) & .680$\pm$.003 & .231$\pm$.015 & 178 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -539,14 +542,15 @@ Table~\ref{tab:multiperiod} shows \ours{}'s effectiveness across four time point
 
 \begin{table}[t]
 \centering
-\caption{Multi-period results (margin, $B$=1000, all-class replay $k{=}5$, 3 seeds). All periods use the fixed 12-class collapse evaluation set for consistency. \ours{}'s benefit increases with drift severity.}
+\caption{Multi-period results (margin, $B$=1000, all-class replay $k{=}5$, 3 seeds). Fixed 12-class eval set. Benefit increases with drift severity.}
 \label{tab:multiperiod}
-\small
+\scriptsize
+\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l cc cc c@{}}
 \toprule
 & \multicolumn{2}{c}{Static} & \multicolumn{2}{c}{\ours{}} & \\
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
-Period & Macro & Collapse & Macro & Collapse & $\Delta$Macro \\
+Period & Macro & Col. & Macro & Col. & $\Delta$ \\
 \midrule
 M7 (light)   & .740 & .503 & .776$\pm$.003 & .633$\pm$.028 & +.036 \\
 M9 (medium)  & .691 & .280 & .739$\pm$.003 & .392$\pm$.005 & +.048 \\
