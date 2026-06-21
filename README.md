@@ -105,7 +105,7 @@ python scripts/make_paper_figures.py --output-dir ../../Publication/figures
 | Dataset | Protocol | Classes | Duration | Source |
 |---------|----------|---------|----------|--------|
 | CESNET-TLS-Year22 | TLS | 178 | 12 months | [Zenodo](https://zenodo.org) |
-| CESNET-QUIC22 | QUIC | 102 | 4 weeks | [Zenodo](https://zenodo.org) |
+| CESNET-QUICEXT-25 | QUIC | 44 | 12 months | [CESNET DataZoo](https://github.com/CESNET/cesnet-datazoo) |
 
 ## Research Note
 
