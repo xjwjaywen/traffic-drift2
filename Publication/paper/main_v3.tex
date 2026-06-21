@@ -588,6 +588,14 @@ Class & Abs. & $n$ & Recall & F1 & Recall & F1 & Recall & F1 & Marg & BADGE & St
 
 Figure~\ref{fig:budget_sweep} shows performance as a function of label budget.
 
+\textbf{Per-class label coverage.}
+A natural question is whether collapse classes receive enough labels from margin selection.
+Across 5 seeds, collapse classes collectively receive only 10/200 (5.0\%), 20/500 (4.0\%), and 39/1{,}000 (3.9\%) of the budget---far below their 6.7\% share of classes (12/178).
+Yet macro collapse recall improves steadily: 0.122 (B=200, 2 recovered), 0.157 (B=500, 2 recovered), 0.250 (B=1{,}000, 4 recovered).
+Three classes (47, 10, 109) receive \emph{zero} labels at all budgets under margin selection; classes~47 and 10 are nevertheless recovered by BADGE (Table~\ref{tab:per_class_recovery}), which allocates 2.2 and 1.8 labels respectively via gradient-diverse sampling.
+Class~109 receives 0--1.6 labels across both selectors and all budgets, explaining its persistent failure: the class is too rare ($n{=}393$) and collapses too late (M12) for either selector to reach it.
+These results confirm that repair depends primarily on \textit{all-class replay anchoring} rather than direct label allocation to collapse classes.
+
 \subsection{Replay Strategy Ablation}
 \label{sec:replay_ablation}
 
