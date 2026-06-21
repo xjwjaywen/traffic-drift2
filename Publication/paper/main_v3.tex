@@ -287,7 +287,6 @@ Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE~\cite{vandermaaten200
 
 We evaluate five TTA methods from computer vision on the same setup: Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, SAR~\cite{niu2023sar}, CoTTA~\cite{wang2022cotta}, and NOTE~\cite{gong2022note}.
 These are traffic-adapted implementations for 1D packet-sequence inputs, with necessary simplifications: EATA uses uniform Fisher importance (rather than per-sample Fisher computed from a held-out set), CoTTA uses Gaussian noise augmentation (as no standard augmentation pipeline exists for packet sequences), and NOTE uses a simplified prediction-balanced buffer without Instance-Aware BatchNorm.
-These simplifications may underestimate the methods' potential; however, the near-zero collapse F1 across all five methods---including Tent and SAR, which require no simplification---indicates a fundamental limitation rather than an implementation artifact.
 Table~\ref{tab:tta} reports M12 results.
 
 \begin{table}[t]
