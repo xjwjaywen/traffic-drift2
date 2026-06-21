@@ -101,57 +101,29 @@ Our contributions are:
 
 \subsection{Concept Drift in Encrypted Traffic Classification}
 
-Encrypted traffic classifiers rely on statistical features of packet sequences---packet sizes, directions, and inter-packet times---since payload inspection is infeasible under TLS/QUIC encryption~\cite{luxemburk2023quic, rezaei2019deep, vanede2020flowprint, holland2021nprint}.
-These features are inherently non-stationary: application updates change protocol behavior, certificate rotations alter handshake patterns, and CDN migrations shift server-side characteristics~\cite{soukup2025drift, malekghaini2023drift}.
-
-Luxemburk and Hynek~\cite{luxemburk2023quic} first quantified temporal degradation on the CESNET-QUIC22 dataset, reporting 13.5\% accuracy loss in one week.
-Jerabek~\etal{}~\cite{jerabek2025eval} demonstrated that random train/test splitting inflates performance by at least 3.5 percentage points compared to realistic time-based evaluation.
-Malekghaini~\etal{}~\cite{malekghaini2023drift} studied drift on ISP data and noted that ``Web is the class most misclassified flows are confused with''---an early observation of absorber-like behavior, though without further analysis or targeted remedy.
-Soukup~\etal{}~\cite{soukup2025drift} developed a drift stability benchmark for CESNET-TLS-Year22, identifying 28 classes with frequent drifts, but analyzed only per-class F1 trajectories without examining inter-class confusion dynamics.
-Chen~\etal{}~\cite{chen2025selfevolving} proposed self-evolving classification using high-confidence pseudo-labels for whole-model fine-tuning, but explicitly stated ``we will not specifically study the feature changes of a certain category.''
-
-None of these works identifies or addresses the systematic absorber--victim pattern that we formalize in this paper.
+Encrypted traffic classifiers rely on statistical features of packet sequences that are inherently non-stationary under protocol and infrastructure changes~\cite{luxemburk2023quic, rezaei2019deep, soukup2025drift, malekghaini2023drift}.
+Luxemburk and Hynek~\cite{luxemburk2023quic} reported 13.5\% accuracy loss in one week; Soukup~\etal{}~\cite{soukup2025drift} identified 28 frequently drifting classes but analyzed only per-class F1 trajectories; Malekghaini~\etal{}~\cite{malekghaini2023drift} noted absorber-like behavior (``Web is the class most misclassified flows are confused with'') without further analysis.
+Jerabek~\etal{}~\cite{jerabek2025eval} showed that random splitting inflates performance by $\geq$3.5pp vs.\ time-based evaluation.
+Chen~\etal{}~\cite{chen2025selfevolving} proposed pseudo-label-based fine-tuning but explicitly excluded per-class analysis.
+None of these works identifies the systematic absorber--victim pattern we formalize here.
 
 \subsection{Test-Time Adaptation}
 
-Test-time adaptation methods from computer vision update model parameters at inference time to handle distribution shift without labeled target data.
-Tent~\cite{wang2021tent} minimizes prediction entropy on batch-normalization parameters.
-EATA~\cite{niu2022eata} adds entropy-based sample filtering and Fisher regularization.
-SAR~\cite{niu2023sar} introduces sharpness-aware optimization for robustness.
-CoTTA~\cite{wang2022cotta} uses augmentation-averaged pseudo-labels with stochastic restoration.
-NOTE~\cite{gong2022note} handles non-i.i.d.\ test streams with prediction-balanced sampling.
-
-These methods were designed for image-corruption benchmarks (ImageNet-C) and assume BatchNorm-based architectures.
-Our primary classifier uses GroupNorm~\cite{wu2018groupnorm} for stability under non-i.i.d.\ traffic batches.
-To disentangle ``TTA fails because of GroupNorm'' from ``TTA fails because of class collapse,'' we additionally train a BatchNorm variant and verify that TTA methods remain ineffective on both architectures (\S\ref{sec:bn_verify}).
+TTA methods update model parameters at inference time without labels: Tent~\cite{wang2021tent}, EATA~\cite{niu2022eata}, SAR~\cite{niu2023sar}, CoTTA~\cite{wang2022cotta}, and NOTE~\cite{gong2022note}.
+These were designed for image-corruption benchmarks (ImageNet-C) and assume BatchNorm-based architectures.
+Our classifier uses GroupNorm~\cite{wu2018groupnorm}; we verify that TTA fails on both GroupNorm and BatchNorm variants (\S\ref{sec:bn_verify}), confirming a problem-level rather than architecture-level limitation.
 
 \subsection{Continual Learning for Traffic Classification}
 
-ILETC~\cite{zhu2023iletc} addresses class-incremental learning using WGAN-GP generative replay.
-MEMENTO~\cite{cerasuolo2024memento} combines knowledge distillation, memory replay, and rectification for learning new application classes without forgetting old ones.
-CPN~\cite{cai2024cpn} uses contrastive prototype networks with exemplar-based replay for incremental encrypted traffic classification.
-PRIME~\cite{prime2025} detects plasticity loss and expands the model via Net2Net without storing exemplars.
-In the broader continual-learning literature~\cite{delange2022continual}, EWC~\cite{kirkpatrick2017ewc} and LwF~\cite{li2018lwf} address catastrophic forgetting through parameter regularization and distillation respectively.
-While these works share individual technical components with our approach (replay, distillation, prototypes), they address a fundamentally different problem: adding \textit{new} classes to the classifier.
-Our problem---repairing \textit{existing} classes that have collapsed due to drift---is complementary and, to our knowledge, previously unstudied.
+Several methods address class-incremental learning for traffic: ILETC~\cite{zhu2023iletc} (generative replay), MEMENTO~\cite{cerasuolo2024memento} (KD + memory replay), CPN~\cite{cai2024cpn} (contrastive prototypes), and PRIME~\cite{prime2025} (plasticity-aware expansion). The broader CL literature~\cite{delange2022continual} offers EWC~\cite{kirkpatrick2017ewc} and LwF~\cite{li2018lwf} for catastrophic forgetting.
+These share technical components with our approach but address a different problem: adding \textit{new} classes. Our problem---repairing \textit{existing} classes collapsed by drift---is complementary and, to our knowledge, previously unstudied.
 
-\subsection{Domain Adaptation and Class Imbalance}
+\subsection{Domain Adaptation, Class Imbalance, and Active Learning}
 
-Unsupervised domain adaptation (UDA) methods such as DANN~\cite{ganin2016dann} and CDAN~\cite{long2018cdan} align source and target feature distributions globally.
-However, UDA assumes all classes shift uniformly, whereas absorber-collapse is inherently \textit{class-asymmetric}: only specific victim classes degrade while absorbers and stable classes remain functional.
-Global alignment would dilute the repair signal across 178 classes, most of which need no correction.
-CADE~\cite{yang2021cade} detects concept drift samples for security applications via contrastive explanation, but targets novel-class detection rather than intra-class collapse.
-
-The absorber-collapse pattern superficially resembles class imbalance, where dominant classes suppress minorities~\cite{kang2020decoupling, menon2021longtail}.
-A key distinction is that collapse is \textit{caused by drift}, not by inherent data imbalance: victim classes may be well-represented at training time but collapse due to post-deployment distribution shift.
-Standard long-tail remedies (re-weighting, logit adjustment) cannot address this because the test-time class frequencies are unknown without labels.
-
-\subsection{Active Learning Under Drift}
-
-Liu~\etal{}~\cite{micfoal2023} propose online active learning for multiclass imbalanced traffic classification under concept drift.
-NetGuard~\cite{netguard2025} combines density-aware active selection with conditional generative augmentation for network intrusion detection.
-Both address drift broadly; neither identifies or targets the absorber-collapse pattern.
-Our experiments show that standard active learning strategies (entropy, coreset) are counterproductive for collapse repair (\S\ref{sec:al_baselines}), motivating our margin-based approach.
+UDA methods (DANN~\cite{ganin2016dann}, CDAN~\cite{long2018cdan}) assume all classes shift uniformly; absorber-collapse is \textit{class-asymmetric}, making global alignment ineffective.
+The pattern superficially resembles class imbalance~\cite{kang2020decoupling, menon2021longtail}, but collapse is \textit{caused by drift}, not inherent data imbalance---standard long-tail remedies cannot address it without test-time labels.
+CADE~\cite{yang2021cade} detects drift samples via contrastive explanation but targets novel-class detection.
+Liu~\etal{}~\cite{micfoal2023} and NetGuard~\cite{netguard2025} address drift-aware active learning broadly; neither identifies the absorber-collapse pattern. Our experiments show that entropy and coreset selection are counterproductive for collapse repair (\S\ref{sec:al_baselines}).
 
 
 % ============================================================
@@ -540,17 +512,12 @@ Each component serves a distinct role: target labels provide the repair signal, 
 \label{fig:strategy_comparison}
 \end{figure}
 
-Margin sampling succeeds because it targets samples where the top-two predictions are close, which naturally concentrates on absorber--victim decision boundaries.
-BADGE~\cite{ash2020badge}, which selects diverse uncertain samples via gradient embeddings, achieves the highest collapse F1 ($0.333{\pm}0.040$)---30\% higher than margin ($0.256{\pm}0.009$)---and the highest macro-F1 ($0.700{\pm}0.003$ vs.\ $0.686{\pm}0.001$).
+Margin sampling targets samples where the top-two predictions are close, naturally concentrating on absorber--victim boundaries.
+BADGE~\cite{ash2020badge} achieves the highest collapse F1 ($0.333{\pm}0.040$)---30\% above margin ($0.256{\pm}0.009$)---and macro-F1 ($0.700{\pm}0.003$ vs.\ $0.686{\pm}0.001$).
 We recommend BADGE for scheduled maintenance and margin for resource-constrained deployments.
 
-\textbf{Per-class recovery analysis.}
-Table~\ref{tab:per_class_recovery} breaks down repair effectiveness for each of the 12 collapse classes.
-Six classes are fully recovered (CARE recall $\geq$0.30): classes 56, 48, 38, 104, 47, and 10.
-Five classes show partial recovery: 163, 174, 69, 66, and 26.
-Class~109 remains unrecovered under both selectors (recall~0 across all seeds), consistent with its late collapse onset (M12) and low support ($n{=}393$).
-BADGE and margin show complementary strengths: BADGE excels on classes with diverse confusion patterns (\eg{}, class~47: 0.404 vs.\ 0.002), while margin performs better on classes with a single dominant absorber (\eg{}, class~38: 0.656 vs.\ 0.242).
-Selected label counts confirm that both selectors allocate very few labels to collapse classes (typically 0--13 out of 1{,}000), yet repair succeeds through all-class replay anchoring.
+Table~\ref{tab:per_class_recovery} shows per-class recovery: 6 classes are fully recovered ($R{\geq}0.30$), 5 partial, and class~109 remains unrecovered (late onset, low support $n{=}393$).
+Both selectors allocate very few labels to collapse classes (0--13 out of 1{,}000); repair succeeds primarily through all-class replay anchoring rather than direct label allocation.
 
 \begin{table*}[t]
 \centering
@@ -589,15 +556,7 @@ Class & Abs. & $n$ & Recall & F1 & Recall & F1 & Recall & F1 & Marg & BADGE & St
 \label{fig:budget_sweep}
 \end{figure}
 
-Figure~\ref{fig:budget_sweep} shows performance as a function of label budget.
-
-\textbf{Per-class label coverage.}
-A natural question is whether collapse classes receive enough labels from margin selection.
-Across 5 seeds, collapse classes collectively receive only 10/200 (5.0\%), 20/500 (4.0\%), and 39/1{,}000 (3.9\%) of the budget---far below their 6.7\% share of classes (12/178).
-Yet macro collapse recall improves steadily: 0.122 (B=200, 2 recovered), 0.157 (B=500, 2 recovered), 0.250 (B=1{,}000, 4 recovered).
-Three classes (47, 10, 109) receive \emph{zero} labels at all budgets under margin selection; classes~47 and 10 are nevertheless recovered by BADGE (Table~\ref{tab:per_class_recovery}), which allocates 2.2 and 1.8 labels respectively via gradient-diverse sampling.
-Class~109 receives zero labels under margin at all budgets (200--1{,}000) and under BADGE at $B{=}1{,}000$, explaining its persistent failure: the class is too rare ($n{=}393$) and collapses too late (M12) for either selector to reach it.
-These results confirm that repair depends primarily on \textit{all-class replay anchoring} rather than direct label allocation to collapse classes.
+Figure~\ref{fig:budget_sweep} shows performance as a function of label budget, with steady improvement up to $B{=}1{,}000$.
 
 \subsection{Replay Strategy Ablation}
 \label{sec:replay_ablation}
@@ -705,107 +664,33 @@ M12 (severe) & 12 & .500 & .833 & .625 \\
 \end{tabular}
 \end{table}
 
-Recall is $\geq$0.80 at all periods; the two consistently missed classes are 38 (low FD score due to small support, $n{=}193$) and 163 (gradual drift yields a moderate risk score of 0.39, below the top-20 cutoff).
-Precision increases with drift severity (0.20 at M7 to 0.50 at M12) because more classes genuinely collapse at later periods, reducing false positives.
+Recall is $\geq$0.80 at all periods; precision increases with drift severity (0.20 at M7 to 0.50 at M12) as more classes genuinely collapse.
+The two consistently missed classes are 38 (small support) and 163 (gradual drift).
 
-\textbf{Sensitivity to $k$.}
-Varying $k$ at M12: $k{=}10$ achieves higher precision (0.60) at the cost of recall (0.50, F1~=~0.545); $k{=}20$ (default) maximizes F1 (0.625); $k{=}50$ recovers 11/12 classes (recall~=~0.917) but with precision 0.22.
-Class~38 and 163 require $k{>}40$ to detect, consistent with their atypical drift signatures (small support for 38; gradual onset for 163).
+\subsection{Robustness and Extensions}
+\label{sec:robustness}
 
-\subsection{BatchNorm Architecture Verification}
+\textbf{Architecture independence.}
 \label{sec:bn_verify}
-
-To confirm that TTA failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm and re-evaluate.
-
-\begin{table}[t]
-\centering
-\caption{BatchNorm architecture at M-2022-12. TTA collapse F1 remains near zero even with functional BN-Adapt~\cite{schneider2020bn}. NOTE catastrophically degrades.}
-\label{tab:bn}
-\small
-\begin{tabular}{@{}l cc@{}}
-\toprule
-Method & Macro-F1 & Collapse F1 \\
-\midrule
-Static (BN) & .613 & .030 \\
-BN-Adapt & .622 & .032 \\
-NOTE & .042 & .000 \\
-\midrule
-\ours{}-Margin (BN) & \textbf{.665$\pm$.001} & \textbf{.314$\pm$.004} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Even with functional BN-Adapt (macro +0.009), collapse F1 stays at 0.032.
-NOTE catastrophically degrades the BN model (macro-F1: 0.042).
-This confirms that TTA's inability to address class collapse is a \textit{problem-level} limitation, not an architecture artifact.
-\ours{}-Margin still improves the BN model substantially (macro-F1: .613$\to$.665, collapse F1: .030$\to$.314).
-
-\subsection{Transformer Architecture}
 \label{sec:transformer}
+To confirm that TTA failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm (BN): BN-Adapt~\cite{schneider2020bn} raises macro-F1 by only 0.009 while collapse F1 stays at 0.032, and NOTE catastrophically degrades (macro-F1: 0.042). \ours{}-Margin still improves the BN model substantially (.613$\to$.665 macro, .030$\to$.314 collapse).
+We also train a Transformer backbone~\cite{vaswani2017attention} (4-layer, 4-head, 256-dim): \ours{} achieves $.767{\pm}.001$ macro-F1 and $.401{\pm}.003$ collapse F1, a larger gain than on the CNN (+0.097 vs.\ +0.057), likely because richer features provide better material for head-only repair.
 
-We train a Transformer backbone~\cite{vaswani2017attention} (4-layer, 4-head, 256-dim) on the same data and apply \ours{}.
-
-\begin{table}[t]
-\centering
-\caption{Transformer architecture (margin, $B$=1000, M12, 3 seeds). \ours{} benefits both architectures; the Transformer gains more.}
-\label{tab:transformer}
-\small
-\begin{tabular}{@{}l cc cc@{}}
-\toprule
-& \multicolumn{2}{c}{Static} & \multicolumn{2}{c}{\ours{}} \\
-\cmidrule(lr){2-3} \cmidrule(lr){4-5}
-Backbone & Macro & Collapse & Macro & Collapse \\
-\midrule
-CNN & .629 & .028 & .686$\pm$.001 & .256$\pm$.009 \\
-Transformer & .670 & .030 & \textbf{.767$\pm$.001} & \textbf{.401$\pm$.003} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The Transformer benefits more from \ours{} (macro +0.097 vs.\ +0.057), likely because its richer feature representations provide better material for head-only repair.
-
-\subsection{Supporting Evaluation on QUICEXT-25}
+\textbf{Cross-protocol transfer.}
 \label{sec:quicext25}
+On the CESNET-QUICEXT-25 XS split~\cite{cesnetquicext25} (44 classes, QUIC, 11-month span), 3 classes collapse below 0.1 recall with clear absorber patterns.
+Under strict evaluation (BADGE, $B{=}1{,}000$, prototype replay $k{=}5$, 5 seeds), \ours{} raises macro-F1 from $0.502$ to $0.561{\pm}0.005$ and collapse F1 from $0.014$ to $0.081{\pm}0.024$.
+The improvement suggests cross-protocol transfer, though absolute collapse repair remains modest on this resource-constrained split.
 
-We evaluate on the CESNET-QUICEXT-25 XS split~\cite{cesnetquicext25} (44 classes, QUIC protocol, monthly granularity, 11-month test span) to provide supporting evidence for cross-protocol transfer.
-We train on M-2024-6, use M-2024-7 as the reference period, and evaluate at M-2025-5 (11 months later), where 3 classes collapse below 0.1 recall with clear absorber patterns (\eg{}, class~21 is absorbed by class~12).
-Under strict evaluation (BADGE, $B{=}1{,}000$, prototype all-class replay $k{=}5$, 5 seeds), \ours{} raises macro-F1 from $0.502$ to $0.561{\pm}0.005$ ($+$11.8\%) and collapse-class F1 from $0.014$ to $0.081{\pm}0.024$.
-The margin variant achieves $0.559{\pm}0.003$ with collapse F1 $0.086{\pm}0.002$.
-The macro-F1 improvement suggests that the framework transfers across protocols and class scales (44 vs.\ 178), though collapse repair remains modest in absolute terms on this dataset.
-We note that the XS split is resource-constrained; results on the full QUICEXT-25 dataset may differ.
-
-\subsection{Prototype-Based Replay}
+\textbf{Prototype replay.}
 \label{sec:proto_replay}
+For privacy-sensitive deployments, we replace stored samples with class prototypes (mean feature vectors + Gaussian noise, 178~KB total).
+Prototype replay achieves 98.7\% of real replay's macro-F1 ($0.664{\pm}0.002$ vs.\ $0.673{\pm}0.001$, 3 seeds), demonstrating exemplar-free operation with minimal loss.
 
-Standard \ours{} requires storing reference-period samples for replay.
-For privacy-sensitive deployments, we propose \textit{prototype replay}: generating synthetic features from stored class prototypes (mean feature vectors) with per-class Gaussian noise.
-This requires storing only prototypes ($178{\times}256$ floats = 178~KB) instead of raw training data.
-
-\begin{table}[t]
-\centering
-\caption{Real vs.\ prototype replay (margin, $B$=1000, 3 seeds).}
-\label{tab:proto_replay}
-\small
-\begin{tabular}{@{}l cc@{}}
-\toprule
-Replay Mode & Macro-F1 & Collapse F1 \\
-\midrule
-Real (source samples) & .673$\pm$.001 & .231$\pm$.002 \\
-Prototype (exemplar-free) & .664$\pm$.002 & .219$\pm$.004 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Prototype replay achieves 98.7\% of real replay's macro-F1 (0.664 vs.\ 0.673), demonstrating that \ours{} can operate in an exemplar-free setting with minimal performance loss.
-
-\subsection{Statistical Significance and Robustness}
+\textbf{Statistical significance.}
 \label{sec:significance}
-
-Paired $t$-tests across 5 seeds confirm: margin $>$ random (macro-F1: $p{<}0.001$, collapse-F1: $p{=}0.003$) and BADGE $>$ margin (macro-F1: $p{=}0.001$, collapse-F1: $p{=}0.018$).
-Wilcoxon signed-rank tests are inconclusive ($p{=}0.0625$) due to the minimum achievable $p$-value with $n{=}5$ paired samples.
-
-To verify that absorber-collapse is a property of the data rather than a training artifact, we conduct a retraining audit: 3 training seeds $\times$ 3 \ours{} seeds = 9 runs yield macro-F1 of $0.667{\pm}0.007$ and collapse F1 of $0.290{\pm}0.034$.
-Both training-seed variance ($\sigma_{\text{macro}}{=}0.0006$) and fine-tuning-seed variance ($\sigma_{\text{macro}}{\approx}0.001$) are small relative to the \ours{} improvement ($+$0.057 macro-F1), confirming that the absorber-collapse pattern is an inherent property of the dataset's temporal drift.
+Paired $t$-tests (5 seeds) confirm: margin $>$ random ($p{<}0.001$) and BADGE $>$ margin ($p{=}0.001$).
+A retraining audit ($3{\times}3{=}9$ runs) yields training-seed variance $\sigma_{\text{macro}}{=}0.0006$, confirming that absorber-collapse is a data property, not a training artifact.
 
 
 % ============================================================
