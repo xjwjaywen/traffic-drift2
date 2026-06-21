@@ -1,0 +1,16 @@
+{
+  "dataset": "CESNET-QUICEXT-25 XS",
+  "num_classes": 44,
+  "train_period": "M-2024-6",
+  "reference_period": "M-2024-7",
+  "target_period": "M-2025-5",
+  "collapse_classes_paper": [21, 23, 25],
+  "collapse_definition": "recall < 0.1 AND support >= 50 at M-2025-5",
+  "n_seeds": 5,
+  "strategies": ["badge", "margin"],
+  "budget": 1000,
+  "replay_mode": "proto_all",
+  "replay_per_class": 5,
+  "distill_weight": 0.5,
+  "notes": "Seed directories (care_quicext25_canonical_seed0..4) auto-discovered 4 classes [17,21,23,25] using M-2024-6 as reference. Paper uses 3-class set [21,23,25] based on recall<0.1 + support>=50 criterion. Class 17 excluded from paper's collapse set due to support threshold. Aggregated results in aggregated_mean_std.csv are authoritative for paper."
+}

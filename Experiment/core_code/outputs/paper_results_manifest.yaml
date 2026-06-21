@@ -122,15 +122,18 @@ tables:
     notes: "Non-strict evaluation (queried samples included) for diagnostic upper bound with oracle absorber knowledge. 9/12 classes recover above 0.1 recall. Three failures (26, 69, 109) have features fully merged with absorber in encoder space."
 
   table_ablation:  # \label{tab:ablation}
-    description: "Clean component ablation (margin, B=1000, all-class replay k=5, strict eval, 5 seeds): Static → FT only → FT+Replay → Full CARE. Each step adds exactly one component."
+    description: "7-config component ablation (margin, B=1000, all-class replay k=5, strict eval, 5 seeds)"
     source_file:
       - "unified_ablation/ft_only/aggregated_mean_std.csv"
       - "unified_ablation/ft_replay_noKD/aggregated_mean_std.csv"
       - "unified_ablation/full_care/aggregated_mean_std.csv"
+      - "ablation_v3/replay_only/aggregated_mean_std.csv"
+      - "ablation_v3/distill_only/aggregated_mean_std.csv"
+      - "ablation_strict/ft_distill/aggregated_mean_std.csv"
     collapse_set: "12 classes (support >= 50)"
     seeds: 5
     regeneration_command: "bash scripts/run_v3_unified_experiments.sh u1"
-    notes: "Clean single-variable ablation. All rows with replay use all-class k=5 (890 samples). FT-only .638, +Replay .659, +KD .686."
+    notes: "7-config ablation: Static, Replay-only, KD-only (no labels), FT-only, FT+KD, FT+Rpl, Full CARE. Paper Table IV."
 
   table_8:  # \label{tab:auto_absorber}
     description: "Oracle vs auto-discovered absorber lists (absorber-margin, B=1000, 5 seeds)"
@@ -290,8 +293,8 @@ figures:
     regeneration_command: "python scripts/make_paper_figures.py --output-dir ../../Publication/figures"
     notes: "Only full CARE simultaneously improves collapse F1 (red) while maintaining stable F1 (green). Source updated from ablation_strict/ to unified_ablation/."
 
-  fig_3:  # \label{fig:tta_failure}
-    description: "Overall macro-F1 and collapse-class F1 across time points for TTA baselines vs CARE"
+  fig_3_legacy:  # removed from current paper
+    description: "[LEGACY] Overall macro-F1 and collapse-class F1 across time points for TTA baselines vs CARE — replaced by t-SNE figure in current paper"
     output_file: "Publication/figures/fig_tta_failure.pdf"
     source_file:
       - "tta_multiperiod/M7/baselines_group_metrics.csv"
@@ -392,10 +395,10 @@ collapse_sets:
     criteria: "recall < 0.1 AND support >= 50 at M-2022-12"
     classes: [10, 26, 38, 47, 48, 56, 66, 69, 104, 109, 163, 174]
 
-  detection_14:
-    description: "Detection ground truth (used in Table 4)"
+  detection_14_legacy:
+    description: "LEGACY detection ground truth — no longer used in paper"
     criteria: "recall < 0.1 AND support > 0 at M-2022-12"
-    notes: "Includes 2 additional low-support classes (15-16 samples each)"
+    notes: "Superseded. Paper now uses fixed_12 for all evaluation including detection. Legacy ablation_summary.json still uses this set; paper reports recomputed metrics from detection_unified_metrics.json."
 
   auto_discovered:
     description: "Per-period probe-based discovery"
@@ -438,3 +441,18 @@ superseded:
   - path: "care_multiperiod/"
     replaced_by: "care_multiperiod_allreplay/"
     reason: "Was stable_absorber replay + auto-discovered eval"
+  - path: "care_quicext25_canonical_seed0..4/"
+    replaced_by: "care_quicext25_canonical/aggregated_mean_std.csv"
+    reason: "Individual seed runs (M-2024-6 ref, 4 auto-discovered classes); canonical aggregated uses paper's 3-class definition"
+  - path: "care_quicext25_m2025_5/"
+    replaced_by: "care_quicext25_canonical/"
+    reason: "Earlier QUICEXT iteration"
+  - path: "care_quicext25_seed1..4/"
+    replaced_by: "care_quicext25_canonical/"
+    reason: "Earlier QUICEXT iteration"
+  - path: "eval_quicext25/"
+    replaced_by: "care_quicext25_canonical/"
+    reason: "Earlier QUICEXT evaluation"
+  - path: "detection_ablation/ablation_summary.json"
+    replaced_by: "detection_unified_metrics.json"
+    reason: "Used 14-class GT (support>0); paper now uses 12-class GT (support>=50)"

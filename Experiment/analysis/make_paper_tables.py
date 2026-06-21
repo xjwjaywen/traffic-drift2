@@ -1,4 +1,9 @@
 """
+LEGACY — not used for current paper (main_v3.tex / CARE).
+This script was written for the earlier QUIC22/TTA-TC paper.
+Current paper tables are derived from canonical CSVs listed in
+Experiment/core_code/outputs/CANONICAL_SOURCES.md.
+
 Generate LaTeX and CSV tables from TTA-TC experiment results.
 
 Produces:
