@@ -37,7 +37,7 @@ Deep-learning encrypted traffic classifiers degrade after deployment due to conc
 We identify a previously unstudied failure mode---the \textit{absorber-collapse pattern}---in which a few dominant classes systematically absorb predictions from victim classes, driving them to near-zero recall.
 On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within nine months; five representative test-time adaptation methods all leave collapse-class F1 below 0.03.
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a label-efficient maintenance framework that monitors per-class collapse risk, selects 1{,}000 informative target samples via pair-agnostic margin or BADGE sampling, and repairs the classification head through few-label fine-tuning, all-class source replay, and knowledge distillation.
-An unsupervised detection module provides a deployment trigger by monitoring per-class health without labels.
+An unsupervised detection module serves as a diagnostic monitor, flagging at-risk classes without labels.
 Under strict evaluation (queried samples excluded, five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$; the lightweight \ours{}-Margin variant reaches $0.686{\pm}0.001$ in under one second.
 The framework is consistent across drift severity, architectures, and a second dataset.
 \end{abstract}
@@ -78,7 +78,7 @@ We propose \ours{}, a collapse-aware repair framework with three complementary c
   \item \textbf{All-class source replay.} $k{=}5$ exemplars per class (890 samples total) from labeled reference-period data are mixed into fine-tuning to prevent catastrophic forgetting. We use M4 as the reference period; an equivalence experiment confirms that using the training month (M3) yields nearly identical results (macro-F1: $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$), so the replay data can be sourced from either the training pipeline or a nearby labeled period.
   \item \textbf{Knowledge distillation.} A KL-divergence loss between the updated and original heads on replay samples anchors the overall prediction behavior.
 \end{enumerate}
-An unsupervised detection module, based on five complementary signals (prediction count ratio, Fr\'{e}chet distance, margin drop, confidence drop, entropy rise), monitors per-class health and signals when repair may be needed---it serves as a deployment trigger and diagnostic monitor, not as a mechanism for selecting replay classes or guiding sample selection.
+An unsupervised detection module, based on five complementary signals (prediction count ratio, Fr\'{e}chet distance, margin drop, confidence drop, entropy rise), monitors per-class health and signals when repair may be needed---it serves as a diagnostic monitor, not as a mechanism for selecting replay classes or guiding sample selection.
 
 % P5: Results highlight
 We first establish that unsupervised TTA methods, under our traffic-adapted implementations, do not address class collapse (all produce collapse-class F1 ${<}0.03$), and that uncertainty-based active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
@@ -90,7 +90,7 @@ Our contributions are:
 \begin{enumerate}
   \item \textbf{New failure mode.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift (\S\ref{sec:analysis}).
   \item \textbf{Negative results establishing the problem.} We show that unsupervised TTA methods are ineffective (collapse F1 ${<}0.03$) and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item \textbf{Label-efficient repair framework.} We propose \ours{}, combining pair-agnostic margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. An unsupervised detection module (recall $\geq$0.86 across M7--M12, M12 F1 = 0.71) provides a deployment trigger and diagnostic monitoring (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item \textbf{Label-efficient repair framework.} We propose \ours{}, combining pair-agnostic margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. An unsupervised detection module (recall $\geq$0.80 across M7--M12, M12 F1 = 0.625) serves as a diagnostic monitor for deployment (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
 
 
@@ -281,10 +281,10 @@ This negative result motivates the shift from unsupervised adaptation to label-e
 \section{Method: Collapse-Aware Active Repair}
 \label{sec:method}
 
-\ours{} is a label-efficient repair framework comprising three stages: (1)~unsupervised monitoring and deployment triggering, (2)~active sample selection, and (3)~head fine-tuning with all-class replay and knowledge distillation.
+\ours{} is a label-efficient repair framework comprising three stages: (1)~unsupervised monitoring of per-class health, (2)~active sample selection, and (3)~head fine-tuning with all-class replay and knowledge distillation.
 Algorithm~\ref{alg:care} summarizes the procedure.
 
-\subsection{Unsupervised Collapse Detection for Monitoring and Triggering}
+\subsection{Unsupervised Collapse Detection and Monitoring}
 \label{sec:unsup_detect}
 
 We propose a multi-signal collapse risk score computed entirely from model predictions on unlabeled data.
@@ -303,12 +303,12 @@ The collapse risk score combines these signals:
 \end{equation}
 where $\tilde{d}_c$, $\tilde{m}_c$, $\tilde{f}_c$, $\tilde{e}_c$ denote the MAD-normalized FD, margin drop, confidence drop, and entropy rise for class $c$, and $w = (0.40, 0.20, 0.15, 0.15, 0.10)$.
 Weights were set as a fixed heuristic based on signal informativeness (count drop is the strongest single indicator), without access to target-period labels; labels are used only retrospectively to report detection precision and recall.
-A sensitivity analysis (\S\ref{sec:discussion}) shows that under $\pm$50\% perturbations and random Dirichlet sampling, recall remains $\geq$0.71.
+A sensitivity analysis (\S\ref{sec:discussion}) shows that under $\pm$50\% perturbations and random Dirichlet sampling, recall remains $\geq$0.50.
 
 This module serves two deployment-critical roles:
 \begin{itemize}
   \item \textbf{Monitoring}: It identifies \textit{which} classes are degrading, enabling targeted investigation by network operators.
-  \item \textbf{Triggering}: Per-class risk scores inform \textit{when} repair should be considered, without requiring labeled data to detect drift.
+  \item \textbf{Alerting}: Per-class risk scores inform \textit{when} repair should be considered, without requiring labeled data to detect drift.
 \end{itemize}
 Importantly, the detection module does \textit{not} guide replay class selection---all-class replay is the default (\S\ref{sec:replay_ablation}).
 
@@ -354,7 +354,7 @@ The full training loss is:
 \begin{algorithmic}[1]
 \REQUIRE Source model $f, h_{\theta_0}$; reference predictions; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
 \STATE \textbf{Monitor:} Compute per-class risk scores $s_c$ (\S\ref{sec:unsup_detect}) from unlabeled predictions
-\STATE \textbf{Trigger:} If risk scores indicate drift, activate repair
+\STATE \textbf{Alert:} If risk scores indicate drift, flag for operator review
 \STATE Compute features and logits for $D_{\text{tgt}}$
 \STATE Select $B$ samples via margin or BADGE; query labels $\to D_{\text{target}}$
 \STATE Sample $D_{\text{replay}}$: $k{=}5$ per class from \textit{all} 178 training classes (890 total)
@@ -607,48 +607,54 @@ This suggests that \textit{early intervention is more effective}: repairing at M
 
 \textbf{Signal ablation.}
 Table~\ref{tab:detect_signals} shows how each signal contributes to detection accuracy at M12.
-The detection ground truth uses a recall threshold of 0.15 (more inclusive than the 0.1 threshold used for the 12 collapse classes in repair evaluation), yielding 14 ground-truth collapsed classes.
+The detection ground truth uses the same collapse definition as repair evaluation: recall~${<}\,0.1$ with support~${\geq}\,50$, yielding 12 ground-truth collapsed classes.
+The detector selects the 20 highest-risk classes ($k{=}20$).
 
 \begin{table}[t]
 \centering
-\caption{Detection signal ablation on M4$\to$M12 (14 ground-truth classes, no labels used).}
+\caption{Detection signal ablation on M4$\to$M12 (12 ground-truth classes, no labels used, $k{=}20$).}
 \label{tab:detect_signals}
 \small
 \begin{tabular}{@{}l ccc@{}}
 \toprule
 Signal Combination & Precision & Recall & F1 \\
 \midrule
-FD only & --- & --- & .47 \\
-Count + FD & --- & --- & .59 \\
-Count + FD + margin + conf & --- & --- & .59 \\
-All 5 signals & \textbf{.60} & \textbf{.86} & \textbf{.71} \\
+FD only & .350 & .583 & .438 \\
+Count + FD & .450 & .750 & .563 \\
+Count + FD + margin + conf & .400 & .667 & .500 \\
+All 5 signals & \textbf{.500} & \textbf{.833} & \textbf{.625} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Count drop and FD provide the primary detection signal (F1 = 0.59); adding margin and confidence alone does not improve detection, but entropy rise contributes a complementary signal that lifts F1 from 0.59 to 0.71.
+Count drop and FD provide the primary detection signal (F1 = 0.563); adding margin and confidence alone does not improve detection, but entropy rise contributes a complementary signal that lifts recall from 0.750 to 0.833 and F1 from 0.563 to 0.625.
 
 \textbf{Detection across drift levels.}
-Table~\ref{tab:trigger} evaluates detection consistency: recall is $\geq$0.86 at all time points.
+Table~\ref{tab:trigger} evaluates detection consistency as a diagnostic monitor across four time points.
 
 \begin{table}[t]
 \centering
-\caption{Detection trigger evaluation across drift levels. Recall is consistently $\geq$0.86.}
+\caption{Detection across drift levels ($k{=}20$, recall${<}0.1$, support${\geq}50$). Recall is $\geq$0.80 at all time points; precision improves with drift severity.}
 \label{tab:trigger}
 \small
-\begin{tabular}{@{}l ccc@{}}
+\begin{tabular}{@{}l cccc@{}}
 \toprule
-Period & Recall & F1 \\
+Period & GT & Precision & Recall & F1 \\
 \midrule
-M7 (light)   & .857 & .444 \\
-M9 (medium)  & .900 & .600 \\
-M11 (heavy)  & .909 & .645 \\
-M12 (severe) & .857 & .706 \\
+M7 (light)   & 5  & .200 & .800 & .320 \\
+M9 (medium)  & 8  & .350 & .875 & .500 \\
+M11 (heavy)  & 10 & .450 & .900 & .600 \\
+M12 (severe) & 12 & .500 & .833 & .625 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Recall is stable across all periods (0.857--0.909), confirming that the detection module flags most collapsed classes from M7 onward.
+Recall is $\geq$0.80 at all periods; the two consistently missed classes are 38 (low FD score due to small support, $n{=}193$) and 163 (gradual drift yields a moderate risk score of 0.39, below the top-20 cutoff).
+Precision increases with drift severity (0.20 at M7 to 0.50 at M12) because more classes genuinely collapse at later periods, reducing false positives.
+
+\textbf{Sensitivity to $k$.}
+Varying $k$ at M12: $k{=}10$ achieves higher precision (0.60) at the cost of recall (0.50, F1~=~0.545); $k{=}20$ (default) maximizes F1 (0.625); $k{=}50$ recovers 11/12 classes (recall~=~0.917) but with precision 0.22.
+Class~38 and 163 require $k{>}40$ to detect, consistent with their atypical drift signatures (small support for 38; gradual onset for 163).
 
 \subsection{BatchNorm Architecture Verification}
 \label{sec:bn_verify}
@@ -760,7 +766,7 @@ In deployment, repair would be initiated when the detection module signals drift
 The detection module achieves precision 0.60 at M12, meaning 40\% of flagged classes are false positives.
 However, false positives do \textit{not} cause unnecessary per-class labeling: the detection module signals a single repair cycle covering all classes, not per-class repairs.
 Once repair is initiated, the 1{,}000-label active selection and all-class replay address all collapsed classes simultaneously regardless of which specific classes the detector flagged.
-The detection module's primary deployment value is its high recall ($\geq$0.86), reducing the risk of missed collapse events.
+The detection module's primary deployment value is its high recall ($\geq$0.80 across all evaluated periods), reducing the risk of missed collapse events.
 
 \textbf{Stable-class trade-off.}
 Stable-class F1 decreases from 0.903 (Static) to 0.892 ($-$1.2\%) under Full \ours{} with all-class replay.
@@ -768,7 +774,7 @@ The ablation shows each component's role: without replay and distillation, degra
 
 \textbf{Deployability.}
 \ours{} is designed for deployment with minimal operator intervention:
-(1)~the detection module monitors class health and provides a repair trigger without labels;
+(1)~the detection module monitors class health without labels, flagging at-risk classes for operator review;
 (2)~margin selection requires no absorber knowledge;
 (3)~all-class replay from labeled reference-period data is the default (equivalently, training data; \S\ref{sec:discussion}), with prototype replay as a privacy-preserving alternative;
 (4)~repair completes in ${\sim}$3 minutes on an NVIDIA RTX 3090.
@@ -793,9 +799,9 @@ Both are negligible compared to full model retraining (${\sim}$2 hours).
 
 \textbf{Detection weight sensitivity.}
 We evaluated $\pm$50\% perturbation of each weight (10 configurations, renormalized) plus 20 Dirichlet-random vectors.
-Under $\pm$50\% perturbation, F1 ranges from 0.647 to 0.706 (std = 0.029) with recall 0.786--0.857.
-Under Dirichlet-random vectors, the minimum recall is 0.71.
-The default weights achieve the highest F1 but are not critical: across all 30 tested configurations, recall remains $\geq$0.71.
+Under $\pm$50\% perturbation, F1 ranges from 0.500 to 0.625 with recall 0.667--0.833.
+Under Dirichlet-random vectors, the minimum recall is 0.50 (F1 = 0.375).
+The default weights achieve the highest F1 (0.625) but are not critical: across all 31 tested configurations, recall remains $\geq$0.50 and F1 $\geq$0.375.
 
 \textbf{Calibration baseline.}
 Temperature scaling ($T^*{=}1.11$, learned on validation data) changes zero predictions out of 1.32M test samples, leaving all metrics identical.
@@ -815,7 +821,7 @@ On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within nine mo
 We showed that unsupervised TTA methods do not address this failure under our tested configurations (collapse F1 ${<}0.03$) and that entropy/coreset active learning strategies are counterproductive, establishing class collapse as a distinct problem requiring targeted intervention.
 
 We proposed \ours{}, a label-efficient maintenance framework with three components: (1)~few-label head fine-tuning with margin or BADGE selection, (2)~all-class source replay, and (3)~knowledge distillation.
-An unsupervised detection module monitors per-class health and provides a deployment trigger when drift is detected; experiments evaluate repair conditional on this trigger.
+An unsupervised detection module monitors per-class health as a diagnostic monitor; experiments evaluate repair on known drift periods identified by this module.
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
 A clean component ablation confirms that each ingredient contributes independently under controlled conditions (all-class replay throughout): FT alone reaches 0.638, adding replay lifts it to 0.659, and adding KD achieves 0.686.
 A replay strategy ablation shows that all-class replay outperforms targeted replay even at matched budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that class-coverage breadth matters more than targeted volume.

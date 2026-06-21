@@ -1,0 +1,111 @@
+{
+  "ground_truth_definition": "recall < 0.1 AND support >= 50",
+  "detection_method": "top_k=20, 5-signal composite",
+  "periods": {
+    "M7": {
+      "gt_count": 5,
+      "gt_classes": [
+        48,
+        50,
+        56,
+        163,
+        174
+      ],
+      "precision": 0.2,
+      "recall": 0.8,
+      "f1": 0.32,
+      "missed": [
+        48
+      ]
+    },
+    "M9": {
+      "gt_count": 8,
+      "gt_classes": [
+        48,
+        50,
+        56,
+        69,
+        104,
+        121,
+        163,
+        174
+      ],
+      "precision": 0.35,
+      "recall": 0.875,
+      "f1": 0.5,
+      "missed": [
+        163
+      ]
+    },
+    "M11": {
+      "gt_count": 10,
+      "gt_classes": [
+        7,
+        10,
+        47,
+        48,
+        56,
+        66,
+        69,
+        104,
+        163,
+        174
+      ],
+      "precision": 0.45,
+      "recall": 0.9,
+      "f1": 0.6,
+      "missed": [
+        163
+      ]
+    },
+    "M12": {
+      "gt_count": 12,
+      "gt_classes": [
+        10,
+        26,
+        38,
+        47,
+        48,
+        56,
+        66,
+        69,
+        104,
+        109,
+        163,
+        174
+      ],
+      "precision": 0.5,
+      "recall": 0.833,
+      "f1": 0.625,
+      "missed": [
+        38,
+        163
+      ]
+    }
+  },
+  "signal_ablation_m12": {
+    "fd_only": {
+      "precision": 0.35,
+      "recall": 0.583,
+      "f1": 0.438
+    },
+    "count_fd": {
+      "precision": 0.45,
+      "recall": 0.75,
+      "f1": 0.563
+    },
+    "4signal": {
+      "precision": 0.4,
+      "recall": 0.667,
+      "f1": 0.5
+    },
+    "5signal_full": {
+      "precision": 0.5,
+      "recall": 0.833,
+      "f1": 0.625
+    }
+  },
+  "top_k_sweep_m12": {},
+  "threshold_sensitivity_m12": {},
+  "weight_sensitivity": {}
+}
