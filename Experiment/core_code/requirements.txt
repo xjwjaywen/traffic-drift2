@@ -3,21 +3,21 @@
 # For CUDA: pip install torch --index-url https://download.pytorch.org/whl/cu121
 #
 # Tested with: Python 3.10, CUDA 12.1, Ubuntu 22.04, NVIDIA RTX 3090
-# Run `pip freeze > requirements.lock.txt` on your environment for exact pinning.
+# See requirements.lock.txt in the repo root for exact tested versions.
 
 # Core deep learning
-torch>=2.0.0,<2.5.0
-torchvision>=0.15.0,<0.20.0
+torch>=2.0.0
+torchvision>=0.15.0
 torchcde>=0.2.5
 
-# CESNET datasets — QUICEXT-25 XS requires cesnet-datazoo >=0.2.5
-cesnet-datazoo>=0.2.5,<0.3.0
+# CESNET datasets
+cesnet-datazoo>=0.2.0,<0.3.0
 
 # Data science
-numpy>=1.24.0,<2.0.0
-pandas>=2.0.0,<2.3.0
-scikit-learn>=1.3.0,<1.6.0
-scipy>=1.11.0,<1.14.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
 
 # Visualization
 matplotlib>=3.7.0
