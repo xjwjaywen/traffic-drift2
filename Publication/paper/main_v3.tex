@@ -487,7 +487,7 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 
 \begin{table}[t]
 \centering
-\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). ``Rpl'' = all-class replay ($k{=}5$, 890 samples). Since KD is defined over $D_{\text{rpl}}$ (\S\ref{sec:distill}), KD-marked rows include replay as the distillation substrate; FT+KD uses targeted stable+absorber replay (150 samples). Replay-only and KD-only use $B{=}0$.}
+\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). ``CE Rpl'' = all-class CE replay ($k{=}5$, 890 samples). KD is defined over $D_{\text{rpl}}$ (\S\ref{sec:distill}), so KD-marked rows always include replay; FT+KD uses targeted stable+absorber replay (150 samples). Replay-only and Rpl+KD use $B{=}0$.}
 \label{tab:ablation}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
@@ -495,12 +495,12 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 \toprule
  & \multicolumn{3}{c}{Components} & & & & \\
 \cmidrule(lr){2-4}
-Config. & Lbl & Rpl & KD & Macro & Col.\ F1 & Stb.\ F1 & \#Col \\
+Config. & Lbl & CE Rpl & KD & Macro & Col.\ F1 & Stb.\ F1 & \#Col \\
 \midrule
 Static & & & & .629 & .028 & \textbf{.903} & 12 \\
 \midrule
 Replay only & & \checkmark & & .563$\pm$.007 & .044$\pm$.019 & .816$\pm$.026 & 10.2 \\
-KD only & & & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888$\pm$.009 & 10.8 \\
+Rpl+KD & & \checkmark & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888$\pm$.009 & 10.8 \\
 \midrule
 FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839$\pm$.001 & 7.0 \\
 FT+KD & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887$\pm$.004 & 7.8 \\
@@ -518,8 +518,8 @@ FT+Rpl & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.0
 \end{figure}
 
 The table separates into three blocks.
-\textbf{Without target labels} (Replay only, KD only): neither component alone can repair collapse---collapse F1 stays below .05---confirming that labeled target data is essential.
-KD only preserves stable F1 (.888) nearly as well as the static model, while replay only degrades it (.816), showing that replay without a supervised signal introduces noise.
+\textbf{Without target labels} (Replay only, Rpl+KD): neither component alone can repair collapse---collapse F1 stays below .05---confirming that labeled target data is essential.
+Rpl+KD preserves stable F1 (.888) nearly as well as the static model, while replay only degrades it (.816), showing that adding distillation to replay substantially reduces the noise that replay CE alone introduces.
 
 \textbf{With target labels}, each component's contribution is isolated:
 \begin{itemize}

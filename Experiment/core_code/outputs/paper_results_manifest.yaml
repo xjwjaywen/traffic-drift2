@@ -136,7 +136,7 @@ tables:
     collapse_set: "12 classes (support >= 50)"
     seeds: 5
     regeneration_command: "bash scripts/run_ablation_7config.sh"
-    notes: "7-config ablation: Static, Replay-only, KD-only (no labels), FT-only, FT+KD, FT+Rpl, Full CARE. Paper Table IV. Current data from 3 experiment batches (same pipeline); canonical single-script re-run via run_ablation_7config.sh → outputs/ablation_7config_canonical/."
+    notes: "7-config ablation: Static, Replay-only, Rpl+KD (no labels), FT-only, FT+KD, FT+Rpl, Full CARE. Paper Table IV. Current data from 3 experiment batches (same pipeline); canonical single-script re-run via run_ablation_7config.sh → outputs/ablation_7config_canonical/. target_repeat matches per-config originals (1 for B=0 and FT-only/FT+KD, 2 for FT+Rpl and Full CARE)."
 
   table_8:  # \label{tab:auto_absorber}
     description: "Oracle vs auto-discovered absorber lists (absorber-margin, B=1000, 5 seeds)"
