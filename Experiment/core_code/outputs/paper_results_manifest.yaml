@@ -135,8 +135,8 @@ tables:
       - "ablation_strict/ft_distill/aggregated_mean_std.csv"
     collapse_set: "12 classes (support >= 50)"
     seeds: 5
-    regeneration_command: "bash scripts/run_v3_unified_experiments.sh u1"
-    notes: "7-config ablation: Static, Replay-only, KD-only (no labels), FT-only, FT+KD, FT+Rpl, Full CARE. Paper Table IV."
+    regeneration_command: "bash scripts/run_ablation_7config.sh"
+    notes: "7-config ablation: Static, Replay-only, KD-only (no labels), FT-only, FT+KD, FT+Rpl, Full CARE. Paper Table IV. Current data from 3 experiment batches (same pipeline); canonical single-script re-run via run_ablation_7config.sh → outputs/ablation_7config_canonical/."
 
   table_8:  # \label{tab:auto_absorber}
     description: "Oracle vs auto-discovered absorber lists (absorber-margin, B=1000, 5 seeds)"

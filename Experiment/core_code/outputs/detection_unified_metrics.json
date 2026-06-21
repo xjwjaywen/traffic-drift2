@@ -107,5 +107,42 @@
   },
   "top_k_sweep_m12": {},
   "threshold_sensitivity_m12": {},
-  "weight_sensitivity": {}
+  "weight_sensitivity": {
+    "note": "Recomputed from 14-class CSV assuming classes 58,121 (support<50) always detected; subtract 2 from TP, GT=12",
+    "gt_count": 12,
+    "n_configs": 31,
+    "default": {
+      "config": "default",
+      "precision": 0.5,
+      "recall": 0.833,
+      "f1": 0.625,
+      "n_detected": 20,
+      "n_tp": 10
+    },
+    "perturbation_summary": {
+      "n_configs": 11,
+      "f1_range": [
+        0.563,
+        0.625
+      ],
+      "recall_range": [
+        0.75,
+        0.833
+      ]
+    },
+    "dirichlet_summary": {
+      "n_configs": 20,
+      "f1_range": [
+        0.375,
+        0.625
+      ],
+      "recall_range": [
+        0.5,
+        0.833
+      ],
+      "min_recall_config": "dirichlet_02"
+    },
+    "all_configs_min_recall": 0.5,
+    "all_configs_min_f1": 0.375
+  }
 }

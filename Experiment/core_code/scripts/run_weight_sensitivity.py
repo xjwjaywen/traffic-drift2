@@ -137,12 +137,13 @@ def main():
         num_classes, args.min_samples,
     )
 
-    # Ground truth: actual collapsed classes
+    # Ground truth: actual collapsed classes (recall < 0.1 AND support >= 50)
     actual_collapsed = []
     for c in range(num_classes):
         mask = tgt_labels == c
-        if mask.sum() > 0:
-            recall_c = float((tgt_preds[mask] == c).sum()) / float(mask.sum())
+        support = int(mask.sum())
+        if support >= 50:
+            recall_c = float((tgt_preds[mask] == c).sum()) / float(support)
             if recall_c < 0.1:
                 actual_collapsed.append(c)
 
