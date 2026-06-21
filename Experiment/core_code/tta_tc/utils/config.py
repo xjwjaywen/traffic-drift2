@@ -4,9 +4,11 @@ import os
 
 
 def load_config(config_path: str) -> dict:
-    """Load YAML configuration file."""
+    """Load YAML configuration file with environment variable expansion."""
     with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
+        raw = f.read()
+    expanded = os.path.expandvars(raw)
+    cfg = yaml.safe_load(expanded)
     return cfg
 
 

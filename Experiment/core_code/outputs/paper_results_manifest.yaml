@@ -44,16 +44,17 @@ tables:
 
   table_4:  # \label{tab:unsup_detect}
     description: "Unsupervised collapse detection ablation (signal combinations: FD only, Count+FD, +margin+conf, full 5-signal)"
-    source_file: "detection_ablation/ablation_summary.json"
-    supporting_files:
-      - "detection_ablation/fd_only.json"
-      - "detection_ablation/count_fd.json"
-      - "detection_ablation/4signal.json"
-      - "detection_ablation/5signal_full.json"
+    source_file: "detection_unified_metrics.json"
+    legacy_files:
+      - "detection_ablation/ablation_summary.json (14-class GT, superseded)"
+      - "detection_ablation/fd_only.json (14-class GT, superseded)"
+      - "detection_ablation/count_fd.json (14-class GT, superseded)"
+      - "detection_ablation/4signal.json (14-class GT, superseded)"
+      - "detection_ablation/5signal_full.json (14-class GT, superseded)"
     collapse_set: "12 classes (recall < 0.1 AND support >= 50)"
     seeds: null
-    regeneration_command: "python scripts/run_detection_ablation.py"
-    notes: "No labels used. Updated to 12-class GT (support>=50). Paper reports recomputed metrics from detection_unified_metrics.json. Legacy ablation_summary.json used 14-class GT (support>0) and is superseded."
+    regeneration_command: "python scripts/run_detection_ablation.py (now uses support>=50 filter)"
+    notes: "Paper uses detection_unified_metrics.json (12-class GT, support>=50). M12 5-signal: P=0.500, R=0.833, F1=0.625. Legacy detection_ablation/ used 14-class GT (support>0, F1=0.706) and is fully superseded."
 
   table_main:  # \label{tab:main_results}
     description: "Main results at M-2022-12: TTA (0 labels) + unified active selection (1000 labels, all-class replay + KD, 5 seeds, strict eval)"
