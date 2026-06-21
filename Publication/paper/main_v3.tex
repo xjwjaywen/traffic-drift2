@@ -487,7 +487,7 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 
 \begin{table}[t]
 \centering
-\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). All rows with replay use all-class $k{=}5$ (890 samples). Replay-only and KD-only use no target labels ($B{=}0$).}
+\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). ``Rpl'' = all-class replay ($k{=}5$, 890 samples). Since KD is defined over $D_{\text{rpl}}$ (\S\ref{sec:distill}), KD-marked rows include replay as the distillation substrate; FT+KD uses targeted stable+absorber replay (150 samples). Replay-only and KD-only use $B{=}0$.}
 \label{tab:ablation}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
@@ -524,7 +524,7 @@ KD only preserves stable F1 (.888) nearly as well as the static model, while rep
 \textbf{With target labels}, each component's contribution is isolated:
 \begin{itemize}
   \item \textbf{FT only} (labels alone): Repairs collapse classes (.028$\to$.134) but severely damages stable classes (.903$\to$.839)---catastrophic forgetting from overfitting to 1{,}000 target samples.
-  \item \textbf{FT+KD} (add distillation): KD provides strong stable-class preservation (.839$\to$.887) with modest collapse improvement (.134$\to$.152), confirming its role as a regularizer.
+  \item \textbf{FT+KD} (add distillation, with targeted replay as KD substrate): KD provides strong stable-class preservation (.839$\to$.887) with modest collapse improvement (.134$\to$.152), confirming its role as a regularizer.
   \item \textbf{FT+Rpl} (add replay): Replay substantially boosts collapse repair (.134$\to$.236) and macro-F1 (.638$\to$.659) by anchoring decision boundaries across all 178 classes, though stable-class recovery is partial (.839$\to$.854).
   \item \textbf{Full \ours{}} (all three): Combining labels, replay, and KD yields the best trade-off: macro-F1 reaches .686, collapse F1 .256, and stable F1 recovers to .892---close to the static baseline (.903).
 \end{itemize}

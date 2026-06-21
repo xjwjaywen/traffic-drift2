@@ -368,13 +368,15 @@ figures:
     notes: "M3 replay (0.672) ≈ M4 replay (0.673), no-replay = 0.638. Confirms replay can use training data at zero additional labeling cost."
 
   discussion_weight_sensitivity:
-    description: "Detection weight sensitivity (inline in Discussion): 31 configs"
-    source_file: "weight_sensitivity/weight_sensitivity_summary.json"
+    description: "Detection weight sensitivity (inline in Discussion): 31 configs, 12-class GT"
+    source_file: "detection_unified_metrics.json"
+    legacy_source: "weight_sensitivity/weight_sensitivity_summary.json (14-class GT, superseded)"
+    collapse_set: "12 classes (recall < 0.1 AND support >= 50)"
     regeneration_command: |
       python scripts/run_weight_sensitivity.py \
         --config configs/eval_tls22.yaml --checkpoint outputs/tls22_cnn/best_model.pt \
         --output-dir outputs/weight_sensitivity
-    notes: "Perturbation F1: 0.647-0.706 (std=0.029). Dirichlet F1: 0.471-0.706 (mean=0.618)."
+    notes: "12-class GT (support>=50). Default F1=0.625 (P=0.500, R=0.833). Perturbation F1: 0.563-0.625. Dirichlet F1: 0.375-0.625 (min recall 0.5). Legacy weight_sensitivity_summary.json used 14-class GT (F1=0.706), fully superseded."
 
   discussion_calibration_baseline:
     description: "Temperature scaling baseline (inline in Discussion)"
