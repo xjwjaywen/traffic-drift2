@@ -32,7 +32,7 @@ if [[ -f "${DET_DIR}/detection_summary.json" ]]; then
     DET_COLLAPSE=$(python3 -c "import json; d=json.load(open('${DET_DIR}/detection_summary.json')); print(','.join(str(c) for c in d.get('detected_collapse',[])))")
     DET_ABSORBER=$(python3 -c "import json; d=json.load(open('${DET_DIR}/detection_summary.json')); print(','.join(str(c) for c in d.get('detected_absorbers',[])))")
 else
-    echo "ERROR: Detection results not found at ${DET_DIR}. Run autonomous pipeline first."
+    echo "ERROR: Detection results not found at ${DET_DIR}. Run diagnostic monitor pipeline first."
     exit 1
 fi
 

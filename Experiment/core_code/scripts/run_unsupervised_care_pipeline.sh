@@ -1,5 +1,5 @@
 #!/bin/bash
-# Full autonomous pipeline: unsupervised collapse detection → CARE repair
+# Monitor-assisted pipeline: unsupervised collapse detection → CARE repair
 # No labeled probe period needed. Only 1000 target labels for repair.
 #
 # Usage: bash scripts/run_unsupervised_care_pipeline.sh <config> <checkpoint> <ref_period> <tgt_period> <output_dir> [num_seeds=5]
@@ -79,6 +79,6 @@ echo "=== Step 3: Aggregate ==="
 python scripts/aggregate_seeds.py --base-dir "${OUTPUT_DIR}/care" --num-seeds "${NUM_SEEDS}"
 
 echo ""
-echo "=== Autonomous Pipeline Complete ==="
+echo "=== Monitor-Assisted Pipeline Complete ==="
 echo "Detection: ${OUTPUT_DIR}/detection/"
 echo "Repair:    ${OUTPUT_DIR}/care/"

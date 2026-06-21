@@ -237,9 +237,9 @@ By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-
 
 The two mechanisms have different implications for repair: feature-drift collapse can be addressed by re-anchoring the victim's prototype, while boundary-shift collapse requires recalibrating the decision boundary across multiple classes simultaneously. \ours{}'s combination of targeted fine-tuning and all-class source replay addresses both mechanisms.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\caption{Fisher discriminant ratio analysis for the 12 collapse classes. $J_{\text{M4}}$ and $J_{\text{M12}}$ denote the Fisher ratio (inter-class distance / sum of intra-class spreads) between victim and absorber at M4 and M12, respectively. $\Delta J$ is the relative change. Static and \ours{} recall are at M12.}
+\caption{Fisher discriminant ratio analysis for collapse classes with stable estimates (10 of 12). $J_{\text{M4}}$ and $J_{\text{M12}}$ denote the Fisher ratio (inter-class distance / sum of intra-class spreads) between victim and absorber at M4 and M12, respectively. $\Delta J$ is the relative change. Static and \ours{} recall are at M12. Classes~109 and~26 lack stable Fisher estimates due to near-zero within-class variance.}
 \label{tab:fisher}
 \scriptsize
 \begin{tabular}{@{}r r l rr r rr l@{}}
@@ -265,9 +265,9 @@ Victim & Abs. & Mechanism & $J_{\text{M4}}$ & $J_{\text{M12}}$ & $\Delta J$(\%) 
 26  & 13  & mixed & ---   & ---   & ---   & .022 & .125 & partial \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-Table~\ref{tab:fisher} quantifies the Fisher discriminant ratio trajectory for all 12 collapse classes.
+Table~\ref{tab:fisher} quantifies the Fisher discriminant ratio trajectory for the 10 collapse classes with stable estimates (classes~109 and~26 are excluded due to near-zero within-class variance).
 Feature-drift classes exhibit a mean $\Delta J = -27\%$, confirming that their victim representations physically converge toward the absorber.
 Boundary-shift classes show the opposite: $\Delta J \approx +30\%$, meaning the victim--absorber separation \emph{increases} yet collapse still occurs, implicating decision-boundary realignment driven by third-party class shifts.
 Both boundary-shift classes are fully recovered by \ours{} (mean recall 0.71), while feature-drift classes show mixed outcomes (2/4 recovered, mean recall 0.47), suggesting that re-anchoring drifted representations is harder than correcting boundary misalignment.
@@ -552,7 +552,7 @@ Selected label counts confirm that both selectors allocate very few labels to co
 
 \begin{table*}[t]
 \centering
-\caption{Per-class recovery at M-2022-12 ($B{=}1{,}000$, all-class replay $k{=}5$, strict eval, 5 seeds). Status: recovered ($R{\geq}0.30$), partial ($0.05{\leq}R{<}0.30$), failed ($R{<}0.05$). Selected = mean target labels allocated to that class.}
+\caption{Per-class recovery at M-2022-12 ($B{=}1{,}000$, all-class replay $k{=}5$, strict eval, 5 seeds). Status is assigned by the best recall across Margin and BADGE: recovered ($R{\geq}0.30$), partial ($0.05{\leq}R{<}0.30$), failed ($R{<}0.05$). Selected = mean target labels allocated to that class.}
 \label{tab:per_class_recovery}
 \scriptsize
 \setlength{\tabcolsep}{3.5pt}
@@ -625,7 +625,7 @@ To rule out the confound that all-class replay simply uses more samples, we matc
 This confirms that the advantage comes from \textit{class-coverage breadth}, not replay volume: anchoring all 178 class boundaries is more effective than concentrating replay on a subset.
 
 This finding also clarifies the role of the detection module.
-Its value is \textit{not} in guiding replay class selection---all-class replay is strictly better---but in two deployment roles: (1)~identifying \textit{which} classes are degrading for targeted investigation, and (2)~determining \textit{when} repair should be activated.
+Its value is \textit{not} in guiding replay class selection---all-class replay is strictly better---but in two deployment roles: (1)~identifying \textit{which} classes are degrading for targeted investigation, and (2)~flagging \textit{when} repair should be considered by the operator.
 
 \subsection{Multi-Period Analysis}
 \label{sec:multi_period}

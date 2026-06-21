@@ -162,7 +162,7 @@ run_p3() {
 }
 
 # ============================================================
-# P4: BADGE in autonomous pipeline with all-class replay
+# P4: BADGE in monitor-assisted pipeline with all-class replay
 # ============================================================
 run_p4() {
     echo "================================================================"
