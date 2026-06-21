@@ -303,12 +303,12 @@ The collapse risk score combines these signals:
 \end{equation}
 where $\tilde{d}_c$, $\tilde{m}_c$, $\tilde{f}_c$, $\tilde{e}_c$ denote the MAD-normalized FD, margin drop, confidence drop, and entropy rise for class $c$, and $w = (0.40, 0.20, 0.15, 0.15, 0.10)$.
 Weights were set as a fixed heuristic based on signal informativeness (count drop is the strongest single indicator), without access to target-period labels; labels are used only retrospectively to report detection precision and recall.
-A sensitivity analysis (\S\ref{sec:discussion}) confirms that any reasonable weighting emphasizing count drop and FD achieves recall $\geq$0.71.
+A sensitivity analysis (\S\ref{sec:discussion}) shows that under $\pm$50\% perturbations and random Dirichlet sampling, recall remains $\geq$0.71.
 
 This module serves two deployment-critical roles:
 \begin{itemize}
   \item \textbf{Monitoring}: It identifies \textit{which} classes are degrading, enabling targeted investigation by network operators.
-  \item \textbf{Triggering}: Per-class risk scores determine \textit{when} repair should be activated, without requiring labeled data to detect drift.
+  \item \textbf{Triggering}: Per-class risk scores inform \textit{when} repair should be considered, without requiring labeled data to detect drift.
 \end{itemize}
 Importantly, the detection module does \textit{not} guide replay class selection---all-class replay is the default (\S\ref{sec:replay_ablation}).
 
@@ -377,7 +377,7 @@ The full training loss is:
 \label{sec:exp_setup}
 
 \textbf{Datasets.}
-We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic) as our primary benchmark and CESNET-QUICEXT-25~\cite{cesnetquicext25} (44 classes, 12 months, QUIC traffic) for generalization.
+We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic) as our primary benchmark and the CESNET-QUICEXT-25 XS split~\cite{cesnetquicext25} (44 classes, 12 months, QUIC traffic) as a supporting cross-protocol check.
 For TLS22, we train on M-2022-3 and evaluate at M7, M9, M11, and M12.
 
 \textbf{Baselines.}
@@ -718,7 +718,7 @@ In deployment, repair would be initiated when the detection module signals drift
 The detection module achieves precision 0.60 at M12, meaning 40\% of flagged classes are false positives.
 However, false positives do \textit{not} cause unnecessary per-class labeling: the detection module signals a single repair cycle covering all classes, not per-class repairs.
 Once repair is initiated, the 1{,}000-label active selection and all-class replay address all collapsed classes simultaneously regardless of which specific classes the detector flagged.
-The detection module's primary deployment value is its high recall ($\geq$0.86), ensuring that collapse is detected whenever it occurs.
+The detection module's primary deployment value is its high recall ($\geq$0.86), reducing the risk of missed collapse events.
 
 \textbf{Stable-class trade-off.}
 Stable-class F1 decreases from 0.903 (Static) to 0.892 ($-$1.2\%) under Full \ours{} with all-class replay.
@@ -752,7 +752,7 @@ Both are negligible compared to full model retraining (${\sim}$2 hours).
 \textbf{Detection weight sensitivity.}
 We evaluated $\pm$50\% perturbation of each weight (10 configurations, renormalized) plus 20 Dirichlet-random vectors.
 Under perturbation, F1 ranges from 0.647 to 0.706 (std = 0.029); recall is stable at 0.786--0.857 across all perturbations.
-The default weights achieve the highest F1 but are not critical: any reasonable weighting that emphasizes count drop and FD achieves recall $\geq$0.71.
+The default weights achieve the highest F1 but are not critical: under all tested perturbations, recall remains $\geq$0.71.
 
 \textbf{Calibration baseline.}
 Temperature scaling ($T^*{=}1.11$, learned on validation data) changes zero predictions out of 1.32M test samples, leaving all metrics identical.
