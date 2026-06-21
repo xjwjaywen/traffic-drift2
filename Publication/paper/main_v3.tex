@@ -88,9 +88,10 @@ A clean component ablation confirms that each ingredient---fine-tuning, replay, 
 
 Our contributions are:
 \begin{enumerate}
-  \item \textbf{New failure mode.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift (\S\ref{sec:analysis}).
-  \item \textbf{Negative results establishing the problem.} We show that unsupervised TTA methods are ineffective (collapse F1 ${<}0.03$) and that standard active learning strategies (entropy, coreset) are counterproductive, establishing class collapse as a distinct problem (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
-  \item \textbf{Label-efficient repair framework.} We propose \ours{}, combining pair-agnostic margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. An unsupervised detection module (recall $\geq$0.80 across M7--M12, M12 F1 = 0.625) serves as a diagnostic monitor for deployment (\S\ref{sec:method}, \S\ref{sec:experiments}).
+  \item \textbf{Failure mode discovery.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift, distinct from uniform degradation or class imbalance. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift---with per-class quantitative evidence across all 12 collapse classes (\S\ref{sec:analysis}).
+  \item \textbf{Negative results.} We show that five TTA methods (collapse F1 ${<}0.03$) and two standard active learning strategies (entropy, coreset) all fail on class collapse, establishing it as a distinct problem that existing approaches do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
+  \item \textbf{Collapse-aware evaluation.} We introduce complementary metrics---collapse-class F1, per-class recovery status, stable-class preservation, and strict query exclusion---that reveal failure modes invisible to aggregate macro-F1 (\S\ref{sec:experiments}).
+  \item \textbf{Label-efficient maintenance framework.} We propose \ours{}, a validated maintenance protocol combining margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. Each component's contribution is isolated via a 7-configuration ablation; an unsupervised detection module (recall $\geq$0.80) serves as a diagnostic monitor (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
 
 
@@ -874,7 +875,8 @@ We identified the absorber-collapse pattern---a previously unstudied failure mod
 On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within nine months.
 We showed that unsupervised TTA methods do not address this failure under our tested configurations (collapse F1 ${<}0.03$) and that entropy/coreset active learning strategies are counterproductive, establishing class collapse as a distinct problem requiring targeted intervention.
 
-We proposed \ours{}, a label-efficient maintenance framework with three components: (1)~few-label head fine-tuning with margin or BADGE selection, (2)~all-class source replay, and (3)~knowledge distillation.
+Our collapse-aware evaluation---per-class recovery status, collapse vs.\ stable F1, and strict query exclusion---reveals failure modes invisible to aggregate metrics.
+We proposed \ours{}, a label-efficient maintenance protocol with three components: (1)~few-label head fine-tuning with margin or BADGE selection, (2)~all-class source replay, and (3)~knowledge distillation.
 An unsupervised detection module monitors per-class health as a diagnostic monitor; experiments evaluate repair on known drift periods identified by this module.
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
 A clean component ablation confirms that each ingredient contributes independently under controlled conditions (all-class replay throughout): FT alone reaches 0.638, adding replay lifts it to 0.659, and adding KD achieves 0.686.
