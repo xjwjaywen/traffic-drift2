@@ -55,12 +55,15 @@ conda create -n traffic-ncde python=3.10
 conda activate traffic-ncde
 ```
 
-Install dependencies (choose one):
-```bash
-# Option A: flexible versions
-pip install -r Experiment/core_code/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+Install dependencies — choose **one** of the two options below:
 
-# Option B: exact tested versions (recommended for reproducibility)
+**Option A** — flexible versions:
+```bash
+pip install -r Experiment/core_code/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+```
+
+**Option B** — exact tested versions (recommended for reproducibility):
+```bash
 pip install -r requirements.lock.txt --extra-index-url https://download.pytorch.org/whl/cu121
 ```
 
