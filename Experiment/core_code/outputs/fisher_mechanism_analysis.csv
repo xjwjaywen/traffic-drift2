@@ -1,0 +1,13 @@
+class_id,absorber,fisher_m4,fisher_m12,fisher_drop_pct,mechanism,static_recall_m12,best_care_recall,best_strategy,status,group
+56,96,0.886,0.627,29.232505643340858,feature drift,0.0004,0.793,Badge,recovered,high-drop + recovered
+163,46,0.308,0.265,13.961038961038955,feature drift,0.0155,0.2259,Badge,partial,high-drop + not recovered
+174,2,0.635,0.326,48.661417322834644,feature drift,0.0,0.1953,Margin,partial,high-drop + not recovered
+48,14,0.561,0.73,-30.1247771836007,boundary shift,0.0009,0.7216,Badge,recovered,low-drop + recovered
+38,45,0.73,0.602,17.534246575342465,feature drift,0.0518,0.6558,Margin,recovered,high-drop + recovered
+69,105,0.293,0.426,-45.3924914675768,mixed,0.0048,0.1566,Badge,partial,low-drop + not recovered
+104,2,0.822,1.077,-31.02189781021898,boundary shift,0.0097,0.7035,Margin,recovered,low-drop + recovered
+47,5,0.806,0.762,5.459057071960302,mixed,0.0,0.4043,Badge,recovered,low-drop + recovered
+66,71,0.469,0.473,-0.8528784648187642,mixed,0.001,0.1333,Badge,partial,low-drop + not recovered
+10,156,0.48,0.56,-16.666666666666682,mixed,0.0976,0.389,Badge,recovered,low-drop + recovered
+109,71,,,,mixed,0.0,0.0,Badge,failed,N/A (no Fisher data)
+26,13,,,,mixed,0.0223,0.1249,Badge,partial,N/A (no Fisher data)

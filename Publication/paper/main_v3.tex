@@ -236,6 +236,42 @@ By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-
 
 The two mechanisms have different implications for repair: feature-drift collapse can be addressed by re-anchoring the victim's prototype, while boundary-shift collapse requires recalibrating the decision boundary across multiple classes simultaneously. \ours{}'s combination of targeted fine-tuning and all-class source replay addresses both mechanisms.
 
+\begin{table}[t]
+\centering
+\caption{Fisher discriminant ratio analysis for the 12 collapse classes. $J_{\text{M4}}$ and $J_{\text{M12}}$ denote the Fisher ratio (inter-class distance / sum of intra-class spreads) between victim and absorber at M4 and M12, respectively. $\Delta J$ is the relative change. Static and \ours{} recall are at M12.}
+\label{tab:fisher}
+\scriptsize
+\begin{tabular}{@{}r r l rr r rr l@{}}
+\toprule
+Victim & Abs. & Mechanism & $J_{\text{M4}}$ & $J_{\text{M12}}$ & $\Delta J$(\%) & Static & \ours{} & Status \\
+\midrule
+\multicolumn{9}{@{}l}{\textit{Feature drift --- victim shifts toward absorber}} \\
+56  & 96  & feat.\ drift & 0.886 & 0.627 & $-$29 & .000 & .793 & recov. \\
+174 & 2   & feat.\ drift & 0.635 & 0.326 & $-$49 & .000 & .195 & partial \\
+38  & 45  & feat.\ drift & 0.730 & 0.602 & $-$18 & .052 & .656 & recov. \\
+163 & 46  & feat.\ drift & 0.308 & 0.265 & $-$14 & .016 & .226 & partial \\
+\midrule
+\multicolumn{9}{@{}l}{\textit{Boundary shift --- separation stable but decision boundary moves}} \\
+48  & 14  & bnd.\ shift & 0.561 & 0.730 & $+$30 & .001 & .722 & recov. \\
+104 & 2   & bnd.\ shift & 0.822 & 1.077 & $+$31 & .010 & .704 & recov. \\
+\midrule
+\multicolumn{9}{@{}l}{\textit{Mixed / ambiguous}} \\
+47  & 5   & mixed & 0.806 & 0.762 & $-$5  & .000 & .404 & recov. \\
+69  & 105 & mixed & 0.293 & 0.426 & $+$45 & .005 & .157 & partial \\
+66  & 71  & mixed & 0.469 & 0.473 & $-$1  & .001 & .133 & partial \\
+10  & 156 & mixed & 0.480 & 0.560 & $+$17 & .098 & .389 & recov. \\
+109 & 71  & mixed & ---   & ---   & ---   & .000 & .000 & failed \\
+26  & 13  & mixed & ---   & ---   & ---   & .022 & .125 & partial \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:fisher} quantifies the Fisher discriminant ratio trajectory for all 12 collapse classes.
+Feature-drift classes exhibit a mean $\Delta J = -27\%$, confirming that their victim representations physically converge toward the absorber.
+Boundary-shift classes show the opposite: $\Delta J \approx +30\%$, meaning the victim--absorber separation \emph{increases} yet collapse still occurs, implicating decision-boundary realignment driven by third-party class shifts.
+Both boundary-shift classes are fully recovered by \ours{} (mean recall 0.71), while feature-drift classes show mixed outcomes (2/4 recovered, mean recall 0.47), suggesting that re-anchoring drifted representations is harder than correcting boundary misalignment.
+Pearson correlation between $\Delta J$ and \ours{} recall is weak ($r = -0.05$, $n = 10$), indicating that the \emph{magnitude} of Fisher-ratio change alone does not predict repairability; rather, the \emph{mechanism type} matters.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_tsne_multi_pair_m12.pdf}
@@ -448,7 +484,7 @@ All rows use margin selection with $B{=}1{,}000$, strict evaluation, and 5 seeds
 
 \begin{table}[t]
 \centering
-\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). All rows with replay use all-class $k{=}5$ (890 samples).}
+\caption{Component ablation at M-2022-12 (margin, $B{=}1{,}000$, strict eval, 5 seeds). All rows with replay use all-class $k{=}5$ (890 samples). Replay-only and KD-only use no target labels ($B{=}0$).}
 \label{tab:ablation}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
@@ -460,9 +496,13 @@ Config. & Lbl & Rpl & KD & Macro & Col.\ F1 & Stb.\ F1 & \#Col \\
 \midrule
 Static & & & & .629 & .028 & \textbf{.903} & 12 \\
 \midrule
+Replay only & & \checkmark & & .563$\pm$.007 & .044$\pm$.019 & .816$\pm$.026 & 10.2 \\
+KD only & & & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888$\pm$.009 & 10.8 \\
+\midrule
 FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839$\pm$.001 & 7.0 \\
+FT+KD & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887$\pm$.004 & 7.8 \\
 FT+Rpl & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.016 & 4.8 \\
-\textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892 & \textbf{5.8} \\
+\textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892$\pm$.003 & \textbf{5.8} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -474,11 +514,16 @@ FT+Rpl & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.0
 \label{fig:ablation_bar}
 \end{figure}
 
-Each row adds one component, isolating its contribution:
+The table separates into three blocks.
+\textbf{Without target labels} (Replay only, KD only): neither component alone can repair collapse---collapse F1 stays below .05---confirming that labeled target data is essential.
+KD only preserves stable F1 (.888) nearly as well as the static model, while replay only degrades it (.816), showing that replay without a supervised signal introduces noise.
+
+\textbf{With target labels}, each component's contribution is isolated:
 \begin{itemize}
   \item \textbf{FT only} (labels alone): Repairs collapse classes (.028$\to$.134) but severely damages stable classes (.903$\to$.839)---catastrophic forgetting from overfitting to 1{,}000 target samples.
-  \item \textbf{FT + Replay} (add all-class replay): Substantially improves both macro-F1 (.638$\to$.659) and collapse repair (.134$\to$.236). Replaying all 178 classes anchors decision boundaries, but stable-class recovery is partial (.839$\to$.854).
-  \item \textbf{Full \ours{}} (add KD): Adding knowledge distillation provides the final boost: macro-F1 reaches .686 and stable F1 recovers to .892, close to the static baseline (.903). KD's primary contribution is stable-class preservation (.854$\to$.892) through soft-label consistency on replay samples.
+  \item \textbf{FT+KD} (add distillation): KD provides strong stable-class preservation (.839$\to$.887) with modest collapse improvement (.134$\to$.152), confirming its role as a regularizer.
+  \item \textbf{FT+Rpl} (add replay): Replay substantially boosts collapse repair (.134$\to$.236) and macro-F1 (.638$\to$.659) by anchoring decision boundaries across all 178 classes, though stable-class recovery is partial (.839$\to$.854).
+  \item \textbf{Full \ours{}} (all three): Combining labels, replay, and KD yields the best trade-off: macro-F1 reaches .686, collapse F1 .256, and stable F1 recovers to .892---close to the static baseline (.903).
 \end{itemize}
 Each component serves a distinct role: target labels provide the repair signal, all-class replay prevents forgetting across 178 classes, and KD regularizes the head to preserve stable-class behavior.
 
@@ -758,12 +803,13 @@ Both training-seed variance ($\sigma_{\text{macro}}{=}0.0006$) and fine-tuning-s
 
 \textbf{Label cost and deployment model.}
 \ours{} requires 1{,}000 target labels per repair cycle ($<$0.3\% of the ${\sim}$330K monthly test set) plus 890 all-class replay samples from a labeled reference period.
-In our experiments, we use M4 as the reference period; a comparison shows that using the training month M3 yields equivalent results (macro-F1: $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$), so replay can reuse training data at zero additional labeling cost.
+In our experiments, we use M4 as the reference period; a comparison (5 seeds, margin, $B{=}1{,}000$) shows that using the training month M3 yields equivalent results across all metrics: macro-F1 $0.672{\pm}0.002$ vs.\ $0.673{\pm}0.001$, collapse F1 $0.234{\pm}0.002$ vs.\ $0.232{\pm}0.003$, stable F1 $0.887{\pm}0.003$ vs.\ $0.885{\pm}0.003$.
+Replay can therefore reuse training data at zero additional labeling cost.
 In ISP deployment, target labels can be obtained through DPI-based labeling on a monitored subnet, SNI-based ground truth for TLS traffic, or periodic manual verification.
 In deployment, repair would be initiated when the detection module signals drift, so labeling cost is incurred only when needed.
 
 \textbf{Detection false positives and deployment cost.}
-The detection module achieves precision 0.60 at M12, meaning 40\% of flagged classes are false positives.
+The detection module achieves precision 0.50 at M12, meaning half of flagged classes are false positives.
 However, false positives do \textit{not} cause unnecessary per-class labeling: the detection module signals a single repair cycle covering all classes, not per-class repairs.
 Once repair is initiated, the 1{,}000-label active selection and all-class replay address all collapsed classes simultaneously regardless of which specific classes the detector flagged.
 The detection module's primary deployment value is its high recall ($\geq$0.80 across all evaluated periods), reducing the risk of missed collapse events.
