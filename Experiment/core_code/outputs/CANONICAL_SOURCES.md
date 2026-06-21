@@ -10,7 +10,7 @@ All paths relative to `Experiment/core_code/`.
 | Absorber pairs | `tab:absorber_pairs` | `outputs/per_class_collapse_tls22_monthly/collapse_classes.csv` | 12 (support≥50) | — |
 | TTA baselines (GN) | `tab:tta` | TTA rows: `outputs/tta_multiperiod/{M7,M9,M12}/baselines_group_metrics.csv`; CARE row: `outputs/care_multiperiod_allreplay/{M_2022_7,M_2022_9,M_2022_12}/aggregated_mean_std.csv` | Auto-discovered per period | 1 (TTA) / 3 (CARE) |
 | Main results | `tab:main_results` | Unified AL: `outputs/unified_al_baselines/{entropy,coreset,random,margin}/aggregated_mean_std.csv`; BADGE: `outputs/badge_allreplay_5seeds/aggregated_mean_std.csv` | 12 (support≥50) | 5 |
-| Component ablation (7 configs) | `tab:ablation` | `outputs/unified_ablation/{ft_only,ft_replay_noKD,full_care}/aggregated_mean_std.csv` + `outputs/ablation_v3/replay_only_allreplay/aggregated_mean_std.csv` + `outputs/ablation_strict/kd_only/aggregated_mean_std.csv` + `outputs/unified_ablation/full_care/` (FT+KD = full_care minus replay) | 12 (support≥50) | 5 |
+| Component ablation (7 configs) | `tab:ablation` | `outputs/unified_ablation/{ft_only,ft_replay_noKD,full_care}/aggregated_mean_std.csv` + `outputs/ablation_v3/replay_only/aggregated_mean_std.csv` + `outputs/ablation_v3/distill_only/aggregated_mean_std.csv` + `outputs/ablation_strict/ft_distill/aggregated_mean_std.csv` | 12 (support≥50) | 5 |
 | Replay ablation | `tab:replay_ablation` | `outputs/detection_necessity_ablation/` + `outputs/fair_replay_budget/{all_k5,detected_k30,all_k1}/` | 12 (fixed) | 5 |
 | Multi-period | `tab:multiperiod` | `outputs/care_multiperiod_allreplay/{M_2022_7,M_2022_9,M_2022_11,M_2022_12}/aggregated_mean_std.csv` | 12 (fixed, support≥50) | 3 |
 | Detection signals | `tab:detect_signals` | `outputs/detection_unified_metrics.json` | 12 (recall<0.1, support≥50) | — |
@@ -31,7 +31,7 @@ All paths relative to `Experiment/core_code/`.
 | FT depth (Discussion) | `outputs/full_ft_baseline_fair_kd/seed_{0..4}/results_by_budget.csv` | 5 |
 | QUICEXT-25 generalization (§6.7) | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` | 5 |
 | Significance tests | `outputs/significance_tests/significance_tests.json` | — |
-| M3 vs M4 replay | `outputs/m3_vs_m4_replay_comparison.csv` | 3 |
+| M3 vs M4 replay | `outputs/m3_vs_m4_replay_comparison.csv` | 5 |
 | Label budget per-class coverage | `outputs/label_budget_perclass_coverage.csv` | 5 |
 
 ## Figures

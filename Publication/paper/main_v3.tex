@@ -313,9 +313,9 @@ The failure of TTA methods is fundamental: entropy minimization (Tent, SAR) and 
 When an absorber class confidently captures a victim's predictions, entropy is \textit{low} (the model is confidently wrong), so entropy-based adaptation sees no signal to correct.
 This negative result motivates the shift from unsupervised adaptation to label-efficient targeted repair.
 
-To rule out suboptimal hyperparameters as an explanation, we sweep learning rate $\in\{10^{-5}, 3{\times}10^{-5}, 10^{-4}, 3{\times}10^{-4}, 10^{-3}\}$ and batch size $\in\{64, 256\}$ (10 configurations per method).
-The best collapse F1 across all configurations remains below 0.031 for every method (NOTE: 0.030, EATA: 0.028, CoTTA: 0.027, SAR: 0.027, Tent: 0.026), confirming that TTA failure is robust to hyperparameter choice.
-Batch size has negligible effect; higher learning rates cause Tent to catastrophically degrade (macro-F1 drops from 0.63 to 0.21 at $\text{lr}{=}10^{-3}$).
+To rule out suboptimal hyperparameters as an explanation, we sweep learning rate $\in\{10^{-5}, 3{\times}10^{-5}, 10^{-4}, 3{\times}10^{-4}, 10^{-3}\}$ (5 configurations per method).
+The best collapse F1 across all configurations remains below 0.031 for every method (NOTE: 0.030, EATA: 0.028, CoTTA: 0.027, SAR: 0.027, Tent: 0.026), confirming that TTA failure is robust to learning-rate choice.
+Higher learning rates cause Tent to catastrophically degrade (macro-F1 drops from 0.63 to 0.21 at $\text{lr}{=}10^{-3}$).
 
 % ============================================================
 \section{Method: Collapse-Aware Active Repair}
