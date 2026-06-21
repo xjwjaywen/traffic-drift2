@@ -881,7 +881,7 @@ Our collapse-aware evaluation---per-class recovery status, collapse vs.\ stable 
 We proposed \ours{}, a label-efficient maintenance protocol with three components: (1)~few-label head fine-tuning with margin or BADGE selection, (2)~all-class source replay, and (3)~knowledge distillation.
 An unsupervised detection module monitors per-class health as a diagnostic monitor; experiments evaluate repair on known drift periods identified by this module.
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
-A clean component ablation confirms that each ingredient contributes independently under controlled conditions (all-class replay throughout): FT alone reaches 0.638, adding replay lifts it to 0.659, and adding KD achieves 0.686.
+A clean component ablation confirms that each ingredient contributes independently: FT alone reaches 0.638, adding all-class CE replay lifts it to 0.659, and adding KD achieves 0.686.
 A replay strategy ablation shows that all-class replay outperforms targeted replay even at matched budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that class-coverage breadth matters more than targeted volume.
 The framework is consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds; a supporting evaluation on the CESNET-QUICEXT-25 XS split shows macro-F1 improvement on a second protocol and class scale, suggesting transfer beyond TLS-Year22, although collapse repair remains limited on that dataset.
 
