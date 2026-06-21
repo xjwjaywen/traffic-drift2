@@ -309,7 +309,7 @@ NOTE        & .630 & .027 & .902 \\
 \end{tabular}
 \end{table}
 
-The failure of TTA methods is fundamental: entropy minimization (Tent, SAR) and pseudo-label refinement (CoTTA, NOTE) optimize global prediction confidence, not class-specific confusion patterns.
+These simplifications may underestimate the methods' potential; however, the near-zero collapse F1 across all tested variants---including Tent and SAR, which require no simplification---suggests a structural mismatch between confidence-based unsupervised adaptation and confident absorber--victim errors, rather than a simple hyperparameter artifact.
 When an absorber class confidently captures a victim's predictions, entropy is \textit{low} (the model is confidently wrong), so entropy-based adaptation sees no signal to correct.
 This negative result motivates the shift from unsupervised adaptation to label-efficient targeted repair.
 
