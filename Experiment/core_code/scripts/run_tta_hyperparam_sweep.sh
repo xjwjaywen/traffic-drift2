@@ -1,7 +1,7 @@
 #!/bin/bash
 # TTA Hyperparameter Sweep
 # Purpose: Show that TTA collapse F1 stays near 0 across reasonable hyperparameters.
-# Sweeps: learning rate × adapt_batch_size for all 5 TTA methods.
+# Sweeps: learning rate for all 5 TTA methods (batch_size column in output retained from earlier script but not claimed in paper).
 #
 # Usage: bash scripts/run_tta_hyperparam_sweep.sh
 # Output: outputs/tta_hyperparam_sweep/<lr>_<batch>/baselines_group_metrics.csv
