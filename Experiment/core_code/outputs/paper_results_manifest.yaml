@@ -344,7 +344,7 @@ figures:
             --reference-period M-2024-7 --target-period M-2025-5 \
             --strategies "${STRATEGY}" --budgets 1000 \
             --replay-mode proto_all --replay-per-class 5 --target-repeat 2 \
-            --replay-distill-weight 1.0 --distill-temperature 2.0 \
+            --replay-distill-weight 0.5 --distill-temperature 2.0 \
             --seed "${SEED}" \
             --output-dir "outputs/care_quicext25_canonical/seed_${SEED}"
         done
