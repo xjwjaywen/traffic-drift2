@@ -18,6 +18,7 @@ All paths relative to `Experiment/core_code/`.
 | BN architecture | `tab:bn` | `outputs/care_bn_strict/aggregated_mean_std.csv` + `outputs/bn_tta_baselines_M12/` | 12 (support≥50) | 3 (CARE) |
 | Transformer | `tab:transformer` | CNN: `outputs/care_5seeds_strict_cnn/`; Transformer: `outputs/care_transformer_multiperiod/M_2022_12/aggregated_mean_std.csv` | 12 (support≥50) | 5/3 |
 | Proto replay | `tab:proto_replay` | `outputs/proto_replay_comparison/{real_replay,proto_replay}/aggregated_mean_std.csv` | 12 (support≥50) | 3 |
+| Per-class recovery | `tab:per_class_recovery` | Margin: `outputs/autonomous_allreplay_5seeds/care/seed_*/per_collapse_class_m12.csv`; BADGE: `outputs/badge_allreplay_5seeds/seed_*/per_collapse_class_m12.csv`; Static: `outputs/per_class_collapse_tls22_monthly/collapse_classes.csv`; Selected: `*/selected_class_counts.csv` | 12 (support≥50) | 5 |
 
 ### Inline results (not in numbered tables)
 
