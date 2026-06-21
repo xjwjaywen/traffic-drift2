@@ -1,5 +1,6 @@
 # Exact versions tested on: Python 3.10, CUDA 12.1, Ubuntu 22.04, NVIDIA RTX 3090
 # Generated from the experiment server environment (non-project packages removed).
+# Install: pip install -r requirements.lock.txt --extra-index-url https://download.pytorch.org/whl/cu121
 
 # Core deep learning
 torch==2.5.1+cu121

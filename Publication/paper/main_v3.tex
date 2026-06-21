@@ -606,7 +606,7 @@ M12 (severe) & .857 & .706 \\
 \end{tabular}
 \end{table}
 
-Recall is stable across all periods (0.857--0.909), confirming that the detection module reliably identifies collapsed classes from M7 onward.
+Recall is stable across all periods (0.857--0.909), confirming that the detection module flags most collapsed classes from M7 onward.
 
 \subsection{BatchNorm Architecture Verification}
 \label{sec:bn_verify}
@@ -751,8 +751,9 @@ Both are negligible compared to full model retraining (${\sim}$2 hours).
 
 \textbf{Detection weight sensitivity.}
 We evaluated $\pm$50\% perturbation of each weight (10 configurations, renormalized) plus 20 Dirichlet-random vectors.
-Under perturbation, F1 ranges from 0.647 to 0.706 (std = 0.029); recall is stable at 0.786--0.857 across all perturbations.
-The default weights achieve the highest F1 but are not critical: under all tested perturbations, recall remains $\geq$0.71.
+Under $\pm$50\% perturbation, F1 ranges from 0.647 to 0.706 (std = 0.029) with recall 0.786--0.857.
+Under Dirichlet-random vectors, the minimum recall is 0.71.
+The default weights achieve the highest F1 but are not critical: across all 30 tested configurations, recall remains $\geq$0.71.
 
 \textbf{Calibration baseline.}
 Temperature scaling ($T^*{=}1.11$, learned on validation data) changes zero predictions out of 1.32M test samples, leaving all metrics identical.
