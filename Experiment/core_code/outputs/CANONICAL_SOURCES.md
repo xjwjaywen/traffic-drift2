@@ -24,7 +24,7 @@ All paths relative to `Experiment/core_code/`.
 | TTA lr sweep (inline) | — | `outputs/tta_lr_sweep/{lr_1e-3,lr_1e-4,lr_1e-5}/` | 12 (support≥50) | 1 |
 | Training seed audit (inline) | — | `outputs/multiseed_audit/{trainseed0,trainseed1,trainseed2}/care/` | 12 (support≥50) | 3×3 |
 | FT depth (inline Discussion) | — | `outputs/full_ft_baseline_fair_kd/seed_{0..4}/results_by_budget.csv` | 12 (support≥50) | 5 |
-| QUICEXT-25 generalization | `quicext25` | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` | 4 (QUICEXT-25 collapse classes) | 5 |
+| QUICEXT-25 generalization | `quicext25` | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` | 3 (QUICEXT-25 collapse classes: 21, 23, 25) | 5 |
 
 ## Figures
 

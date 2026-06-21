@@ -334,13 +334,13 @@ figures:
   quicext25_generalization:
     description: "QUICEXT-25 generalization (§6.7): BADGE and margin with proto_all replay, 5 seeds"
     source_file: "care_quicext25_canonical/aggregated_mean_std.csv"
-    collapse_set: "4 QUICEXT-25 collapse classes"
+    collapse_set: "3 QUICEXT-25 collapse classes (21, 23, 25)"
     seeds: 5
     regeneration_command: |
       for SEED in 0 1 2 3 4; do
         python scripts/collapse_active_maintenance_tls22.py \
           --config configs/eval_quicext25.yaml --checkpoint outputs/quicext25_cnn/best_model.pt \
-          --reference-period M-2024-6 --target-period M-2025-5 \
+          --reference-period M-2024-7 --target-period M-2025-5 \
           --strategies badge margin --budgets 1000 \
           --replay-mode proto_all --replay-per-class 5 --target-repeat 2 \
           --replay-distill-weight 0.5 --distill-temperature 2.0 \
@@ -348,7 +348,7 @@ figures:
           --output-dir "outputs/care_quicext25_canonical/seed_${SEED}"
       done
       python scripts/aggregate_seeds.py --base-dir outputs/care_quicext25_canonical --num-seeds 5
-    notes: "BADGE@1000 macro .565±.002, margin@1000 .560±.006. Uses proto_all replay (no real source data needed). Supersedes care_quic22_strict/. TODO: per-seed results not yet committed; only aggregate CSV in repo."
+    notes: "BADGE@1000 macro .565±.002, margin@1000 .560±.006. Uses proto_all replay, distill_weight=1.0, ref=M-2024-7. Per-seed data from care_quicext25_m2025_5 (seed 0) and care_quicext25_seed{1..4}. Supersedes care_quic22_strict/."
 
   discussion_replay_source:
     description: "Replay source comparison (inline in Discussion): M3 vs M4 vs no-replay"
