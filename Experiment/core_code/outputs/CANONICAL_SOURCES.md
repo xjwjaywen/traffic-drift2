@@ -65,4 +65,7 @@ All `aggregated_mean_std.csv` use sample std (ddof=1) via `scripts/aggregate_see
 - `al_baselines_strict/` — superseded by `unified_al_baselines/` (unified pipeline, all selectors use same replay+KD)
 - `badge_5seeds_strict/` — superseded by `badge_allreplay_5seeds/` (all-class replay)
 - `care_quic22_strict/` — superseded by `care_quicext25_canonical/` (newer dataset, all-class proto replay)
+- `care_quicext25_canonical_seed{0..4}/` — individual seed runs (M-2024-6 ref, M-2025-5 target, 4 classes [17,21,23,25]); aggregated into `care_quicext25_canonical/aggregated_mean_std.csv` which uses the paper's 3-class definition. Seed summaries use auto-discovered 4-class set; canonical aggregated is authoritative.
+- `care_quicext25_m2025_5/`, `care_quicext25_seed{1..4}/`, `eval_quicext25/` — earlier QUICEXT iterations, superseded by `care_quicext25_canonical/`
+- `detection_ablation/ablation_summary.json` — uses 14-class GT (support>0); paper now uses `detection_unified_metrics.json` with 12-class GT (support≥50)
 - `full_ft_baseline/` — superseded by `full_ft_baseline_fair_kd/` (KD only on replay, fair comparison with head-only)

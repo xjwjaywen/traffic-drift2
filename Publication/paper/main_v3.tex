@@ -177,7 +177,7 @@ Each flow is represented by Per-Packet Information (PPI): packet sizes, directio
 We train a CNN classifier (3-layer 1D convolution with GroupNorm, 8 groups, 256-dim hidden layer, 178 classes) on March 2022 alone (M3) and evaluate on M4--M12, giving a minimum time gap of one month and maximum of nine months.
 Training uses a joint classification + self-supervised objective: cross-entropy loss plus three auxiliary SSL tasks (masked packet-feature prediction, packet-order prediction, and flow-statistics reconstruction) with SSL weight 1.0, mask ratio 0.15, and auxiliary loss weights $\alpha{=}0.2$, $\beta{=}0.1$.
 The SSL tasks improve encoder generalization but are not used during \ours{} repair (which freezes the encoder and updates only the classification head).
-Training runs for 30 epochs with AdamW~\cite{loshchilov2019adamw} (lr$=10^{-3}$, weight decay$=10^{-4}$), batch size 1024, and 20\% validation split.
+Training runs for 30 epochs with AdamW~\cite{loshchilov2019adamw} (lr$=10^{-3}$, weight decay$=10^{-4}$), batch size 1024, using the DataZoo default validation split.
 
 \subsection{The Absorber-Collapse Pattern}
 \label{sec:absorber}
@@ -506,7 +506,7 @@ KD only & & & \checkmark & .618$\pm$.005 & .039$\pm$.016 & .888$\pm$.009 & 10.8 
 FT only & \checkmark & & & .638$\pm$.000 & .134$\pm$.001 & .839$\pm$.001 & 7.0 \\
 FT+KD & \checkmark & & \checkmark & .670$\pm$.000 & .152$\pm$.007 & .887$\pm$.004 & 7.8 \\
 FT+Rpl & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.016 & 4.8 \\
-\textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892$\pm$.003 & \textbf{5.8} \\
+\textbf{Full \ours{}} & \checkmark & \checkmark & \checkmark & \textbf{.686$\pm$.001} & \textbf{.256$\pm$.009} & .892$\pm$.003 & 5.8 \\
 \bottomrule
 \end{tabular}
 \end{table}

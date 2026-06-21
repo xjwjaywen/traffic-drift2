@@ -277,11 +277,13 @@ def main():
     )
 
     # Ground truth: actual collapsed classes (using labels)
+    # Definition: recall < 0.1 AND support >= 50 (matches paper's 12-class set)
     actual_collapsed = []
     for c in range(num_classes):
         mask = tgt_labels == c
-        if mask.sum() > 0:
-            recall = float((tgt_preds[mask] == c).sum()) / float(mask.sum())
+        support = int(mask.sum())
+        if support >= 50:
+            recall = float((tgt_preds[mask] == c).sum()) / float(support)
             if recall < 0.1:
                 actual_collapsed.append(c)
 
