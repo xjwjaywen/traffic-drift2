@@ -354,7 +354,7 @@ The full training loss is:
 \begin{algorithmic}[1]
 \REQUIRE Source model $f, h_{\theta_0}$; reference predictions; target data $D_{\text{tgt}}$ (unlabeled); budget $B$
 \STATE \textbf{Monitor:} Compute per-class risk scores $s_c$ (\S\ref{sec:unsup_detect}) from unlabeled predictions
-\STATE \textbf{Trigger:} If mean risk exceeds threshold, activate repair
+\STATE \textbf{Trigger:} If risk scores indicate drift, activate repair
 \STATE Compute features and logits for $D_{\text{tgt}}$
 \STATE Select $B$ samples via margin or BADGE; query labels $\to D_{\text{target}}$
 \STATE Sample $D_{\text{replay}}$: $k{=}5$ per class from \textit{all} 178 training classes (890 total)

@@ -111,21 +111,33 @@ run_u2() {
 }
 
 # ============================================================
-# U3: Full fine-tuning baseline — unfreeze encoder
-#     Requires --ft-depth argument (not yet supported in CARE script)
-#     SKIP for now — add to Discussion as limitation instead
+# U3: Full fine-tuning baseline — unfreeze encoder + head
+#     Uses fit_full_model() with fair KD (KD only on replay samples)
+#     Results in outputs/full_ft_baseline_fair_kd/
 # ============================================================
 run_u3() {
     echo "================================================================"
-    echo "U3: Full fine-tuning baseline — SKIPPED"
+    echo "U3: Full fine-tuning baseline (encoder+head, fair KD, 5 seeds)"
     echo "================================================================"
-    echo "Current CARE script only supports head-only fine-tuning."
-    echo "Full encoder fine-tuning requires code changes to fit_head()."
-    echo "This will be noted as a limitation in the Discussion section."
-    echo ""
-    echo "Justification for head-only: with only 1000 target labels,"
-    echo "fine-tuning a 256-dim encoder risks severe overfitting."
-    echo "Head-only is the standard approach for few-shot adaptation."
+    local BASE="outputs/full_ft_baseline_fair_kd"
+
+    for SEED in $(seq 0 $((SEEDS - 1))); do
+        echo "  Seed ${SEED}"
+        python scripts/collapse_active_maintenance_tls22.py \
+            --config "${CONFIG}" --checkpoint "${CHECKPOINT}" \
+            --reference-period "${REF}" --target-period M-2022-12 \
+            --strategies "margin" --budgets "1000" \
+            --eval-collapse-classes "${EVAL_COLLAPSE}" \
+            ${CARE_ARGS} \
+            --replay-distill-weight 0.5 \
+            --distill-temperature 2.0 \
+            --ft-depth full \
+            --seed "${SEED}" \
+            --output-dir "${BASE}/seed_${SEED}"
+    done
+    python scripts/aggregate_seeds.py --base-dir "${BASE}" --num-seeds "${SEEDS}"
+    echo "  Result:"
+    grep "margin.*1000" "${BASE}/aggregated_mean_std.csv" || true
 }
 
 # ============================================================
