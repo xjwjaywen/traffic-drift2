@@ -89,14 +89,16 @@ tables:
     notes: "Headline result: macro 0.700±0.003, collapse 0.333±0.040."
 
   table_trigger_eval:
-    description: "Detection trigger evaluation across M7/M9/M11/M12"
-    source_file:
-      - "detection_trigger_eval/M7/detection_summary.json"
-      - "detection_trigger_eval/M9/detection_summary.json"
-      - "detection_trigger_eval/M11/detection_summary.json"
-      - "detection_trigger_eval/M12/detection_summary.json"
-    regeneration_command: "bash scripts/run_primary_experiments.sh p2"
-    notes: "Recall ≥0.857 at all periods. Precision increases with drift severity (0.30→0.60)."
+    description: "Detection diagnostic monitor evaluation across M7/M9/M11/M12"
+    source_file: "detection_unified_metrics.json"
+    legacy_source:
+      - "detection_trigger_eval/M7/detection_summary.json (14-class GT, superseded)"
+      - "detection_trigger_eval/M9/detection_summary.json (14-class GT, superseded)"
+      - "detection_trigger_eval/M11/detection_summary.json (14-class GT, superseded)"
+      - "detection_trigger_eval/M12/detection_summary.json (14-class GT, superseded)"
+    collapse_set: "12 classes (recall < 0.1 AND support >= 50)"
+    regeneration_command: "python scripts/unsupervised_collapse_detection.py (with support>=50 filter)"
+    notes: "Paper uses recomputed 12-class metrics from detection_unified_metrics.json. Legacy detection_trigger_eval/ directories used 14-class GT (support>0) and are superseded. M12 5-signal: P=0.500, R=0.833, F1=0.625."
 
   table_fair_replay:
     description: "Fair replay budget ablation (matched ~900 samples)"

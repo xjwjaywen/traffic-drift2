@@ -291,7 +291,7 @@ Table~\ref{tab:tta} reports M12 results.
 
 \begin{table}[t]
 \centering
-\caption{TTA baselines on CESNET-TLS-Year22 at M-2022-12. No labels are used. None of the tested TTA methods repair collapse classes.}
+\caption{TTA baselines on CESNET-TLS-Year22 at M-2022-12 (traffic-adapted implementations, no labels). None of the tested variants repair collapse classes under our implementations.}
 \label{tab:tta}
 \small
 \begin{tabular}{@{}l ccc@{}}
@@ -607,7 +607,7 @@ Table~\ref{tab:replay_ablation} compares replay strategies under matched conditi
 
 \begin{table}[t]
 \centering
-\caption{Replay strategy ablation (margin, $B$=1000, 5 seeds). All-class $k{=}5$ is best; advantage is class-coverage breadth, not volume.}
+\caption{Replay strategy ablation (margin, $B$=1000, 5 seeds). ``Targeted'' replays only stable and absorber classes (oracle list); all-class $k{=}5$ is best, showing advantage is class-coverage breadth, not volume.}
 \label{tab:replay_ablation}
 \scriptsize
 \setlength{\tabcolsep}{3pt}

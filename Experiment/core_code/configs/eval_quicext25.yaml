@@ -1,9 +1,10 @@
 # Evaluation config: CESNET-QUICEXT-25 long-term evaluation
 # Train on M-2024-6, test across 11 months (M-2024-7 to M-2025-5)
+# Set QUICEXT25_DATA_DIR env var or edit data_dir below to your local path.
 
 data:
   dataset: quicext25
-  data_dir: /data/xjw/CESNET-QUICEXT-25
+  data_dir: ${QUICEXT25_DATA_DIR:-/data/xjw/CESNET-QUICEXT-25}
   size: XS
   train_period: "M-2024-6"
   test_period: "M-2024-8"

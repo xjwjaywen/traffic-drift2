@@ -27,16 +27,16 @@ Experiments require the CESNET-TLS-Year22 dataset and a CUDA GPU.
 
 ```bash
 # 1. Train base model
-python scripts/train_tls22.py --config configs/train_tls22.yaml
+python train.py --config configs/train_tls22_cnn.yaml
 
 # 2. Main CARE experiments (margin + BADGE, 5 seeds)
 bash scripts/run_v3_unified_experiments.sh
 
-# 3. TTA baselines
+# 3. TTA baselines (LR sweep)
 bash scripts/run_tta_hyperparam_sweep.sh
 
 # 4. QUICEXT-25 generalization
-# Requires CESNET-QUICEXT-25 dataset
+# Requires CESNET-QUICEXT-25 dataset; set data_dir in configs/eval_quicext25.yaml
 # See outputs/care_quicext25_canonical/summary.json for config
 ```
 
