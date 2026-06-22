@@ -394,8 +394,8 @@ def main():
             **{f"strict_{k}": v for k, v in strict_summary_sel.items()},
             **{f"full_{k}": v for k, v in full_summary_sel.items()},
         })
-        print(f"  {sel_name}: macro={strict_summary_sel.get('macro_f1', 0):.4f} "
-              f"collapse={strict_summary_sel.get('collapse_f1', 0):.4f}")
+        print(f"  {sel_name}: macro={strict_summary_sel.get('overall_macro_f1', 0):.4f} "
+              f"collapse={strict_summary_sel.get('bad_macro_f1', 0):.4f}")
 
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), results_rows)
 
@@ -415,8 +415,8 @@ def main():
         "best_detection_precision": best_det["precision"],
         "best_detection_recall": best_det["recall"],
         "best_detection_threshold": best_det["threshold"],
-        "repair_cade_macro_f1": results_rows[1].get("strict_macro_f1") if len(results_rows) > 1 else None,
-        "repair_margin_macro_f1": results_rows[2].get("strict_macro_f1") if len(results_rows) > 2 else None,
+        "repair_cade_macro_f1": results_rows[1].get("strict_overall_macro_f1") if len(results_rows) > 1 else None,
+        "repair_margin_macro_f1": results_rows[2].get("strict_overall_macro_f1") if len(results_rows) > 2 else None,
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)

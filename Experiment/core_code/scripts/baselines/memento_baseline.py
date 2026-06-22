@@ -375,23 +375,23 @@ def main():
         "distill_weight": args.distill_weight,
         "ft_lr": args.ft_lr,
         "ft_epochs": args.ft_epochs,
-        "strict_macro_f1": strict_summary.get("macro_f1"),
-        "strict_collapse_f1": strict_summary.get("collapse_f1"),
-        "strict_stable_f1": strict_summary.get("stable_f1"),
-        "full_macro_f1": full_summary.get("macro_f1"),
-        "full_collapse_f1": full_summary.get("collapse_f1"),
+        "strict_macro_f1": strict_summary.get("overall_macro_f1"),
+        "strict_collapse_f1": strict_summary.get("bad_macro_f1"),
+        "strict_stable_f1": strict_summary.get("stable_macro_f1"),
+        "full_macro_f1": full_summary.get("overall_macro_f1"),
+        "full_collapse_f1": full_summary.get("bad_macro_f1"),
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
 
     print(f"\nResults:")
-    print(f"  Static:  macro={static_summary.get('macro_f1', 0):.4f}")
-    print(f"  MEMENTO: macro={strict_summary.get('macro_f1', 0):.4f} "
-          f"collapse={strict_summary.get('collapse_f1', 0):.4f} "
-          f"stable={strict_summary.get('stable_f1', 0):.4f}")
+    print(f"  Static:  macro={static_summary.get('overall_macro_f1', 0):.4f}")
+    print(f"  MEMENTO: macro={strict_summary.get('overall_macro_f1', 0):.4f} "
+          f"collapse={strict_summary.get('bad_macro_f1', 0):.4f} "
+          f"stable={strict_summary.get('stable_macro_f1', 0):.4f}")
     if args.rectification:
-        print(f"  No-rect: macro={norect_strict.get('macro_f1', 0):.4f} "
-              f"collapse={norect_strict.get('collapse_f1', 0):.4f}")
+        print(f"  No-rect: macro={norect_strict.get('overall_macro_f1', 0):.4f} "
+              f"collapse={norect_strict.get('bad_macro_f1', 0):.4f}")
     print(f"Results saved to {args.output_dir}")
 
     del ft_model

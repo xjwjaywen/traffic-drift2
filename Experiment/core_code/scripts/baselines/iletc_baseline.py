@@ -392,20 +392,20 @@ def main():
         "gan_replay_samples": n_replay,
         "ft_lr": args.ft_lr,
         "ft_epochs": args.ft_epochs,
-        "strict_macro_f1_gan": strict_summary.get("macro_f1"),
-        "strict_collapse_f1_gan": strict_summary.get("collapse_f1"),
-        "strict_macro_f1_real": real_strict.get("macro_f1"),
-        "strict_collapse_f1_real": real_strict.get("collapse_f1"),
+        "strict_macro_f1_gan": strict_summary.get("overall_macro_f1"),
+        "strict_collapse_f1_gan": strict_summary.get("bad_macro_f1"),
+        "strict_macro_f1_real": real_strict.get("overall_macro_f1"),
+        "strict_collapse_f1_real": real_strict.get("bad_macro_f1"),
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
 
     print(f"\nResults:")
-    print(f"  Static:     macro={static_summary.get('macro_f1', 0):.4f}")
-    print(f"  GAN replay: macro={strict_summary.get('macro_f1', 0):.4f} "
-          f"collapse={strict_summary.get('collapse_f1', 0):.4f}")
-    print(f"  Real replay: macro={real_strict.get('macro_f1', 0):.4f} "
-          f"collapse={real_strict.get('collapse_f1', 0):.4f}")
+    print(f"  Static:     macro={static_summary.get('overall_macro_f1', 0):.4f}")
+    print(f"  GAN replay: macro={strict_summary.get('overall_macro_f1', 0):.4f} "
+          f"collapse={strict_summary.get('bad_macro_f1', 0):.4f}")
+    print(f"  Real replay: macro={real_strict.get('overall_macro_f1', 0):.4f} "
+          f"collapse={real_strict.get('bad_macro_f1', 0):.4f}")
     print(f"Results saved to {args.output_dir}")
 
 

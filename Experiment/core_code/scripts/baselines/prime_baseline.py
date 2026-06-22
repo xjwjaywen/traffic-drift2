@@ -434,21 +434,21 @@ def main():
         "effective_rank_tgt": eff_rank_tgt,
         "dead_neuron_ratio_ref": dead_ratio_ref,
         "dead_neuron_ratio_tgt": dead_ratio_tgt,
-        "original_head_macro_f1": orig_strict.get("macro_f1"),
-        "expanded_head_macro_f1": expanded_strict.get("macro_f1"),
-        "expanded_nokd_macro_f1": nokd_strict.get("macro_f1"),
+        "original_head_macro_f1": orig_strict.get("overall_macro_f1"),
+        "expanded_head_macro_f1": expanded_strict.get("overall_macro_f1"),
+        "expanded_nokd_macro_f1": nokd_strict.get("overall_macro_f1"),
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
 
     print(f"\nResults:")
-    print(f"  Static:         macro={static_summary.get('macro_f1', 0):.4f}")
-    print(f"  Original head:  macro={orig_strict.get('macro_f1', 0):.4f} "
-          f"collapse={orig_strict.get('collapse_f1', 0):.4f}")
-    print(f"  PRIME expanded: macro={expanded_strict.get('macro_f1', 0):.4f} "
-          f"collapse={expanded_strict.get('collapse_f1', 0):.4f}")
-    print(f"  PRIME no-KD:    macro={nokd_strict.get('macro_f1', 0):.4f} "
-          f"collapse={nokd_strict.get('collapse_f1', 0):.4f}")
+    print(f"  Static:         macro={static_summary.get('overall_macro_f1', 0):.4f}")
+    print(f"  Original head:  macro={orig_strict.get('overall_macro_f1', 0):.4f} "
+          f"collapse={orig_strict.get('bad_macro_f1', 0):.4f}")
+    print(f"  PRIME expanded: macro={expanded_strict.get('overall_macro_f1', 0):.4f} "
+          f"collapse={expanded_strict.get('bad_macro_f1', 0):.4f}")
+    print(f"  PRIME no-KD:    macro={nokd_strict.get('overall_macro_f1', 0):.4f} "
+          f"collapse={nokd_strict.get('bad_macro_f1', 0):.4f}")
     print(f"Results saved to {args.output_dir}")
 
 
