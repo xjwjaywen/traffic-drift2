@@ -175,14 +175,14 @@ def train_wgan_gp(
 def generate_replay_features(gen, num_classes, per_class, noise_dim, device, seed=0):
     """Generate per_class synthetic features for each class."""
     gen.eval()
-    rng = torch.Generator(device=device)
+    rng = torch.Generator()
     rng.manual_seed(seed + 99999)
 
     all_features = []
     all_labels = []
 
     for c in range(num_classes):
-        noise = torch.randn(per_class, noise_dim, device=device, generator=rng)
+        noise = torch.randn(per_class, noise_dim, generator=rng).to(device)
         labels = torch.full((per_class,), c, dtype=torch.long, device=device)
         with torch.no_grad():
             features = gen(noise, labels)
@@ -359,7 +359,7 @@ def main():
     # Save results
     rows = [
         {
-            "method": "static", "budget": 0,
+            "method": "static", "strategy": args.strategy, "budget": 0,
             **{f"strict_{k}": v for k, v in static_summary.items()},
         },
         {

@@ -295,18 +295,26 @@ def main():
         is_replay=replay_mask,
     )
 
-    # Output rectification
+    eval_mask = np.ones(len(labels), dtype=bool)
+    eval_mask[idx.numpy()] = False
+
+    # Evaluate WITHOUT rectification first (before mutating the model)
+    preds_norect = predict_full_model(ft_model, all_ppi, device)
+    norect_strict, _ = summarize(
+        labels[eval_mask], preds_norect[eval_mask], eval_collapse_classes, stable_classes, thresholds
+    )
+    norect_full, _ = summarize(
+        labels, preds_norect, eval_collapse_classes, stable_classes, thresholds
+    )
+
+    # Apply output rectification, then evaluate again
     if args.rectification and n_replay > 0 and n_target > 0:
         print(f"Applying output rectification (n_old={n_replay}, n_new={n_target})")
-        ft_model = apply_output_rectification(
+        apply_output_rectification(
             ft_model, n_replay, n_target, num_classes, replay_classes, device,
         )
 
-    # Predict and evaluate
     preds = predict_full_model(ft_model, all_ppi, device)
-
-    eval_mask = np.ones(len(labels), dtype=bool)
-    eval_mask[idx.numpy()] = False
     strict_summary, strict_report = summarize(
         labels[eval_mask], preds[eval_mask], eval_collapse_classes, stable_classes, thresholds
     )
@@ -314,52 +322,29 @@ def main():
         labels, preds, eval_collapse_classes, stable_classes, thresholds
     )
 
-    # Also run without rectification for ablation
-    if args.rectification:
-        ft_model_norect = fit_full_model_memento(
-            model, train_ppi, train_labels_t,
-            lr=args.ft_lr, epochs=args.ft_epochs,
-            batch_size=args.ft_batch_size, weight_decay=args.ft_weight_decay,
-            device=device,
-            distill_model=model if args.distill_weight > 0 else None,
-            distill_weight=args.distill_weight,
-            distill_temperature=args.distill_temperature,
-            seed=args.seed,
-            is_replay=replay_mask,
-        )
-        preds_norect = predict_full_model(ft_model_norect, all_ppi, device)
-        norect_strict, _ = summarize(
-            labels[eval_mask], preds_norect[eval_mask], eval_collapse_classes, stable_classes, thresholds
-        )
-        norect_full, _ = summarize(
-            labels, preds_norect, eval_collapse_classes, stable_classes, thresholds
-        )
-        del ft_model_norect
-
     # Save results
     rows = [
         {
-            "method": "static", "budget": 0,
+            "method": "static", "budget": 0, "strategy": args.strategy,
             **{f"strict_{k}": v for k, v in static_summary.items()},
         },
         {
             "method": "memento", "budget": args.budget,
             "strategy": args.strategy,
-            "rectification": True,
+            "rectification": args.rectification,
             "replay_samples": n_replay,
             **{f"strict_{k}": v for k, v in strict_summary.items()},
             **{f"full_{k}": v for k, v in full_summary.items()},
         },
-    ]
-    if args.rectification:
-        rows.append({
+        {
             "method": "memento_no_rect", "budget": args.budget,
             "strategy": args.strategy,
             "rectification": False,
             "replay_samples": n_replay,
             **{f"strict_{k}": v for k, v in norect_strict.items()},
             **{f"full_{k}": v for k, v in norect_full.items()},
-        })
+        },
+    ]
 
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), rows)
 
@@ -389,9 +374,8 @@ def main():
     print(f"  MEMENTO: macro={strict_summary.get('overall_macro_f1', 0):.4f} "
           f"collapse={strict_summary.get('bad_macro_f1', 0):.4f} "
           f"stable={strict_summary.get('stable_macro_f1', 0):.4f}")
-    if args.rectification:
-        print(f"  No-rect: macro={norect_strict.get('overall_macro_f1', 0):.4f} "
-              f"collapse={norect_strict.get('bad_macro_f1', 0):.4f}")
+    print(f"  No-rect: macro={norect_strict.get('overall_macro_f1', 0):.4f} "
+          f"collapse={norect_strict.get('bad_macro_f1', 0):.4f}")
     print(f"Results saved to {args.output_dir}")
 
     del ft_model

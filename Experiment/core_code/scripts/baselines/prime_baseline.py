@@ -345,7 +345,7 @@ def main():
     print(f"\nTraining set: {train_features.shape[0]} samples")
 
     results_rows = [
-        {"method": "static", "budget": 0,
+        {"method": "static", "strategy": args.strategy, "budget": 0,
          **{f"strict_{k}": v for k, v in static_summary.items()}},
     ]
 

@@ -349,7 +349,7 @@ def main():
     )
 
     results_rows = [
-        {"method": "static", "budget": 0,
+        {"method": "static", "strategy": "", "budget": 0,
          **{f"strict_{k}": v for k, v in static_summary.items()}},
     ]
 
@@ -389,7 +389,7 @@ def main():
 
         results_rows.append({
             "method": f"cade_repair_{sel_name}", "budget": args.budget,
-            "selection": sel_name,
+            "strategy": sel_name,
             "replay_samples": int(replay_idx.numel()),
             **{f"strict_{k}": v for k, v in strict_summary_sel.items()},
             **{f"full_{k}": v for k, v in full_summary_sel.items()},
