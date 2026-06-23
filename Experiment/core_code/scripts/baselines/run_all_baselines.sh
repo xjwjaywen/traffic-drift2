@@ -73,7 +73,7 @@ run_method "memento" "scripts/baselines/memento_baseline.py" \
 # 2. ILETC: GAN replay (no KD)
 run_method "iletc" "scripts/baselines/iletc_baseline.py" \
     --ft-lr 1e-3 --ft-epochs 30 --replay-per-class 5 \
-    --target-repeat 2 --gan-epochs 200
+    --target-repeat 2 --gan-epochs 50
 
 # 3. CADE: contrastive detection + repair
 run_method "cade" "scripts/baselines/cade_baseline.py" \

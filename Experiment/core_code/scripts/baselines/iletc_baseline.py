@@ -114,7 +114,7 @@ def train_wgan_gp(
     feat_dim,
     noise_dim=128,
     epochs=200,
-    batch_size=128,
+    batch_size=512,
     lr=1e-4,
     n_critic=5,
     gp_weight=10.0,
