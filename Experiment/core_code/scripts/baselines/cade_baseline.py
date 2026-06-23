@@ -238,6 +238,8 @@ def main():
     parser.add_argument("--target-period", default="M-2022-12")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--budget", type=int, default=1000)
+    parser.add_argument("--strategy", default="margin",
+                        help="AL strategy for margin-based repair comparison")
     parser.add_argument("--collapse-classes", default=None)
     parser.add_argument("--stable-classes", default=None)
     parser.add_argument("--absorber-classes", default=None)
@@ -336,7 +338,7 @@ def main():
         ref_pred_counts[c] = (ref_preds == c).sum()
 
     margin_idx = select_indices(
-        "margin", logits, labels, args.budget, num_classes,
+        args.strategy, logits, labels, args.budget, num_classes,
         collapse_classes, absorber_classes, args.seed,
         nearest_distance=nearest_distance, nearest_proto=nearest_proto,
         features=features, prototypes=prototypes, ref_pred_counts=ref_pred_counts,
@@ -354,7 +356,7 @@ def main():
     ]
 
     # Repair with CADE-selected samples
-    for sel_name, sel_idx in [("cade_score", top_idx), ("margin", margin_idx)]:
+    for sel_name, sel_idx in [("cade_score", top_idx), (args.strategy, margin_idx)]:
         sel_labels = labels[sel_idx.numpy()]
         train_features, train_labels_t = build_head_training_set(
             features[sel_idx], sel_labels,
