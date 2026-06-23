@@ -89,19 +89,18 @@ def contrastive_loss(z, labels, temperature=0.5):
     """Supervised contrastive loss in latent space."""
     z_norm = F.normalize(z, dim=1)
     sim = z_norm @ z_norm.t() / temperature
-    mask_pos = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
-    mask_pos.fill_diagonal_(0)
-    mask_neg = 1.0 - mask_pos
-    mask_neg.fill_diagonal_(0)
+    n = z.size(0)
+    self_mask = ~torch.eye(n, dtype=torch.bool, device=z.device)
+    mask_pos = (labels.unsqueeze(0) == labels.unsqueeze(1)) & self_mask
+    mask_neg = (labels.unsqueeze(0) != labels.unsqueeze(1)) & self_mask
 
-    if mask_pos.sum() == 0:
+    if mask_pos.float().sum() == 0:
         return torch.tensor(0.0, device=z.device)
 
-    exp_sim = torch.exp(sim)
-    exp_sim.fill_diagonal_(0)
-    denom = (exp_sim * mask_neg).sum(dim=1, keepdim=True) + 1e-12
-    log_prob = sim - torch.log(denom + exp_sim * mask_pos)
-    loss = -(log_prob * mask_pos).sum() / mask_pos.sum()
+    exp_sim = torch.exp(sim) * self_mask.float()
+    denom = (exp_sim * mask_neg.float()).sum(dim=1, keepdim=True) + 1e-12
+    log_prob = sim - torch.log(denom + exp_sim * mask_pos.float())
+    loss = -(log_prob * mask_pos.float()).sum() / mask_pos.float().sum()
     return loss
 
 
