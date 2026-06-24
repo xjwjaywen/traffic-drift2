@@ -1,0 +1,13 @@
+{
+  "method": "cade",
+  "seed": 2,
+  "cae_epochs": 100,
+  "latent_dim": 64,
+  "contrastive_weight": 1.0,
+  "best_detection_f1": 0.08649238404928974,
+  "best_detection_precision": 0.061107584414014086,
+  "best_detection_recall": 0.14795432921027593,
+  "best_detection_threshold": 0.24162597954273224,
+  "repair_cade_macro_f1": 0.6405399806938097,
+  "repair_margin_macro_f1": 0.6872832772022501
+}

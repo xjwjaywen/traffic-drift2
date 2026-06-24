@@ -1,0 +1,18 @@
+{
+  "method": "memento",
+  "budget": 1000,
+  "strategy": "margin",
+  "seed": 2,
+  "rectification": true,
+  "replay_per_class": 5,
+  "replay_samples": 890,
+  "target_repeat": 2,
+  "distill_weight": 0.5,
+  "ft_lr": 0.0001,
+  "ft_epochs": 30,
+  "strict_macro_f1": 0.6776919553479496,
+  "strict_collapse_f1": 0.2551719205175154,
+  "strict_stable_f1": 0.8880664952136682,
+  "full_macro_f1": 0.6780055836531288,
+  "full_collapse_f1": 0.2564316188435006
+}
