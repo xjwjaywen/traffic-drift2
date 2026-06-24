@@ -23,6 +23,7 @@ import copy
 import csv
 import json
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -241,7 +242,15 @@ def main():
         "severe": args.severe_recall_threshold,
     }
 
-    print(f"=== ILETC Baseline (GAN Replay) ===")
+    script_hash = "unknown"
+    try:
+        script_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        pass
+
+    print(f"=== ILETC Baseline (GAN Replay) (commit: {script_hash}) ===")
     print(f"Device: {device}")
     print(f"Budget: {args.budget}, Strategy: {args.strategy}")
 
@@ -392,6 +401,7 @@ def main():
         "budget": args.budget,
         "strategy": args.strategy,
         "seed": args.seed,
+        "script_commit": script_hash,
         "replay_per_class": args.replay_per_class,
         "gan_epochs": args.gan_epochs,
         "noise_dim": args.noise_dim,

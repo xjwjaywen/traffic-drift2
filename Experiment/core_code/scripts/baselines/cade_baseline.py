@@ -25,6 +25,7 @@ import copy
 import csv
 import json
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -281,7 +282,15 @@ def main():
         "severe": args.severe_recall_threshold,
     }
 
-    print(f"=== CADE Baseline (Contrastive Drift Detection) ===")
+    script_hash = "unknown"
+    try:
+        script_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        pass
+
+    print(f"=== CADE Baseline (Contrastive Drift Detection) (commit: {script_hash}) ===")
     print(f"Device: {device}")
 
     # Collect reference
@@ -416,6 +425,7 @@ def main():
     summary = {
         "method": "cade",
         "seed": args.seed,
+        "script_commit": script_hash,
         "cae_epochs": args.cae_epochs,
         "latent_dim": args.latent_dim,
         "contrastive_weight": args.contrastive_weight,

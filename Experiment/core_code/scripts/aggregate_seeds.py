@@ -7,12 +7,14 @@ from collections import defaultdict
 import numpy as np
 
 
-def load_seed_results(base_dir, num_seeds=5):
+def load_seed_results(base_dir, num_seeds=5, require_complete=False):
     """Load results_by_budget.csv from each seed directory."""
     all_rows = []
+    missing = []
     for seed in range(num_seeds):
         path = os.path.join(base_dir, f"seed_{seed}", "results_by_budget.csv")
         if not os.path.exists(path):
+            missing.append(path)
             print(f"WARNING: missing {path}")
             continue
         with open(path, "r") as f:
@@ -20,6 +22,11 @@ def load_seed_results(base_dir, num_seeds=5):
             for row in reader:
                 row["_seed"] = seed
                 all_rows.append(row)
+    if require_complete and missing:
+        raise SystemExit(
+            f"ERROR: {len(missing)}/{num_seeds} seeds missing. "
+            f"Use without --require-complete to aggregate partial results."
+        )
     return all_rows
 
 
@@ -66,9 +73,11 @@ def main():
     parser.add_argument("--base-dir", required=True)
     parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--output", default=None)
+    parser.add_argument("--require-complete", action="store_true",
+                        help="Fail if any seed is missing")
     args = parser.parse_args()
 
-    rows = load_seed_results(args.base_dir, args.num_seeds)
+    rows = load_seed_results(args.base_dir, args.num_seeds, args.require_complete)
     if not rows:
         print("No seed results found.")
         return

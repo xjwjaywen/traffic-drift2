@@ -79,41 +79,40 @@ class ExpandedHead(nn.Module):
 
 
 def init_expanded_from_original(expanded_head, original_fc, seed=0):
-    """Initialize expanded head to approximate the original linear head.
+    """Initialize expanded head to exactly reproduce the original linear head.
 
-    Original head: y = W_orig @ x + b_orig  (shape: [C, feat_dim])
+    Original head: y = W @ x + b  (shape: [C, feat_dim])
 
-    We decompose this into two layers:
-      fc1: h = ReLU(W1 @ x)     (shape: [hidden_dim, feat_dim])
-      fc2: y = W2 @ h + b_orig  (shape: [C, hidden_dim])
+    Dual-channel decomposition through ReLU:
+      fc1 first D rows  = +I  (identity)
+      fc1 next  D rows  = -I  (negated identity)
+      After ReLU: h = [ReLU(x), ReLU(-x)]
+      fc2: y = [W, -W] @ h + b = W@(ReLU(x) - ReLU(-x)) + b = W@x + b
 
-    Strategy: fc1 is initialized with small random weights (Kaiming),
-    fc2's first feat_dim columns approximate W_orig via identity-like
-    mapping through ReLU, remaining columns are zero.
-
-    This is approximate because ReLU clips negatives, but provides a
-    much better starting point than random initialization.
+    This is exact because ReLU(x) - ReLU(-x) = x for all x.
+    Requires hidden_dim >= 2 * feat_dim; extra units are zero-initialized.
     """
     feat_dim = original_fc.in_features
     hidden_dim = expanded_head.fc1.out_features
+    assert hidden_dim >= 2 * feat_dim, (
+        f"hidden_dim ({hidden_dim}) must be >= 2 * feat_dim ({2 * feat_dim}) "
+        f"for exact dual-channel initialization"
+    )
 
-    gen = torch.Generator()
-    gen.manual_seed(seed)
+    W = original_fc.weight.data
+    b = original_fc.bias.data if original_fc.bias is not None else torch.zeros(W.shape[0])
 
     with torch.no_grad():
-        nn.init.kaiming_normal_(expanded_head.fc1.weight)
+        nn.init.zeros_(expanded_head.fc1.weight)
         nn.init.zeros_(expanded_head.fc1.bias)
-
         nn.init.zeros_(expanded_head.fc2.weight)
-        copy_dim = min(hidden_dim, feat_dim)
-        expanded_head.fc2.weight[:, :copy_dim] = original_fc.weight[:, :copy_dim]
-        if original_fc.bias is not None:
-            expanded_head.fc2.bias.copy_(original_fc.bias)
-        else:
-            nn.init.zeros_(expanded_head.fc2.bias)
 
-        expanded_head.fc1.weight[:copy_dim, :] = torch.eye(copy_dim, feat_dim)
-        expanded_head.fc1.bias[:copy_dim] = 0.0
+        expanded_head.fc1.weight[:feat_dim, :] = torch.eye(feat_dim)
+        expanded_head.fc1.weight[feat_dim:2 * feat_dim, :] = -torch.eye(feat_dim)
+
+        expanded_head.fc2.weight[:, :feat_dim] = W
+        expanded_head.fc2.weight[:, feat_dim:2 * feat_dim] = -W
+        expanded_head.fc2.bias.copy_(b)
 
 
 def fit_expanded_head(
