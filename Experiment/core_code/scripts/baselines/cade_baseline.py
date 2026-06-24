@@ -2,16 +2,17 @@
 CADE baseline: Contrastive Autoencoder for drift detection.
 
 Adapts the CADE approach (Yang et al., USENIX Security 2021) to our
-collapse-repair setting. CADE is primarily a detection method, so we compare
-its drift detection capability against our 5-signal composite detector.
+collapse-repair setting.
 
 Approach:
   1. Train a contrastive autoencoder on reference-period features
   2. Use reconstruction error + contrastive distance as drift score
-  3. Threshold the score to flag drifted samples
-  4. Evaluate detection P/R/F1 against ground-truth collapsed classes
-  5. Also test: use CADE-detected samples for label querying, then repair
-     with head-only fine-tuning (to compare detection → repair pipeline)
+  3. Use CADE scores to select samples for labeling (detection → repair)
+  4. Compare CADE-score selection vs margin selection for repair quality
+
+Detection metrics (detection_results.csv) are sample-level, oracle-thresholded
+diagnostics — NOT comparable to CARE's class-level unsupervised detection.
+The repair comparison (results_by_budget.csv) is the fair comparison point.
 
 Usage from Experiment/core_code/:
     python scripts/baselines/cade_baseline.py \
@@ -257,6 +258,12 @@ def main():
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
     args = parser.parse_args()
+
+    # Fix all random seeds
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
 
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

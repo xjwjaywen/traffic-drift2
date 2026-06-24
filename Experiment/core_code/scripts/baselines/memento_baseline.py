@@ -1,18 +1,18 @@
 """
-MEMENTO baseline: Full-model update + memory replay + output rectification.
+MEMENTO baseline: Full-model update + memory replay + KD.
 
 Adapts the MEMENTO approach (Cerasuolo et al., Computer Networks 2024) to our
 collapse-repair setting:
   1. Full model fine-tuning (encoder + head) on target labels + memory replay
   2. Knowledge distillation on replay samples (same as CARE)
-  3. Output rectification: bias correction on the classification head to
-     compensate for class imbalance between old (replay) and new (target) data
 
 Key differences from CARE:
-  - Full model update instead of head-only
-  - Adds output rectification (bias correction) after training
-  - No active selection strategy awareness — uses same margin selector for
-    fair comparison
+  - Full model update instead of head-only (encoder weights also change)
+  - Same margin selector for fair comparison
+
+Note: MEMENTO's output rectification (bias correction) subtracts the same
+constant from all class biases when replay_classes = all classes, which is
+a no-op for argmax. We omit it here and report only the core mechanism.
 
 Usage from Experiment/core_code/:
     python scripts/baselines/memento_baseline.py \
@@ -22,15 +22,13 @@ Usage from Experiment/core_code/:
 """
 import argparse
 import copy
-import csv
 import json
-import math
 import os
+import subprocess
 import sys
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,13 +41,9 @@ from collapse_active_maintenance_tls22 import (
     DEFAULT_ABSORBER_CLASSES,
     DEFAULT_COLLAPSE_CLASSES,
     DEFAULT_STABLE_CLASSES,
-    build_head_training_set,
-    collapse_counts,
     parse_int_list,
     predict_full_model,
-    predict_head,
     prototype_distance_signals,
-    replay_class_set,
     sample_replay_indices,
     select_indices,
     summarize,
@@ -72,11 +66,7 @@ def fit_full_model_memento(
     seed=0,
     is_replay=None,
 ):
-    """Full model fine-tuning (MEMENTO-style).
-
-    Same as CARE's fit_full_model but returns the model for post-hoc
-    rectification rather than immediately predicting.
-    """
+    """Full model fine-tuning (MEMENTO-style): encoder + head."""
     ft_model = copy.deepcopy(source_model)
     ft_model.train()
     if distill_model is not None:
@@ -105,8 +95,7 @@ def fit_full_model_memento(
 
             if distill_model is not None and distill_weight > 0 and is_replay is not None:
                 batch_replay = is_replay[idx]
-                replay_idx = idx[batch_replay] if batch_replay.any() else None
-                if replay_idx is not None and replay_idx.numel() > 0:
+                if batch_replay.any():
                     replay_logits = ft_model(x[batch_replay])
                     with torch.no_grad():
                         teacher_logits = distill_model(x[batch_replay])
@@ -122,41 +111,6 @@ def fit_full_model_memento(
             opt.step()
 
     return ft_model
-
-
-def apply_output_rectification(model, n_old, n_new, num_classes, old_classes, device):
-    """MEMENTO-style output rectification: adjust classification head bias.
-
-    When training on imbalanced old/new data, the model's bias terms shift
-    toward classes with more training samples. This corrects for that by
-    adjusting the bias of the final linear layer.
-
-    bias_correction[old_classes] -= log(n_old / n_new)
-
-    where n_old = number of replay (old) samples, n_new = number of target
-    (new) samples used in training.
-    """
-    if n_old <= 0 or n_new <= 0:
-        return model
-
-    correction = math.log(n_old / n_new)
-
-    head = model.cls_head if hasattr(model, "cls_head") else model
-    last_linear = None
-    for module in reversed(list(head.modules())):
-        if isinstance(module, nn.Linear):
-            last_linear = module
-            break
-
-    if last_linear is None or last_linear.bias is None:
-        return model
-
-    with torch.no_grad():
-        for c in old_classes:
-            if 0 <= c < last_linear.bias.shape[0]:
-                last_linear.bias[c] -= correction
-
-    return model
 
 
 def main():
@@ -182,12 +136,15 @@ def main():
     parser.add_argument("--target-repeat", type=int, default=2)
     parser.add_argument("--distill-weight", type=float, default=0.5)
     parser.add_argument("--distill-temperature", type=float, default=2.0)
-    parser.add_argument("--rectification", action="store_true", default=True,
-                        help="Apply output rectification (default: True)")
-    parser.add_argument("--no-rectification", dest="rectification", action="store_false")
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
     args = parser.parse_args()
+
+    # Fix all random seeds
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
 
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -205,10 +162,17 @@ def main():
         "severe": args.severe_recall_threshold,
     }
 
-    print(f"=== MEMENTO Baseline ===")
+    script_hash = "unknown"
+    try:
+        script_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        pass
+
+    print(f"=== MEMENTO Baseline (commit: {script_hash}) ===")
     print(f"Device: {device}")
     print(f"Budget: {args.budget}, Strategy: {args.strategy}")
-    print(f"Rectification: {args.rectification}")
 
     # Collect reference period outputs (need PPI for full-model training)
     ref_loader, _ = proto.make_test_loader(eval_cfg, args.reference_period)
@@ -298,27 +262,11 @@ def main():
     eval_mask = np.ones(len(labels), dtype=bool)
     eval_mask[idx.numpy()] = False
 
-    # Evaluate WITHOUT rectification first (before mutating the model)
-    preds_norect = predict_full_model(ft_model, all_ppi, device)
-    norect_strict, _ = summarize(
-        labels[eval_mask], preds_norect[eval_mask], eval_collapse_classes, stable_classes, thresholds
-    )
-    norect_full, _ = summarize(
-        labels, preds_norect, eval_collapse_classes, stable_classes, thresholds
-    )
-
-    # Apply output rectification, then evaluate again
-    if args.rectification and n_replay > 0 and n_target > 0:
-        print(f"Applying output rectification (n_old={n_replay}, n_new={n_target})")
-        apply_output_rectification(
-            ft_model, n_replay, n_target, num_classes, replay_classes, device,
-        )
-
     preds = predict_full_model(ft_model, all_ppi, device)
-    strict_summary, strict_report = summarize(
+    strict_summary, _ = summarize(
         labels[eval_mask], preds[eval_mask], eval_collapse_classes, stable_classes, thresholds
     )
-    full_summary, full_report = summarize(
+    full_summary, _ = summarize(
         labels, preds, eval_collapse_classes, stable_classes, thresholds
     )
 
@@ -331,18 +279,9 @@ def main():
         {
             "method": "memento", "budget": args.budget,
             "strategy": args.strategy,
-            "rectification": args.rectification,
             "replay_samples": n_replay,
             **{f"strict_{k}": v for k, v in strict_summary.items()},
             **{f"full_{k}": v for k, v in full_summary.items()},
-        },
-        {
-            "method": "memento_no_rect", "budget": args.budget,
-            "strategy": args.strategy,
-            "rectification": False,
-            "replay_samples": n_replay,
-            **{f"strict_{k}": v for k, v in norect_strict.items()},
-            **{f"full_{k}": v for k, v in norect_full.items()},
         },
     ]
 
@@ -353,13 +292,13 @@ def main():
         "budget": args.budget,
         "strategy": args.strategy,
         "seed": args.seed,
-        "rectification": args.rectification,
         "replay_per_class": args.replay_per_class,
         "replay_samples": n_replay,
         "target_repeat": args.target_repeat,
         "distill_weight": args.distill_weight,
         "ft_lr": args.ft_lr,
         "ft_epochs": args.ft_epochs,
+        "script_commit": script_hash,
         "strict_macro_f1": strict_summary.get("overall_macro_f1"),
         "strict_collapse_f1": strict_summary.get("bad_macro_f1"),
         "strict_stable_f1": strict_summary.get("stable_macro_f1"),
@@ -374,8 +313,6 @@ def main():
     print(f"  MEMENTO: macro={strict_summary.get('overall_macro_f1', 0):.4f} "
           f"collapse={strict_summary.get('bad_macro_f1', 0):.4f} "
           f"stable={strict_summary.get('stable_macro_f1', 0):.4f}")
-    print(f"  No-rect: macro={norect_strict.get('overall_macro_f1', 0):.4f} "
-          f"collapse={norect_strict.get('bad_macro_f1', 0):.4f}")
     print(f"Results saved to {args.output_dir}")
 
     del ft_model

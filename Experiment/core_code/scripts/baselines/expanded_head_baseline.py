@@ -1,28 +1,32 @@
 """
-PRIME baseline: Plasticity-Robust Incremental Model via network expansion.
+Expanded Head baseline: wider classification head with more capacity.
 
-Adapts the PRIME approach (Qin et al., arXiv 2025) to our collapse-repair
-setting:
-  1. Detect plasticity loss using effective rank of feature representations
-  2. Expand classification head capacity (Net2Net-style width expansion)
-  3. Fine-tune the expanded head on target labels + replay
+Tests whether the original single-layer head (Linear(256, C)) lacks
+capacity to separate drifted classes, by inserting a hidden layer.
 
-Key differences from CARE:
-  - Diagnoses plasticity loss as the root cause (vs. CARE's absorber-collapse)
-  - Expands network capacity instead of targeted repair
-  - Head-only fine-tuning on expanded architecture
+Approach:
+  1. Build a 2-layer head: Linear(feat_dim, hidden_dim) -> ReLU ->
+     Linear(hidden_dim, num_classes)
+  2. Initialize the output layer from the original head weights
+  3. Fine-tune on target labels + replay (same pipeline as CARE)
+
+This is NOT a full PRIME implementation — PRIME involves plasticity
+diagnostics, Net2Net width expansion of existing layers, and
+progressive expansion triggers. This simpler test isolates one
+question: does adding head capacity help collapse repair?
 
 Usage from Experiment/core_code/:
-    python scripts/baselines/prime_baseline.py \
+    python scripts/baselines/expanded_head_baseline.py \
       --config configs/eval_tls22.yaml \
       --checkpoint outputs/tls22_cnn/best_model.pt \
-      --output-dir outputs/baselines/prime
+      --output-dir outputs/baselines/expanded_head
 """
 import argparse
 import copy
 import csv
 import json
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -42,6 +46,7 @@ from collapse_active_maintenance_tls22 import (
     DEFAULT_STABLE_CLASSES,
     build_head_training_set,
     collapse_counts,
+    fit_head,
     parse_int_list,
     predict_head,
     prototype_distance_signals,
@@ -52,98 +57,63 @@ from collapse_active_maintenance_tls22 import (
 )
 
 
-def effective_rank(features, eps=1e-7):
-    """Compute effective rank of feature matrix via singular value entropy.
+class ExpandedHead(nn.Module):
+    """Two-layer classification head with hidden layer.
 
-    effective_rank = exp(H(sigma_normalized))
-    where H is Shannon entropy of the normalized singular values.
-    Lower effective rank → more redundant features → potential plasticity loss.
+    Architecture: Linear(feat_dim, hidden_dim) -> ReLU -> Linear(hidden_dim, C)
+
+    The output layer is initialized from the original head's weights
+    (original head: Linear(feat_dim, C)). The first layer projects to the
+    hidden dim; the second layer is initialized so that the expanded head
+    starts near the original head's decision boundary.
     """
-    U, S, V = torch.svd(features - features.mean(dim=0, keepdim=True))
-    S = S[S > eps]
-    p = S / S.sum()
-    entropy = -(p * torch.log(p)).sum()
-    return torch.exp(entropy).item()
+
+    def __init__(self, feat_dim, num_classes, hidden_dim=512):
+        super().__init__()
+        self.fc1 = nn.Linear(feat_dim, hidden_dim)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(hidden_dim, num_classes)
+
+    def forward(self, x):
+        return self.fc2(self.relu(self.fc1(x)))
 
 
-def dead_neuron_ratio(features, threshold=1e-6):
-    """Fraction of features that are near-zero across all samples."""
-    activity = features.abs().mean(dim=0)
-    return (activity < threshold).float().mean().item()
+def init_expanded_from_original(expanded_head, original_fc, seed=0):
+    """Initialize expanded head to approximate the original linear head.
 
+    Original head: y = W_orig @ x + b_orig  (shape: [C, feat_dim])
 
-def expand_linear_net2net(linear, expansion_factor=2, noise_scale=0.01, seed=0):
-    """Net2Net-style width expansion of a linear layer.
+    We decompose this into two layers:
+      fc1: h = ReLU(W1 @ x)     (shape: [hidden_dim, feat_dim])
+      fc2: y = W2 @ h + b_orig  (shape: [C, hidden_dim])
 
-    Doubles the hidden dimension by:
-    1. Copying existing weights
-    2. Adding small noise to break symmetry
-    3. Scaling copied weights by 0.5 to preserve output magnitude
+    Strategy: fc1 is initialized with small random weights (Kaiming),
+    fc2's first feat_dim columns approximate W_orig via identity-like
+    mapping through ReLU, remaining columns are zero.
+
+    This is approximate because ReLU clips negatives, but provides a
+    much better starting point than random initialization.
     """
+    feat_dim = original_fc.in_features
+    hidden_dim = expanded_head.fc1.out_features
+
     gen = torch.Generator()
     gen.manual_seed(seed)
 
-    old_out, old_in = linear.weight.shape
-    new_in = int(old_in * expansion_factor)
-
-    new_linear = nn.Linear(new_in, old_out, bias=linear.bias is not None)
-
     with torch.no_grad():
-        # Copy original weights to first half
-        new_linear.weight[:, :old_in] = linear.weight * 0.5
-        # Copy + noise to second half
-        noise = torch.randn(old_out, old_in, generator=gen) * noise_scale
-        new_linear.weight[:, old_in:new_in] = linear.weight * 0.5 + noise
+        nn.init.kaiming_normal_(expanded_head.fc1.weight)
+        nn.init.zeros_(expanded_head.fc1.bias)
 
-        if linear.bias is not None:
-            new_linear.bias.copy_(linear.bias)
+        nn.init.zeros_(expanded_head.fc2.weight)
+        copy_dim = min(hidden_dim, feat_dim)
+        expanded_head.fc2.weight[:, :copy_dim] = original_fc.weight[:, :copy_dim]
+        if original_fc.bias is not None:
+            expanded_head.fc2.bias.copy_(original_fc.bias)
+        else:
+            nn.init.zeros_(expanded_head.fc2.bias)
 
-    return new_linear
-
-
-class ExpandedHead(nn.Module):
-    """Classification head with expanded hidden layer.
-
-    Takes original feature dim as input, projects to expanded hidden,
-    then classifies.
-    """
-
-    def __init__(self, feat_dim, num_classes, hidden_dim=512, dropout=0.1):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(feat_dim, hidden_dim),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_classes),
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
-
-def initialize_from_original_head(expanded_head, original_head, device):
-    """Initialize expanded head using original head weights where possible.
-
-    For layers with matching dimensions, copy weights directly.
-    For expanded layers, use Net2Net-style initialization.
-    """
-    orig_modules = [m for m in original_head.modules() if isinstance(m, nn.Linear)]
-    exp_modules = [m for m in expanded_head.modules() if isinstance(m, nn.Linear)]
-
-    # Copy the last layer (classifier) if dimensions match
-    if orig_modules and exp_modules:
-        last_orig = orig_modules[-1]
-        last_exp = exp_modules[-1]
-        if last_orig.weight.shape == last_exp.weight.shape:
-            with torch.no_grad():
-                last_exp.weight.copy_(last_orig.weight)
-                if last_orig.bias is not None and last_exp.bias is not None:
-                    last_exp.bias.copy_(last_orig.bias)
-
-    return expanded_head.to(device)
+        expanded_head.fc1.weight[:copy_dim, :] = torch.eye(copy_dim, feat_dim)
+        expanded_head.fc1.bias[:copy_dim] = 0.0
 
 
 def fit_expanded_head(
@@ -176,9 +146,10 @@ def fit_expanded_head(
     )
     opt = torch.optim.AdamW(expanded_head.parameters(), lr=lr, weight_decay=weight_decay)
 
-    distill_set = None
+    distill_start = None
     if distill_features is not None and distill_logits is not None and distill_weight > 0:
-        distill_set = set(range(n - distill_features.shape[0], n))
+        distill_start = n - distill_features.shape[0]
+        distill_set = set(range(distill_start, n))
 
     temp = distill_temperature
 
@@ -188,12 +159,10 @@ def fit_expanded_head(
             logits = expanded_head(feat)
             loss = F.cross_entropy(logits, lbl)
 
-            if distill_set and distill_weight > 0:
-                replay_mask = torch.tensor(
-                    [i.item() in distill_set for i in idx], dtype=torch.bool
-                )
+            if distill_start is not None and distill_weight > 0:
+                replay_mask = idx >= distill_start
                 if replay_mask.any():
-                    replay_local = idx[replay_mask] - (n - distill_features.shape[0])
+                    replay_local = idx[replay_mask] - distill_start
                     replay_local = replay_local.clamp(0, distill_logits.shape[0] - 1)
                     teacher_logits = distill_logits[replay_local].to(device)
                     student_logits = logits[replay_mask]
@@ -221,7 +190,7 @@ def predict_expanded_head(head, features, device, chunk_size=8192):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PRIME baseline (network expansion)")
+    parser = argparse.ArgumentParser(description="Expanded head baseline (capacity test)")
     parser.add_argument("--config", required=True)
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--reference-period", default="M-2022-4")
@@ -242,11 +211,16 @@ def main():
     parser.add_argument("--target-repeat", type=int, default=2)
     parser.add_argument("--distill-weight", type=float, default=0.5)
     parser.add_argument("--distill-temperature", type=float, default=2.0)
-    parser.add_argument("--hidden-dim", type=int, default=512,
-                        help="Hidden dimension for expanded head")
+    parser.add_argument("--hidden-dim", type=int, default=512)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
     args = parser.parse_args()
+
+    # Fix all random seeds
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
 
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -264,10 +238,20 @@ def main():
         "severe": args.severe_recall_threshold,
     }
 
-    print(f"=== PRIME Baseline (Network Expansion) ===")
+    # Get script commit hash for reproducibility
+    script_hash = "unknown"
+    try:
+        script_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        pass
+
+    print(f"=== Expanded Head Baseline (commit: {script_hash}) ===")
     print(f"Device: {device}")
     print(f"Budget: {args.budget}, Strategy: {args.strategy}")
-    print(f"Expanded hidden dim: {args.hidden_dim}")
+    print(f"Hidden dim: {args.hidden_dim}")
+    print(f"Original head: Linear({model.cls_head.fc.in_features}, {model.cls_head.fc.out_features})")
 
     # Collect reference
     ref_loader, _ = proto.make_test_loader(eval_cfg, args.reference_period)
@@ -275,13 +259,6 @@ def main():
         model, ref_loader, device, desc=f"Reference {args.reference_period}",
     )
     feat_dim = ref_outputs["features"].shape[1]
-
-    # Plasticity diagnostics
-    print(f"\nPlasticity diagnostics:")
-    eff_rank_ref = effective_rank(ref_outputs["features"][:5000])
-    dead_ratio_ref = dead_neuron_ratio(ref_outputs["features"])
-    print(f"  Reference effective rank: {eff_rank_ref:.1f}/{feat_dim}")
-    print(f"  Reference dead neuron ratio: {dead_ratio_ref:.4f}")
 
     # Build prototypes
     prototypes, proto_support, valid_mask = proto.build_prototypes(
@@ -303,12 +280,6 @@ def main():
     logits = tgt_outputs["logits"]
     labels = tgt_outputs["labels"]
     static_preds = logits.argmax(dim=1).numpy()
-
-    eff_rank_tgt = effective_rank(features[:5000])
-    dead_ratio_tgt = dead_neuron_ratio(features)
-    print(f"  Target effective rank: {eff_rank_tgt:.1f}/{feat_dim}")
-    print(f"  Target dead neuron ratio: {dead_ratio_tgt:.4f}")
-    print(f"  Rank change: {eff_rank_tgt - eff_rank_ref:+.1f}")
 
     static_summary, _ = summarize(labels, static_preds, eval_collapse_classes, stable_classes, thresholds_dict)
 
@@ -342,15 +313,16 @@ def main():
             model.cls_head.eval()
             replay_logits = model.cls_head(replay_features.to(device)).cpu()
 
-    print(f"\nTraining set: {train_features.shape[0]} samples")
+    print(f"Training set: {train_features.shape[0]} samples")
+    eval_mask = np.ones(len(labels), dtype=bool)
+    eval_mask[idx.numpy()] = False
 
     results_rows = [
         {"method": "static", "strategy": args.strategy, "budget": 0,
          **{f"strict_{k}": v for k, v in static_summary.items()}},
     ]
 
-    # 1. Original head (CARE-style, for comparison)
-    from collapse_active_maintenance_tls22 import fit_head
+    # 1. Original head (CARE-style baseline for comparison)
     head_orig = fit_head(
         model, train_features, train_labels_t,
         args.ft_lr, args.ft_epochs, args.ft_batch_size, args.ft_weight_decay,
@@ -362,24 +334,20 @@ def main():
         seed=args.seed,
     )
     preds_orig = predict_head(head_orig, features, device)
-    eval_mask = np.ones(len(labels), dtype=bool)
-    eval_mask[idx.numpy()] = False
     orig_strict, _ = summarize(
         labels[eval_mask], preds_orig[eval_mask], eval_collapse_classes, stable_classes, thresholds_dict
     )
     results_rows.append({
         "method": "original_head", "budget": args.budget,
-        "strategy": args.strategy,
-        "head_type": "original",
+        "strategy": args.strategy, "head_type": "original",
         **{f"strict_{k}": v for k, v in orig_strict.items()},
     })
 
-    # 2. Expanded head (PRIME-style)
-    expanded_head = ExpandedHead(feat_dim, num_classes, hidden_dim=args.hidden_dim).to(device)
-    initialize_from_original_head(expanded_head, model.cls_head, device)
-
-    expanded_head = fit_expanded_head(
-        model, expanded_head, train_features, train_labels_t,
+    # 2. Expanded head initialized from original
+    expanded = ExpandedHead(feat_dim, num_classes, hidden_dim=args.hidden_dim).to(device)
+    init_expanded_from_original(expanded, model.cls_head.fc, seed=args.seed)
+    expanded = fit_expanded_head(
+        model, expanded, train_features, train_labels_t,
         args.ft_lr, args.ft_epochs, args.ft_batch_size, args.ft_weight_decay,
         device,
         distill_features=replay_features,
@@ -388,35 +356,32 @@ def main():
         distill_temperature=args.distill_temperature,
         seed=args.seed,
     )
-    preds_expanded = predict_expanded_head(expanded_head, features, device)
-    expanded_strict, _ = summarize(
-        labels[eval_mask], preds_expanded[eval_mask], eval_collapse_classes, stable_classes, thresholds_dict
+    preds_exp = predict_expanded_head(expanded, features, device)
+    exp_strict, _ = summarize(
+        labels[eval_mask], preds_exp[eval_mask], eval_collapse_classes, stable_classes, thresholds_dict
     )
     results_rows.append({
-        "method": "prime_expanded", "budget": args.budget,
-        "strategy": args.strategy,
-        "head_type": "expanded",
+        "method": "expanded_head", "budget": args.budget,
+        "strategy": args.strategy, "head_type": "expanded",
         "hidden_dim": args.hidden_dim,
-        **{f"strict_{k}": v for k, v in expanded_strict.items()},
+        **{f"strict_{k}": v for k, v in exp_strict.items()},
     })
 
-    # 3. Expanded head without KD (pure PRIME)
-    expanded_head_nokd = ExpandedHead(feat_dim, num_classes, hidden_dim=args.hidden_dim).to(device)
-    initialize_from_original_head(expanded_head_nokd, model.cls_head, device)
-
-    expanded_head_nokd = fit_expanded_head(
-        model, expanded_head_nokd, train_features, train_labels_t,
+    # 3. Expanded head without KD
+    expanded_nokd = ExpandedHead(feat_dim, num_classes, hidden_dim=args.hidden_dim).to(device)
+    init_expanded_from_original(expanded_nokd, model.cls_head.fc, seed=args.seed)
+    expanded_nokd = fit_expanded_head(
+        model, expanded_nokd, train_features, train_labels_t,
         args.ft_lr, args.ft_epochs, args.ft_batch_size, args.ft_weight_decay,
         device, seed=args.seed,
     )
-    preds_nokd = predict_expanded_head(expanded_head_nokd, features, device)
+    preds_nokd = predict_expanded_head(expanded_nokd, features, device)
     nokd_strict, _ = summarize(
         labels[eval_mask], preds_nokd[eval_mask], eval_collapse_classes, stable_classes, thresholds_dict
     )
     results_rows.append({
-        "method": "prime_expanded_nokd", "budget": args.budget,
-        "strategy": args.strategy,
-        "head_type": "expanded_nokd",
+        "method": "expanded_head_nokd", "budget": args.budget,
+        "strategy": args.strategy, "head_type": "expanded_nokd",
         "hidden_dim": args.hidden_dim,
         **{f"strict_{k}": v for k, v in nokd_strict.items()},
     })
@@ -424,19 +389,21 @@ def main():
     write_csv(os.path.join(args.output_dir, "results_by_budget.csv"), results_rows)
 
     summary = {
-        "method": "prime",
+        "method": "expanded_head",
         "budget": args.budget,
         "strategy": args.strategy,
         "seed": args.seed,
         "hidden_dim": args.hidden_dim,
         "feat_dim": feat_dim,
-        "effective_rank_ref": eff_rank_ref,
-        "effective_rank_tgt": eff_rank_tgt,
-        "dead_neuron_ratio_ref": dead_ratio_ref,
-        "dead_neuron_ratio_tgt": dead_ratio_tgt,
+        "original_head_arch": f"Linear({feat_dim}, {num_classes})",
+        "expanded_head_arch": f"Linear({feat_dim}, {args.hidden_dim}) -> ReLU -> Linear({args.hidden_dim}, {num_classes})",
+        "script_commit": script_hash,
         "original_head_macro_f1": orig_strict.get("overall_macro_f1"),
-        "expanded_head_macro_f1": expanded_strict.get("overall_macro_f1"),
+        "expanded_head_macro_f1": exp_strict.get("overall_macro_f1"),
         "expanded_nokd_macro_f1": nokd_strict.get("overall_macro_f1"),
+        "original_head_collapse_f1": orig_strict.get("bad_macro_f1"),
+        "expanded_head_collapse_f1": exp_strict.get("bad_macro_f1"),
+        "expanded_nokd_collapse_f1": nokd_strict.get("bad_macro_f1"),
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
@@ -445,9 +412,9 @@ def main():
     print(f"  Static:         macro={static_summary.get('overall_macro_f1', 0):.4f}")
     print(f"  Original head:  macro={orig_strict.get('overall_macro_f1', 0):.4f} "
           f"collapse={orig_strict.get('bad_macro_f1', 0):.4f}")
-    print(f"  PRIME expanded: macro={expanded_strict.get('overall_macro_f1', 0):.4f} "
-          f"collapse={expanded_strict.get('bad_macro_f1', 0):.4f}")
-    print(f"  PRIME no-KD:    macro={nokd_strict.get('overall_macro_f1', 0):.4f} "
+    print(f"  Expanded head:  macro={exp_strict.get('overall_macro_f1', 0):.4f} "
+          f"collapse={exp_strict.get('bad_macro_f1', 0):.4f}")
+    print(f"  Expanded no-KD: macro={nokd_strict.get('overall_macro_f1', 0):.4f} "
           f"collapse={nokd_strict.get('bad_macro_f1', 0):.4f}")
     print(f"Results saved to {args.output_dir}")
 

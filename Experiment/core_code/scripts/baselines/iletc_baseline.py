@@ -219,6 +219,12 @@ def main():
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
     args = parser.parse_args()
 
+    # Fix all random seeds
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, train_cfg, num_classes = proto.load_source_model(args.checkpoint, device)
