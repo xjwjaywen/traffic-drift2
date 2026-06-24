@@ -1,0 +1,17 @@
+{
+  "method": "expanded_head",
+  "budget": 1000,
+  "strategy": "margin",
+  "seed": 4,
+  "hidden_dim": 512,
+  "feat_dim": 256,
+  "original_head_arch": "Linear(256, 178)",
+  "expanded_head_arch": "Linear(256, 512) -> ReLU -> Linear(512, 178)",
+  "script_commit": "e891261",
+  "original_head_macro_f1": 0.6846078244275389,
+  "expanded_head_macro_f1": 0.6693243552943942,
+  "expanded_nokd_macro_f1": 0.6310105380280431,
+  "original_head_collapse_f1": 0.25384171466028016,
+  "expanded_head_collapse_f1": 0.3040897431547002,
+  "expanded_nokd_collapse_f1": 0.2879139746450956
+}
