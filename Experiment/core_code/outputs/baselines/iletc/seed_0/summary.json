@@ -9,8 +9,8 @@
   "gan_replay_samples": 890,
   "ft_lr": 0.001,
   "ft_epochs": 30,
-  "strict_macro_f1_gan": 0.6455589169592897,
-  "strict_collapse_f1_gan": 0.2161318619248621,
+  "strict_macro_f1_gan": 0.6478223473262401,
+  "strict_collapse_f1_gan": 0.20878718676691654,
   "strict_macro_f1_real": 0.659873302950456,
   "strict_collapse_f1_real": 0.2385105356650561
 }

@@ -1,4 +1,4 @@
 method,strategy,budget,n_seeds,strict_overall_macro_f1_mean,strict_overall_macro_f1_std,strict_bad_macro_f1_mean,strict_bad_macro_f1_std,strict_stable_macro_f1_mean,strict_stable_macro_f1_std,strict_collapsed_count_mean,strict_collapsed_count_std,full_overall_macro_f1_mean,full_overall_macro_f1_std,full_bad_macro_f1_mean,full_bad_macro_f1_std,full_stable_macro_f1_mean,full_stable_macro_f1_std,full_collapsed_count_mean,full_collapsed_count_std
-iletc_gan_replay,margin,1000,5,0.6492,0.0028,0.2169,0.0070,0.8477,0.0101,5.0000,1.0000,0.6494,0.0028,0.2177,0.0070,0.8478,0.0101,5.0000,1.0000
+iletc_gan_replay,margin,1000,5,0.6499,0.0041,0.2193,0.0101,0.8513,0.0091,5.4000,0.5477,0.6502,0.0040,0.2201,0.0101,0.8513,0.0091,5.4000,0.5477
 iletc_real_replay,margin,1000,5,0.6594,0.0030,0.2360,0.0098,0.8542,0.0156,4.8000,0.8367,,,,,,,,
 static,margin,0,5,0.6286,0.0000,0.0276,0.0000,0.9028,0.0000,12.0000,0.0000,,,,,,,,

@@ -4,10 +4,10 @@
   "cae_epochs": 100,
   "latent_dim": 64,
   "contrastive_weight": 1.0,
-  "best_detection_f1": 0.07362069398798772,
-  "best_detection_precision": 0.039851030963673685,
-  "best_detection_recall": 0.48243431164458755,
-  "best_detection_threshold": 0.09729534387588501,
-  "repair_cade_macro_f1": 0.6350946786080517,
+  "best_detection_f1": 0.07512731053749162,
+  "best_detection_precision": 0.045320919265736115,
+  "best_detection_recall": 0.21946131889043402,
+  "best_detection_threshold": 0.15934228897094727,
+  "repair_cade_macro_f1": 0.6319751494939458,
   "repair_margin_macro_f1": 0.6863136131955712
 }

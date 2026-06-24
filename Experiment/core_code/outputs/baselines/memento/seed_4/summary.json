@@ -3,16 +3,16 @@
   "budget": 1000,
   "strategy": "margin",
   "seed": 4,
-  "rectification": true,
   "replay_per_class": 5,
   "replay_samples": 890,
   "target_repeat": 2,
   "distill_weight": 0.5,
   "ft_lr": 0.0001,
   "ft_epochs": 30,
-  "strict_macro_f1": 0.676554587392598,
-  "strict_collapse_f1": 0.2547580581968136,
-  "strict_stable_f1": 0.8914056579781292,
-  "full_macro_f1": 0.6768536642926382,
-  "full_collapse_f1": 0.25593946537626394
+  "script_commit": "b7cf33f",
+  "strict_macro_f1": 0.6767489525152037,
+  "strict_collapse_f1": 0.25606842093191,
+  "strict_stable_f1": 0.8913987790633211,
+  "full_macro_f1": 0.6770482660068703,
+  "full_collapse_f1": 0.2572484877805779
 }
