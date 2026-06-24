@@ -70,7 +70,8 @@ run_method() {
     if [ -d "${BASE}/${METHOD}" ]; then
         python scripts/aggregate_seeds.py \
             --base-dir "${BASE}/${METHOD}" \
-            --num-seeds "${SEEDS}" 2>/dev/null || echo "  (aggregate skipped)"
+            --num-seeds "${SEEDS}" \
+            --require-complete 2>/dev/null || echo "  (aggregate skipped)"
     fi
 }
 
