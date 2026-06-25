@@ -82,7 +82,7 @@ An unsupervised detection module, based on five complementary signals (predictio
 We first establish that unsupervised TTA methods, under our traffic-adapted implementations, do not address class collapse (all produce collapse-class F1 ${<}0.03$), and that uncertainty-based active learning strategies (entropy, coreset) with the same label budget perform \textit{worse} than no adaptation.
 Under strict evaluation (queried samples excluded, five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$ ($12{\times}$) using 1{,}000 target labels ($<$0.3\% of the test set) plus 890 all-class replay samples; a lightweight margin variant achieves $0.686{\pm}0.001$ with sub-second selection time.
 A clean component ablation confirms that each ingredient---fine-tuning, replay, and distillation---contributes independently, with the full combination yielding the best trade-off between collapse repair and stable-class preservation.
-\ours{} is consistent across architectures (CNN and Transformer) and drift severity (M7--M12); a supporting evaluation on CESNET-QUICEXT-25 suggests cross-protocol transfer. Prototype replay enables exemplar-free deployment.
+\ours{} is consistent across architectures (CNN and Transformer) and drift severity (M7--M12). Prototype replay enables exemplar-free deployment.
 
 Our contributions are:
 \begin{enumerate}
@@ -386,8 +386,8 @@ The full training loss is:
 \label{sec:exp_setup}
 
 \textbf{Datasets.}
-We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic) as our primary benchmark and the CESNET-QUICEXT-25 XS split~\cite{cesnetquicext25} (44 classes, 12 months, QUIC traffic) as a supporting cross-protocol check.
-For TLS22, we train on M-2022-3 and evaluate at M7, M9, M11, and M12.
+We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic).
+We train on M-2022-3 and evaluate at M7, M9, M11, and M12.
 
 \textbf{Baselines.}
 We compare four categories:
@@ -551,11 +551,11 @@ Class & Abs. & $n$ & Recall & F1 & Recall & F1 & Recall & F1 & Marg & BADGE & St
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_budget_sweep.pdf}
-\caption{Label efficiency (5 seeds, error bars). Performance improves steadily up to $B{=}1{,}000$ with diminishing returns beyond.}
+\caption{Label efficiency (margin, 5 seeds, error bars). Performance improves steadily; $B{=}1{,}000$ is selected as the cost-benefit operating point, though $B{=}2{,}000$ offers further gains.}
 \label{fig:budget_sweep}
 \end{figure}
 
-Figure~\ref{fig:budget_sweep} shows performance as a function of label budget, with steady improvement up to $B{=}1{,}000$.
+Figure~\ref{fig:budget_sweep} shows performance as a function of label budget, with steady improvement across the tested range. We select $B{=}1{,}000$ as the operating point: it provides substantial collapse repair ($0.256$ collapse F1, $12{\times}$ over static) while $B{=}2{,}000$ further improves collapse F1 to $0.437$ at double the labeling cost.
 
 \subsection{Replay Strategy Ablation}
 \label{sec:replay_ablation}
@@ -722,12 +722,6 @@ The two consistently missed classes are 38 (small support) and 163 (gradual drif
 To confirm that TTA failure is not caused by our use of GroupNorm, we train an identical CNN with BatchNorm (BN): BN-Adapt~\cite{schneider2020bn} raises macro-F1 by only 0.009 while collapse F1 stays at 0.032, and NOTE catastrophically degrades (macro-F1: 0.042). \ours{}-Margin still improves the BN model substantially (.613$\to$.665 macro, .030$\to$.314 collapse).
 We also train a Transformer backbone~\cite{vaswani2017attention} (4-layer, 4-head, 256-dim): \ours{} achieves $.767{\pm}.001$ macro-F1 and $.401{\pm}.003$ collapse F1, a larger gain than on the CNN (+0.097 vs.\ +0.057), likely because richer features provide better material for head-only repair.
 
-\textbf{Cross-protocol transfer.}
-\label{sec:quicext25}
-On the CESNET-QUICEXT-25 XS split~\cite{cesnetquicext25} (44 classes, QUIC, 11-month span), 3 classes collapse below 0.1 recall with clear absorber patterns.
-Under strict evaluation (BADGE, $B{=}1{,}000$, prototype replay $k{=}5$, 5 seeds), \ours{} raises macro-F1 from $0.502$ to $0.561{\pm}0.005$ and collapse F1 from $0.014$ to $0.081{\pm}0.024$.
-The improvement suggests cross-protocol transfer, though absolute collapse repair remains modest on this resource-constrained split.
-
 \textbf{Prototype replay.}
 \label{sec:proto_replay}
 For privacy-sensitive deployments, we replace stored samples with class prototypes (mean feature vectors + Gaussian noise, 178~KB total).
@@ -777,7 +771,6 @@ This supports our design choice of freezing the encoder and repairing only the c
 \textbf{Limitations.}
 Per-class analysis (Table~\ref{tab:per_class_recovery}) reveals that 6 of 12 collapse classes are fully recovered, 5 show partial recovery, and class~109 remains unrecovered across all seeds, suggesting that \ours{} is most effective when the victim retains some discriminative features at the encoder level.
 Since \ours{} updates only the classification head, it cannot recover classes whose encoder-level features have fully merged with the absorber---for such extreme cases, encoder adaptation or retraining may be necessary at higher cost.
-On QUICEXT-25, the absolute collapse F1 remains low (0.081) despite improvement over the static baseline (0.014), reflecting the difficulty of recovering classes whose features have fully merged in encoder space.
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods~\cite{cai2024cpn}.
 
 \textbf{Computational cost.}
@@ -814,7 +807,7 @@ An unsupervised detection module monitors per-class health as a diagnostic monit
 Under strict evaluation (five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse F1 from 0.028 to $0.333{\pm}0.040$ using only 1{,}000 target labels plus 890 replay samples; \ours{}-Margin achieves $0.686{\pm}0.001$ with sub-second selection.
 A clean component ablation confirms that each ingredient contributes independently: FT alone reaches 0.638, adding all-class CE replay lifts it to 0.659, and adding KD achieves 0.686.
 A replay strategy ablation shows that all-class replay outperforms targeted replay even at matched budgets (0.686 vs.\ 0.678 at ${\sim}$900 samples), establishing that class-coverage breadth matters more than targeted volume.
-The framework is consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds; a supporting evaluation on the CESNET-QUICEXT-25 XS split shows macro-F1 improvement on a second protocol and class scale, suggesting transfer beyond TLS-Year22, although collapse repair remains limited on that dataset.
+The framework is consistent across drift severity (M7--M12), architectures (CNN/Transformer), and training seeds.
 
 % ============================================================
 \bibliographystyle{IEEEtran}

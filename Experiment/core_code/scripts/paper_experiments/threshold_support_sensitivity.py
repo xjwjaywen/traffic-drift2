@@ -59,34 +59,38 @@ def find_collapse_classes(labels, preds, num_classes, recall_threshold, min_supp
     return collapsed, class_info
 
 
-def evaluate_with_classes(labels, preds, collapse_classes, stable_classes):
-    """Compute macro-F1 for collapse/stable class subsets."""
-    from sklearn.metrics import f1_score, recall_score
+def evaluate_with_classes(labels, preds, collapse_classes, stable_classes, recall_threshold=0.1):
+    """Compute macro-F1 for collapse/stable class subsets.
+
+    Uses the same method as the main pipeline: compute classification_report
+    on ALL samples (full confusion matrix), then extract per-class F1 for the
+    target class group and average. This correctly accounts for cross-class
+    false positives.
+    """
+    report = proto.compute_metrics(labels, preds)["classification_report"]
 
     result = {}
-
-    all_classes = sorted(set(labels))
-    result["overall_macro_f1"] = float(f1_score(labels, preds, labels=all_classes, average="macro", zero_division=0))
+    result["overall_macro_f1"] = float(report.get("macro avg", {}).get("f1-score", 0))
 
     if collapse_classes:
-        mask = np.isin(labels, collapse_classes)
-        if mask.sum() > 0:
-            result["collapse_macro_f1"] = float(f1_score(
-                labels[mask], preds[mask], labels=collapse_classes, average="macro", zero_division=0))
-            result["collapse_count"] = sum(
-                1 for c in collapse_classes
-                if np.sum(labels == c) > 0 and np.sum((labels == c) & (preds == c)) / np.sum(labels == c) < 0.1
-            )
-        else:
-            result["collapse_macro_f1"] = 0.0
-            result["collapse_count"] = 0
+        f1_vals = []
+        collapsed = 0
+        for c in collapse_classes:
+            item = report.get(str(c), {})
+            f1_vals.append(float(item.get("f1-score", 0.0)))
+            recall = float(item.get("recall", 0.0))
+            if recall < recall_threshold:
+                collapsed += 1
+        result["collapse_macro_f1"] = float(np.mean(f1_vals)) if f1_vals else 0.0
+        result["collapse_count"] = collapsed
         result["num_collapse_classes"] = len(collapse_classes)
 
     if stable_classes:
-        mask = np.isin(labels, stable_classes)
-        if mask.sum() > 0:
-            result["stable_macro_f1"] = float(f1_score(
-                labels[mask], preds[mask], labels=stable_classes, average="macro", zero_division=0))
+        f1_vals = []
+        for c in stable_classes:
+            item = report.get(str(c), {})
+            f1_vals.append(float(item.get("f1-score", 0.0)))
+        result["stable_macro_f1"] = float(np.mean(f1_vals)) if f1_vals else 0.0
 
     return result
 
@@ -213,8 +217,9 @@ def main():
 
     for key, cfg in sorted(configs.items()):
         cc = cfg["collapse_classes"]
-        static_eval = evaluate_with_classes(strict_labels, strict_static, cc, stable_classes)
-        care_eval = evaluate_with_classes(strict_labels, strict_care, cc, stable_classes)
+        tau = cfg["tau"]
+        static_eval = evaluate_with_classes(strict_labels, strict_static, cc, stable_classes, recall_threshold=tau)
+        care_eval = evaluate_with_classes(strict_labels, strict_care, cc, stable_classes, recall_threshold=tau)
         delta_col = care_eval.get("collapse_macro_f1", 0) - static_eval.get("collapse_macro_f1", 0)
 
         row = {

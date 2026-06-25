@@ -1,10 +1,11 @@
 """
 Detection weight comparison (Paper experiment 3).
 
-Compares manual weights vs equal weights vs adaptive weights for
-the unsupervised collapse detection module.
+Compares manual weights vs equal weights vs historically-calibrated weights
+for the unsupervised collapse detection module.
 
-Adaptive weights: optimize on M7+M9 (early drift periods), test on M12.
+Calibrated weights: optimize on M7+M9 using labeled ground truth
+(supervised historical calibration), test on held-out M11/M12 only.
 
 Usage from Experiment/core_code/:
     python scripts/paper_experiments/detection_weight_comparison.py \
@@ -156,13 +157,15 @@ def main():
     # Step 1: Find adaptive weights on M7+M9
     print("=== Finding adaptive weights on M7+M9 ===")
     train_periods = ["M-2022-7", "M-2022-9"]
-    adaptive_weights, adaptive_train_f1 = optimize_weights_grid(
+    calibrated_weights, calibrated_train_f1 = optimize_weights_grid(
         model, eval_cfg, args.reference_period, train_periods, device, num_classes, args.top_k)
-    weight_configs["adaptive"] = adaptive_weights
-    print(f"  Adaptive weights: {[f'{w:.2f}' for w in adaptive_weights]} (train F1={adaptive_train_f1:.3f})")
+    weight_configs["calibrated"] = calibrated_weights
+    print(f"  Calibrated weights: {[f'{w:.2f}' for w in calibrated_weights]} (train F1={calibrated_train_f1:.3f})")
 
-    # Step 2: Evaluate all weight configs on M7, M9, M11, M12
-    test_periods = ["M-2022-7", "M-2022-9", "M-2022-11", "M-2022-12"]
+    # Step 2: Evaluate all weight configs on held-out periods only (M11, M12)
+    # M7 and M9 were used for adaptive weight calibration, so they are excluded
+    # from the test set to avoid train/test contamination.
+    test_periods = ["M-2022-11", "M-2022-12"]
     results = []
 
     print(f"\n=== Detection results (top-{args.top_k}) ===")
@@ -195,7 +198,7 @@ def main():
     summary = {
         "weight_configs": {k: v for k, v in weight_configs.items()},
         "adaptive_train_periods": train_periods,
-        "adaptive_train_f1": adaptive_train_f1,
+        "calibrated_train_f1": calibrated_train_f1,
         "test_periods": test_periods,
         "top_k": args.top_k,
     }

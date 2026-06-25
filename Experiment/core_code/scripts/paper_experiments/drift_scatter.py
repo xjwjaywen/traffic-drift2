@@ -34,6 +34,8 @@ ABSORBER_PAIRS = [
     (104, 2), (47, 5), (66, 71), (10, 156), (109, 71), (26, 13),
 ]
 
+# Labels from Table 2 (Fisher trajectory analysis in main paper).
+# Feature drift: ΔJ < -10%. Boundary shift: ΔJ > +20%. Mixed: otherwise.
 MECHANISM_LABELS = {
     56: "feature", 174: "feature", 38: "feature", 163: "feature",
     48: "boundary", 104: "boundary",
@@ -187,7 +189,7 @@ def main():
 
         ax.axvline(x=0, color="gray", linestyle="--", alpha=0.5)
         ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
-        ax.set_xlabel("Fisher Ratio Change (%)\n← boundary shift | feature drift →", fontsize=11)
+        ax.set_xlabel("Fisher Ratio Change (%)\n← feature drift (converging) | boundary shift (separating) →", fontsize=11)
         ax.set_ylabel("Margin Drop\n← stable | boundary confusion →", fontsize=11)
         ax.set_title("Drift Mechanism: Feature vs Boundary", fontsize=12)
 
