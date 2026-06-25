@@ -16,9 +16,13 @@ model = TTATCModel(cfg["model"]).to(device)
 model.load_state_dict(ckpt["model_state_dict"])
 model.eval()
 
-collapse_classes = [56,163,174,48,38,69,104,47,66,10]
-absorbers =        [96,46,  2, 14,45,105, 5, 71,156,13]
-pairs = list(zip(collapse_classes, absorbers))
+# Victim → primary absorber pairs (from confusion matrix analysis)
+pairs = [
+    (56, 96), (163, 46), (174, 2), (48, 14), (38, 45), (69, 105),
+    (104, 2), (47, 5), (66, 71), (10, 156), (109, 71), (26, 13),
+]
+collapse_classes = [v for v, _ in pairs]
+absorbers = [a for _, a in pairs]
 
 all_results = {}
 
