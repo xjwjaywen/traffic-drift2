@@ -86,7 +86,7 @@ A clean component ablation confirms that each ingredient---fine-tuning, replay, 
 
 Our contributions are:
 \begin{enumerate}
-  \item \textbf{Failure mode discovery.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift, distinct from uniform degradation or class imbalance. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift and boundary shift---with per-class quantitative evidence for the 10 classes with stable Fisher estimates and per-class recovery evidence for all 12 (\S\ref{sec:analysis}).
+  \item \textbf{Failure mode discovery.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift, distinct from uniform degradation or class imbalance. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift (9 of 12 classes) and boundary shift (3 of 12)---with per-class quantitative evidence and recovery analysis for all 12 collapse classes (\S\ref{sec:analysis}).
   \item \textbf{Negative results.} We show that five TTA methods (collapse F1 ${<}0.03$) and two standard active learning strategies (entropy, coreset) all fail on class collapse, establishing it as a distinct problem that existing approaches do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
   \item \textbf{Collapse-aware evaluation.} We introduce complementary metrics---collapse-class F1, per-class recovery status, stable-class preservation, and strict query exclusion---that reveal failure modes invisible to aggregate macro-F1 (\S\ref{sec:experiments}).
   \item \textbf{Label-efficient maintenance framework.} We propose \ours{}, a validated maintenance protocol combining margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. Each component's contribution is isolated via a 7-configuration ablation; an unsupervised detection module (recall $\geq$0.80) serves as a diagnostic monitor (\S\ref{sec:method}, \S\ref{sec:experiments}).
@@ -201,47 +201,45 @@ Class  & Class    & Rate      & Recall & Type    & Collapse \\
 By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-class spreads) between victim--absorber pairs at M4 (pre-collapse) and M12 (post-collapse), we identify two distinct mechanisms:
 
 \begin{itemize}
-  \item \textbf{Feature drift} (classes 56, 174, 38, 163): The victim's feature distribution physically shifts toward the absorber in feature space. The Fisher ratio decreases 14--49\% from M4 to M12 (\eg{}, class~174$\to$2: Fisher drops from 0.635 to 0.326). This occurs when application updates cause the victim's traffic patterns to resemble the absorber's.
-  \item \textbf{Boundary shift} (classes 48, 104): The inter-class distance remains stable or even increases (Fisher ratio rises 30\%), yet the classifier still absorbs the victim. This suggests the decision boundary shifts due to changes in other classes' distributions, indirectly pushing the victim onto the absorber's side.
+  \item \textbf{Feature drift} (9 of 12 classes, including 56, 174, 104, 109): The victim's feature distribution physically shifts toward the absorber in feature space. The Fisher ratio decreases 14--59\% from M4 to M12 (\eg{}, class~109$\to$71: Fisher drops from 0.875 to 0.361). This occurs when application updates cause the victim's traffic patterns to resemble the absorber's.
+  \item \textbf{Boundary shift} (3 of 12 classes: 48, 69, 10): The inter-class distance \emph{increases} (Fisher ratio rises 30--45\%), yet the classifier still absorbs the victim. This suggests the decision boundary shifts due to changes in other classes' distributions, indirectly pushing the victim onto the absorber's side.
 \end{itemize}
 
 The two mechanisms have different implications for repair: feature-drift collapse can be addressed by re-anchoring the victim's prototype, while boundary-shift collapse requires recalibrating the decision boundary across multiple classes simultaneously. \ours{}'s combination of targeted fine-tuning and all-class source replay addresses both mechanisms.
 
 \begin{table*}[t]
 \centering
-\caption{Fisher discriminant ratio analysis for collapse classes with stable estimates (10 of 12). $J_{\text{M4}}$ and $J_{\text{M12}}$ denote the Fisher ratio (inter-class distance / sum of intra-class spreads) between victim and absorber at M4 and M12, respectively. $\Delta J$ is the relative change. Static and \ours{} recall are at M12. Classes~109 and~26 lack stable Fisher estimates due to near-zero within-class variance.}
+\caption{Fisher discriminant ratio analysis for all 12 collapse classes. $J_{\text{M4}}$ and $J_{\text{M12}}$ denote the Fisher ratio (inter-class distance / sum of intra-class spreads) between victim and absorber at M4 and M12, respectively. $\Delta J$ is the relative change. Static and \ours{} recall are at M12.}
 \label{tab:fisher}
 \scriptsize
 \begin{tabular}{@{}r r l rr r rr l@{}}
 \toprule
 Victim & Abs. & Mechanism & $J_{\text{M4}}$ & $J_{\text{M12}}$ & $\Delta J$(\%) & Static & \ours{} & Status \\
 \midrule
-\multicolumn{9}{@{}l}{\textit{Feature drift --- victim shifts toward absorber}} \\
+\multicolumn{9}{@{}l}{\textit{Feature drift --- victim shifts toward absorber ($\Delta J < -10\%$)}} \\
 56  & 96  & feat.\ drift & 0.886 & 0.627 & $-$29 & .000 & .793 & recov. \\
 174 & 2   & feat.\ drift & 0.635 & 0.326 & $-$49 & .000 & .195 & partial \\
 38  & 45  & feat.\ drift & 0.730 & 0.602 & $-$18 & .052 & .656 & recov. \\
 163 & 46  & feat.\ drift & 0.308 & 0.265 & $-$14 & .016 & .226 & partial \\
+104 & 2   & feat.\ drift & 0.431 & 0.361 & $-$16 & .010 & .704 & recov. \\
+47  & 5   & feat.\ drift & 0.781 & 0.513 & $-$34 & .000 & .404 & recov. \\
+66  & 71  & feat.\ drift & 0.633 & 0.391 & $-$38 & .001 & .133 & partial \\
+109 & 71  & feat.\ drift & 0.875 & 0.361 & $-$59 & .000 & .000 & failed \\
+26  & 13  & feat.\ drift & 0.367 & 0.188 & $-$49 & .022 & .125 & partial \\
 \midrule
-\multicolumn{9}{@{}l}{\textit{Boundary shift --- separation stable but decision boundary moves}} \\
+\multicolumn{9}{@{}l}{\textit{Boundary shift --- separation increases but decision boundary moves ($\Delta J > +20\%$)}} \\
 48  & 14  & bnd.\ shift & 0.561 & 0.730 & $+$30 & .001 & .722 & recov. \\
-104 & 2   & bnd.\ shift & 0.822 & 1.077 & $+$31 & .010 & .704 & recov. \\
-\midrule
-\multicolumn{9}{@{}l}{\textit{Mixed / ambiguous}} \\
-47  & 5   & mixed & 0.806 & 0.762 & $-$5  & .000 & .404 & recov. \\
-69  & 105 & mixed & 0.293 & 0.426 & $+$45 & .005 & .157 & partial \\
-66  & 71  & mixed & 0.469 & 0.473 & $-$1  & .001 & .133 & partial \\
-10  & 156 & mixed & 0.480 & 0.560 & $+$17 & .098 & .389 & recov. \\
-109 & 71  & mixed & ---   & ---   & ---   & .000 & .000 & failed \\
-26  & 13  & mixed & ---   & ---   & ---   & .022 & .125 & partial \\
+69  & 105 & bnd.\ shift & 0.293 & 0.426 & $+$45 & .005 & .157 & partial \\
+10  & 156 & bnd.\ shift & 0.435 & 0.567 & $+$30 & .098 & .389 & recov. \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Table~\ref{tab:fisher} quantifies the Fisher discriminant ratio trajectory for the 10 collapse classes with stable estimates (classes~109 and~26 are excluded due to near-zero within-class variance).
-Feature-drift classes exhibit a mean $\Delta J = -27\%$, confirming that their victim representations physically converge toward the absorber.
-Boundary-shift classes show the opposite: $\Delta J \approx +30\%$, meaning the victim--absorber separation \emph{increases} yet collapse still occurs, implicating decision-boundary realignment driven by third-party class shifts.
-Both boundary-shift classes are fully recovered by \ours{} (mean recall 0.71), while feature-drift classes show mixed outcomes (2/4 recovered, mean recall 0.47), suggesting that re-anchoring drifted representations is harder than correcting boundary misalignment.
-Pearson correlation between $\Delta J$ and \ours{} recall is weak ($r = -0.05$, $n = 10$), indicating that the \emph{magnitude} of Fisher-ratio change alone does not predict repairability; rather, the \emph{mechanism type} matters.
+Table~\ref{tab:fisher} quantifies the Fisher discriminant ratio trajectory for all 12 collapse classes.
+Feature-drift classes (9 of 12) exhibit a mean $\Delta J = -34\%$, confirming that their victim representations physically converge toward the absorber.
+Boundary-shift classes (3 of 12) show the opposite: $\Delta J \approx +35\%$, meaning the victim--absorber separation \emph{increases} yet collapse still occurs, implicating decision-boundary realignment driven by third-party class shifts.
+All three boundary-shift classes show at least partial recovery (mean recall 0.42), while feature-drift classes show mixed outcomes (4/9 recovered, mean recall 0.32), suggesting that re-anchoring drifted representations is harder than correcting boundary misalignment.
+Pearson correlation between $J_{\text{M12}}$ and \ours{} recall is moderate ($r = 0.65$, $n = 12$), indicating that classes retaining higher separability at M12 are more amenable to repair.
 
 \begin{figure}[t]
 \centering

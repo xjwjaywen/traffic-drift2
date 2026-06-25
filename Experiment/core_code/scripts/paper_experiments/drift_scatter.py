@@ -37,9 +37,9 @@ ABSORBER_PAIRS = [
 # Labels from Table 2 (Fisher trajectory analysis in main paper).
 # Feature drift: ΔJ < -10%. Boundary shift: ΔJ > +20%. Mixed: otherwise.
 MECHANISM_LABELS = {
-    56: "feature", 174: "feature", 38: "feature", 163: "feature",
-    48: "boundary", 104: "boundary",
-    47: "mixed", 69: "mixed", 66: "mixed", 10: "mixed", 109: "mixed", 26: "mixed",
+    56: "feature", 163: "feature", 174: "feature", 38: "feature",
+    104: "feature", 47: "feature", 66: "feature", 109: "feature", 26: "feature",
+    48: "boundary", 69: "boundary", 10: "boundary",
 }
 
 
