@@ -68,7 +68,8 @@ all_rows = defaultdict(list)
 for seed in range(${SEEDS}):
     path = os.path.join(base, f'seed_{seed}', 'sensitivity_results.csv')
     if not os.path.exists(path):
-        continue
+        print(f'ERROR: missing seed {seed} at {path}')
+        exit(1)
     with open(path) as f:
         for row in csv.DictReader(f):
             all_rows[row['config']].append(row)
@@ -174,7 +175,7 @@ if [ -d "${BASE}/budget_curve" ]; then
     python scripts/aggregate_seeds.py \
         --base-dir "${BASE}/budget_curve" \
         --num-seeds "${SEEDS}" \
-        --require-complete 2>/dev/null || echo "  (aggregate: some seeds missing)"
+        --require-complete
 fi
 
 echo ""

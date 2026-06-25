@@ -37,7 +37,7 @@ On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within nine mo
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a label-efficient maintenance framework that monitors per-class collapse risk, selects 1{,}000 informative target samples via pair-agnostic margin or BADGE sampling, and repairs the classification head through few-label fine-tuning, all-class source replay, and knowledge distillation.
 An unsupervised detection module serves as a diagnostic monitor, flagging at-risk classes without labels.
 Under strict evaluation (queried samples excluded, five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$; the lightweight \ours{}-Margin variant reaches $0.686{\pm}0.001$ in under one second.
-The framework is consistent across drift severity, architectures, and a second dataset.
+The framework is consistent across drift severity, architectures, and training seeds.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -49,9 +49,9 @@ Encrypted traffic classification, concept drift, class collapse, label-efficient
 \label{sec:intro}
 
 % P1: Problem - drift in traffic classifiers
-Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{luxemburk2023quic, lin2022etbert, zhao2023yatc, pacheco2019towards, wang2019survey}.
+Deep learning has become the dominant approach for encrypted traffic classification, achieving impressive accuracy on benchmark datasets~\cite{lin2022etbert, zhao2023yatc, pacheco2019towards, wang2019survey}.
 However, a growing body of evidence shows that these classifiers degrade rapidly after deployment.
-Luxemburk and Hynek~\cite{luxemburk2023quic} report a 13.5\% accuracy drop within one week on the CESNET-QUIC22 dataset, while Malekghaini~\etal{}~\cite{malekghaini2023drift} observe F1 declining from 0.95 to 0.60 over several months on ISP-scale data.
+Soukup~\etal{}~\cite{soukup2025drift} identify 28 frequently drifting classes on CESNET-TLS-Year22, while Malekghaini~\etal{}~\cite{malekghaini2023drift} observe F1 declining from 0.95 to 0.60 over several months on ISP-scale data.
 The causes are diverse: application version updates alter protocol behavior, TLS certificate rotations change handshake fingerprints, and CDN migrations shift IP ranges and packet-size distributions~\cite{soukup2025drift, lu2019learning, gama2014survey}.
 
 % P2: Existing solutions and their limitations
@@ -99,8 +99,8 @@ Our contributions are:
 
 \subsection{Concept Drift in Encrypted Traffic Classification}
 
-Encrypted traffic classifiers rely on statistical features of packet sequences that are inherently non-stationary under protocol and infrastructure changes~\cite{luxemburk2023quic, rezaei2019deep, soukup2025drift, malekghaini2023drift}.
-Luxemburk and Hynek~\cite{luxemburk2023quic} reported 13.5\% accuracy loss in one week; Soukup~\etal{}~\cite{soukup2025drift} identified 28 frequently drifting classes but analyzed only per-class F1 trajectories; Malekghaini~\etal{}~\cite{malekghaini2023drift} noted absorber-like behavior (``Web is the class most misclassified flows are confused with'') without further analysis.
+Encrypted traffic classifiers rely on statistical features of packet sequences that are inherently non-stationary under protocol and infrastructure changes~\cite{rezaei2019deep, soukup2025drift, malekghaini2023drift}.
+Soukup~\etal{}~\cite{soukup2025drift} identified 28 frequently drifting classes on CESNET-TLS-Year22 but analyzed only per-class F1 trajectories; Malekghaini~\etal{}~\cite{malekghaini2023drift} noted absorber-like behavior (``Web is the class most misclassified flows are confused with'') without further analysis.
 Jerabek~\etal{}~\cite{jerabek2025eval} showed that random splitting inflates performance by $\geq$3.5pp vs.\ time-based evaluation.
 Chen~\etal{}~\cite{chen2025selfevolving} proposed pseudo-label-based fine-tuning but explicitly excluded per-class analysis.
 None of these works identifies the systematic absorber--victim pattern we formalize here.
@@ -198,7 +198,7 @@ Class  & Class    & Rate      & Recall & Type    & Collapse \\
 \subsection{Two Mechanisms of Collapse}
 \label{sec:mechanisms}
 
-By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-class spreads) between victim--absorber pairs at M4 (pre-collapse) and M12 (post-collapse), we identify two distinct mechanisms:
+By comparing the Fisher discriminant ratio (inter-class distance / sum of intra-class spreads) between victim--absorber pairs at M4 (pre-collapse) and M12 (post-collapse), we classify each collapse class by the relative change $\Delta J = (J_{\text{M12}} - J_{\text{M4}}) / J_{\text{M4}}$: \textit{feature drift} when $\Delta J < -10\%$ and \textit{boundary shift} when $\Delta J > +20\%$. This yields two distinct mechanisms:
 
 \begin{itemize}
   \item \textbf{Feature drift} (9 of 12 classes, including 56, 174, 104, 109): The victim's feature distribution physically shifts toward the absorber in feature space. The Fisher ratio decreases 14--59\% from M4 to M12 (\eg{}, class~109$\to$71: Fisher drops from 0.875 to 0.361). This occurs when application updates cause the victim's traffic patterns to resemble the absorber's.
