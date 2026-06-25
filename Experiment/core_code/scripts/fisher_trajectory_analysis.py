@@ -30,8 +30,11 @@ for period in ["M-2022-4","M-2022-5","M-2022-6","M-2022-7","M-2022-8","M-2022-9"
     with torch.no_grad():
         for batch in tqdm(loader, desc=period, leave=False):
             ppi = batch["ppi"].to(device)
+            flow_stats = batch.get("flow_stats")
+            if flow_stats is not None:
+                flow_stats = flow_stats.to(device)
             labels = batch["label"].numpy()
-            _, features = model(ppi, return_repr=True)
+            _, features = model(ppi, flow_stats, return_repr=True)
             features = features.cpu().numpy()
             for c in set(collapse_classes + absorbers):
                 mask = labels == c
