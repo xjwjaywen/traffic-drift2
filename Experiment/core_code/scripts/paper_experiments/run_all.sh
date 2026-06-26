@@ -154,7 +154,7 @@ for SEED in $(seq 0 $((SEEDS - 1))); do
     OUTDIR="${BASE}/budget_curve/seed_${SEED}"
     EXPECTED_BUDGETS=8  # 50,100,200,500,1000,2000,4000,8000
     if [ -f "${OUTDIR}/results_by_budget.csv" ]; then
-        ACTUAL=$(tail -n +2 "${OUTDIR}/results_by_budget.csv" | grep -c "margin")
+        ACTUAL=$(awk -F, 'NR>1 && $2=="margin"{c++} END{print c+0}' "${OUTDIR}/results_by_budget.csv")
         if [ "${ACTUAL}" -ge "${EXPECTED_BUDGETS}" ]; then
             echo "  Seed ${SEED} complete (${ACTUAL} budgets), skipping"
             continue
