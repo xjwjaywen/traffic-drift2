@@ -385,6 +385,7 @@ The full training loss is:
 
 \textbf{Datasets.}
 We use CESNET-TLS-Year22~\cite{hynek2024cesnet} (178 classes, 12 months, TLS traffic).
+The dataset provides monthly partitions without per-flow timestamps, so all temporal analyses use month-level granularity.
 We train on M-2022-3 and evaluate at M7, M9, M11, and M12.
 
 \textbf{Baselines.}
@@ -548,12 +549,15 @@ Class & Abs. & $n$ & Recall & F1 & Recall & F1 & Recall & F1 & Marg & BADGE & St
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{fig_budget_sweep.pdf}
-\caption{Label efficiency (margin, 5 seeds, error bars). Performance improves steadily; $B{=}1{,}000$ is selected as the cost-benefit operating point, though $B{=}2{,}000$ offers further gains.}
+\includegraphics[width=\columnwidth]{budget_curve.pdf}
+\caption{Label budget vs.\ performance (margin, 5 seeds, error bars). Left: Overall, collapse, and stable macro F1. Right: number of collapsed classes (recall $< 0.1$). The knee at $B{=}2{,}000$ reduces collapsed classes from 12 to 2; beyond $B{=}4{,}000$ gains are marginal.}
 \label{fig:budget_sweep}
 \end{figure}
 
-Figure~\ref{fig:budget_sweep} shows performance as a function of label budget, with steady improvement across the tested range. We select $B{=}1{,}000$ as the operating point: it provides substantial collapse repair ($0.256$ collapse F1, $12{\times}$ over static) while $B{=}2{,}000$ further improves collapse F1 to $0.437$ at double the labeling cost.
+Figure~\ref{fig:budget_sweep} shows performance as a function of label budget $B \in \{0, 50, 100, 200, 500, 1000, 2000, 4000, 8000\}$.
+Collapse F1 improves steadily from 0.028 (static) to $0.609{\pm}0.007$ at $B{=}8{,}000$, while stable-class F1 remains above 0.89 throughout, confirming that repair does not harm non-collapsed classes.
+We recommend $B{=}2{,}000$ as the operating point: it raises collapse F1 to $0.437{\pm}0.004$ (a $16{\times}$ improvement over static) and reduces collapsed classes from 12 to 2, at moderate labeling cost.
+Beyond $B{=}4{,}000$ ($0.550{\pm}0.007$), gains are marginal ($+0.014$ per additional 1{,}000 labels vs.\ $+0.181$ in the 1{,}000$\to$2{,}000 range).
 
 \subsection{Replay Strategy Ablation}
 \label{sec:replay_ablation}
@@ -589,7 +593,7 @@ Its value is \textit{not} in guiding replay class selection---all-class replay i
 \label{sec:cl_baselines}
 
 To situate \ours{} against continual-learning and drift-adaptation methods, we adapt four representative approaches to our collapse-repair setting (Table~\ref{tab:cl_baselines}).
-All methods use the same evaluation protocol (margin selection, $B{=}1{,}000$, strict eval, 5 seeds) and share the same frozen encoder; they differ in how the classification head is updated or what replay data is used.
+All methods use the same evaluation protocol (margin selection, $B{=}1{,}000$, strict eval, 5 seeds). Except for MEMENTO (which fine-tunes the full model), all methods share the same frozen encoder and differ in how the classification head is updated or what replay data is used.
 
 \begin{itemize}
   \item \textbf{MEMENTO}~\cite{cerasuolo2024memento}: Full-model fine-tuning (encoder + head) with KD on all-class replay. MEMENTO's output rectification reduces to a no-op when replaying all classes, so we report the core mechanism only.
@@ -777,14 +781,20 @@ BADGE selection adds ${\sim}$20 minutes for PCA-accelerated k-means++ over gradi
 Both are negligible compared to full model retraining (${\sim}$2 hours).
 
 \textbf{Detection weight sensitivity.}
-We evaluated $\pm$50\% perturbation of each weight (10 configurations, renormalized) plus 20 Dirichlet-random vectors.
-Under $\pm$50\% perturbation, F1 ranges from 0.563 to 0.625 with recall 0.750--0.833.
-Under Dirichlet-random vectors, the minimum recall is 0.50 (F1 = 0.375).
-The default weights achieve the highest F1 (0.625) but are not critical: across all 31 tested configurations, recall remains $\geq$0.50 and F1 $\geq$0.375.
+We compare three weight configurations for the unsupervised collapse detection module: \textit{manual} $[.40,.20,.15,.15,.10]$ (default), \textit{equal} $[.20,.20,.20,.20,.20]$, and \textit{calibrated} weights optimized via grid search on M7+M9 ground-truth labels (supervised historical calibration, tested on held-out M11/M12 only).
+On M12, manual and calibrated both achieve detection F1 of 0.625 (precision 0.50, recall 0.83), while equal weights reach 0.563 (precision 0.45, recall 0.75).
+The calibrated weights $[.30,.00,.00,.40,.30]$ drop Fisher-ratio and margin signals entirely, relying on count change, confidence, and entropy alone---yet match the manual default.
+This confirms the detection module is robust to weight choice; the manual default is a good operating point without requiring labeled calibration data.
 
 \textbf{Calibration baseline.}
 Temperature scaling ($T^*{=}1.11$, learned on validation data) changes zero predictions out of 1.32M test samples, leaving all metrics identical.
 This confirms that class collapse arises from confident misprediction---the model is wrong with high confidence---and cannot be addressed by post-hoc calibration.
+
+\textbf{Collapse threshold sensitivity.}
+We vary the collapse definition threshold $\tau \in \{0.05, 0.10, 0.15\}$ (recall below which a class is considered collapsed) and minimum support $s \in \{50, 100, 200\}$ (5 seeds each).
+The number of identified collapse classes ranges from 10 ($\tau{=}0.05$) to 13 ($\tau{=}0.15$), but \ours{}'s improvement is stable: collapse-class F1 gains $\Delta{=}0.208$--$0.246$ across all configurations.
+Varying support from 50 to 100 has no effect; $s{=}200$ drops one borderline class (38) at $\tau{=}0.10$.
+This confirms that our collapse definition and repair effectiveness are not artifacts of a particular threshold choice.
 
 \textbf{Week-10 data collection change.}
 CESNET-TLS-Year22 has a known distribution shift at week~10 due to a flow exporter update~\cite{hynek2024cesnet}.

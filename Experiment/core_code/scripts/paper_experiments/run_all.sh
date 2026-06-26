@@ -163,7 +163,7 @@ for SEED in $(seq 0 $((SEEDS - 1))); do
         --reference-period "${REF}" \
         --target-period "${TARGET}" \
         --strategies "margin" \
-        --budgets "50,100,200,500,1000,2000" \
+        --budgets "50,100,200,500,1000,2000,4000,8000" \
         --eval-collapse-classes "${EVAL_COLLAPSE}" \
         --seed "${SEED}" \
         --output-dir "${OUTDIR}" \

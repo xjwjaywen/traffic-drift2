@@ -49,10 +49,13 @@ def main():
                         "outputs", "paper_experiments", "budget_curve")
     agg_path = os.path.join(base, "aggregated_mean_std.csv")
 
-    if os.path.exists(agg_path):
+    # Prefer reading from seed CSVs (authoritative) over aggregated CSV
+    by_budget = load_from_seeds(base)
+    if not by_budget and os.path.exists(agg_path):
         by_budget = load_from_aggregated(agg_path)
-    else:
-        by_budget = load_from_seeds(base)
+    if not by_budget:
+        print("ERROR: no data found")
+        sys.exit(1)
 
     budgets_sorted = sorted(by_budget.keys())
     budgets = np.array(budgets_sorted)
