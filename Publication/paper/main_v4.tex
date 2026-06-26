@@ -250,6 +250,16 @@ Pearson correlation between $J_{\text{M12}}$ and \ours{} recall is moderate ($r 
 
 Figure~\ref{fig:tsne} visualizes both mechanisms via t-SNE~\cite{vandermaaten2008tsne} on encoder features for four representative absorber--victim pairs.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{drift_scatter.pdf}
+\caption{Drift mechanism scatter plot for all 12 collapse classes. The x-axis shows the relative Fisher ratio change ($\Delta J$) from M4 to M12; the y-axis shows the margin drop (M4 margin $-$ M12 margin). Feature-drift classes (orange, $\Delta J < -10\%$) cluster in the left half; boundary-shift classes (blue, $\Delta J > +20\%$) appear on the right. All classes suffer large margin drops ($>$1.5), confirming that collapse is accompanied by decision-boundary erosion regardless of mechanism.}
+\label{fig:drift_scatter}
+\end{figure}
+
+Figure~\ref{fig:drift_scatter} provides a complementary view: each collapse class is positioned by its Fisher ratio change (x-axis) and margin drop (y-axis), colored by mechanism type.
+The clear spatial separation between feature-drift and boundary-shift classes validates the $\Delta J$-based classification rule and shows that margin drop alone cannot distinguish the two mechanisms.
+
 \subsection{Why General TTA Methods Fail}
 \label{sec:tta_eval}
 
@@ -547,17 +557,18 @@ Class & Abs. & $n$ & Recall & F1 & Recall & F1 & Recall & F1 & Marg & BADGE & St
 \end{tabular}
 \end{table*}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{budget_curve.pdf}
+\includegraphics[width=\textwidth]{budget_curve.pdf}
 \caption{Label budget vs.\ performance (margin, 5 seeds, error bars). Left: Overall, collapse, and stable macro F1. Right: number of collapsed classes (recall $< 0.1$). The knee at $B{=}2{,}000$ reduces collapsed classes from 12 to 2; beyond $B{=}4{,}000$ gains are marginal.}
 \label{fig:budget_sweep}
-\end{figure}
+\end{figure*}
 
 Figure~\ref{fig:budget_sweep} shows performance as a function of label budget $B \in \{0, 50, 100, 200, 500, 1000, 2000, 4000, 8000\}$.
 Collapse F1 improves steadily from 0.028 (static) to $0.609{\pm}0.007$ at $B{=}8{,}000$, while stable-class F1 remains above 0.89 throughout, confirming that repair does not harm non-collapsed classes.
 We recommend $B{=}2{,}000$ as the operating point: it raises collapse F1 to $0.437{\pm}0.004$ (a $16{\times}$ improvement over static) and reduces collapsed classes from 12 to 2, at moderate labeling cost.
 Beyond $B{=}4{,}000$ ($0.550{\pm}0.007$), gains are marginal ($+0.014$ per additional 1{,}000 labels vs.\ $+0.181$ in the 1{,}000$\to$2{,}000 range).
+All comparative experiments (Tables~\ref{tab:main}--\ref{tab:cl_baselines}) use $B{=}1{,}000$ to maintain a uniform low-budget baseline across methods; the budget curve shows that practitioners with larger annotation budgets can achieve substantially better collapse repair.
 
 \subsection{Replay Strategy Ablation}
 \label{sec:replay_ablation}
