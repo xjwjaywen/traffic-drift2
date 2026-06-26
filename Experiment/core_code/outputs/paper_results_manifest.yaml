@@ -338,25 +338,28 @@ figures:
     notes: "200 labels already improve macro to 0.637; 1000 labels reach 0.673 +/- 0.001 with diminishing returns beyond."
 
   quicext25_generalization:
-    description: "QUICEXT-25 generalization (§6.7): BADGE and margin with proto_all replay, 5 seeds"
-    source_file: "care_quicext25_canonical/aggregated_mean_std.csv"
-    collapse_set: "3 QUICEXT-25 collapse classes (21, 23, 25)"
+    description: "QUICEXT-25 cross-protocol validation: BADGE and margin, B=500-4000, 5 seeds"
+    source_file: "quicext25_care_v3/aggregated_mean_std.csv"
+    drift_analysis: "quicext25_drift_analysis/quicext25_drift_analysis.csv"
+    collapse_set: "3 QUICEXT-25 drift-induced collapse classes (17, 23, 25). Class 21 excluded: recall=0.000 at training time, never correctly classified."
+    pairs: "(17,12), (23,12), (25,29)"
+    mechanisms: "17: ambiguous (ΔJ=+6%), 23: feature drift (ΔJ=-25%), 25: ambiguous (ΔJ=-8%)"
     seeds: 5
     regeneration_command: |
-      for STRATEGY in badge margin; do
-        for SEED in 0 1 2 3 4; do
-          python scripts/collapse_active_maintenance_tls22.py \
-            --config configs/eval_quicext25.yaml --checkpoint outputs/quicext25_cnn/best_model.pt \
-            --reference-period M-2024-7 --target-period M-2025-5 \
-            --strategies "${STRATEGY}" --budgets 1000 \
-            --replay-mode proto_all --replay-per-class 5 --target-repeat 2 \
-            --replay-distill-weight 0.5 --distill-temperature 2.0 \
-            --seed "${SEED}" \
-            --output-dir "outputs/care_quicext25_canonical/seed_${SEED}"
-        done
+      for SEED in 0 1 2 3 4; do
+        python scripts/collapse_active_maintenance_tls22.py \
+          --config configs/eval_quicext25.yaml --checkpoint outputs/quicext25_cnn/best_model.pt \
+          --reference-period M-2024-6 --target-period M-2025-5 \
+          --strategies "margin,badge" --budgets "500,1000,2000,4000" \
+          --collapse-classes "17,23,25" --absorber-classes "12,29" \
+          --stable-classes "0,3,4,5,6,7,10,11,12,19,24,26,27,29,30,33,34,37,38,39,40,43" \
+          --eval-collapse-classes "17,23,25" \
+          --seed ${SEED} \
+          --output-dir outputs/quicext25_care_v3/seed_${SEED} \
+          --replay-mode all --replay-per-class 5 --target-repeat 2 --replay-distill-weight 0.5
       done
-      python scripts/aggregate_seeds.py --base-dir outputs/care_quicext25_canonical --num-seeds 5
-    notes: "BADGE@1000 macro .561±.005, margin@1000 .559±.003. Uses proto_all replay, distill_weight=0.5 (same as TLS22), ref=M-2024-7. Supersedes care_quic22_strict/ and earlier KD=1.0 runs."
+      python scripts/aggregate_seeds.py --base-dir outputs/quicext25_care_v3 --num-seeds 5
+    notes: "BADGE@4000: macro .586±.007, collapse .191±.030, stable .805±.004, collapsed 1.2. Supersedes care_quicext25_canonical/ (which used wrong collapse set {21,23,25} and ref=M-2024-7)."
 
   discussion_replay_source:
     description: "Replay source comparison (inline in Discussion): M3 vs M4 vs no-replay"
@@ -456,8 +459,17 @@ superseded:
     replaced_by: "care_quicext25_canonical/"
     reason: "Earlier QUICEXT iteration"
   - path: "eval_quicext25/"
-    replaced_by: "care_quicext25_canonical/"
+    replaced_by: "quicext25_care_v3/"
     reason: "Earlier QUICEXT evaluation"
+  - path: "care_quicext25_canonical/"
+    replaced_by: "quicext25_care_v3/"
+    reason: "Used wrong collapse set {21,23,25} (class 21 never learned), wrong ref period M-2024-7. New v3 uses {17,23,25}, ref=M-2024-6, B up to 4000."
+  - path: "quicext25_budget_explore/"
+    replaced_by: "quicext25_care_v3/"
+    reason: "Exploratory run with wrong TLS22 collapse/absorber class IDs"
+  - path: "quicext25_budget_explore_v2/"
+    replaced_by: "quicext25_care_v3/"
+    reason: "Used 4 collapse classes including class 21 (never learned)"
   - path: "detection_ablation/ablation_summary.json"
     replaced_by: "detection_unified_metrics.json"
     reason: "Used 14-class GT (support>0); paper now uses 12-class GT (support>=50)"
