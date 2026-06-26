@@ -121,8 +121,8 @@ def main():
 
     ref_preds = ref_out["logits"].argmax(dim=1).numpy()
     tgt_preds = tgt_out["logits"].argmax(dim=1).numpy()
-    ref_labels = ref_out["labels"].numpy()
-    tgt_labels = tgt_out["labels"].numpy()
+    ref_labels = np.asarray(ref_out["labels"])
+    tgt_labels = np.asarray(tgt_out["labels"])
 
     # --- Step 1: Identify collapse classes and absorbers ---
     if args.collapse_classes:
@@ -239,7 +239,7 @@ def main():
                 p_loader, _ = proto.make_test_loader(eval_cfg, period)
                 p_out = proto.collect_outputs(model, p_loader, device, desc=f"Timeline {period}")
                 p_preds = p_out["logits"].argmax(dim=1).numpy()
-                p_labels = p_out["labels"].numpy()
+                p_labels = np.asarray(p_out["labels"])
                 period_recalls = {}
                 for victim, _ in pairs:
                     mask = p_labels == victim
