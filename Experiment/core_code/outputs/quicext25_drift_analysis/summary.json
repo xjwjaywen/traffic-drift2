@@ -1,0 +1,36 @@
+{
+  "dataset": "CESNET-QUICEXT-25",
+  "reference_period": "M-2024-6",
+  "target_period": "M-2025-5",
+  "num_classes": 44,
+  "collapse_classes": [
+    17,
+    21,
+    23,
+    25
+  ],
+  "pairs": [
+    [
+      17,
+      12
+    ],
+    [
+      21,
+      12
+    ],
+    [
+      23,
+      12
+    ],
+    [
+      25,
+      29
+    ]
+  ],
+  "mechanisms": {
+    "17": "ambiguous",
+    "21": "feature",
+    "23": "feature",
+    "25": "ambiguous"
+  }
+}
