@@ -5,7 +5,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{xcolor}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,hypertexnames=false]{hyperref}
 \usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{balance}
@@ -280,7 +280,7 @@ These simplifications may underestimate the methods' potential; however, the nea
 When an absorber class confidently captures a victim's predictions, entropy is \textit{low} (the model is confidently wrong), so entropy-based adaptation sees no signal to correct.
 This negative result motivates the shift from unsupervised adaptation to label-efficient targeted repair.
 
-To rule out suboptimal hyperparameters as an explanation, we sweep learning rate $\in\{10^{-5}, 3{\times}10^{-5}, 10^{-4}, 3{\times}10^{-4}, 10^{-3}\}$ (5 configurations per method).
+To rule out suboptimal hyperparameters as an explanation, we sweep five learning rates from $10^{-5}$ to $10^{-3}$ (5 configurations per method).
 The best collapse F1 across all configurations remains below 0.031 for every method (NOTE: 0.030, EATA: 0.028, CoTTA: 0.027, SAR: 0.027, Tent: 0.026), confirming that TTA failure is robust to learning-rate choice.
 Higher learning rates cause Tent to catastrophically degrade (macro-F1 drops from 0.63 to 0.21 at $\text{lr}{=}10^{-3}$).
 
@@ -403,7 +403,8 @@ Main results, ablation, and strategy comparisons are averaged over 5 random seed
 (1)~Overall macro-F1 (all 178 classes);
 (2)~collapse-class macro-F1 (12 classes with recall ${<}0.1$ in the static model at M12);
 (3)~stable-class macro-F1 (20 classes with consistently high recall);
-(4)~number of collapsed classes (recall ${<}0.1$).
+(4)~number of collapsed classes (recall ${<}0.1$);
+(5)~per-class \textit{recovery status}: recovered ($R{\geq}0.30$), partial ($0.05{\leq}R{<}0.30$), or failed ($R{<}0.05$), where $R$ is the best recall across selection strategies.
 
 \textbf{\ours{} configuration.}
 Budget $B{=}1{,}000$, all-class replay with $k{=}5$ per class (890 samples), target repeat factor 2, $\lambda_{\text{KD}}{=}0.5$, $T{=}2.0$, head fine-tuning lr $10^{-3}$, 30 epochs.

@@ -152,9 +152,14 @@ echo ""
 echo "=== Experiment 5: Label Cost-Benefit Curve ==="
 for SEED in $(seq 0 $((SEEDS - 1))); do
     OUTDIR="${BASE}/budget_curve/seed_${SEED}"
+    EXPECTED_BUDGETS=8  # 50,100,200,500,1000,2000,4000,8000
     if [ -f "${OUTDIR}/results_by_budget.csv" ]; then
-        echo "  Seed ${SEED} exists, skipping"
-        continue
+        ACTUAL=$(tail -n +2 "${OUTDIR}/results_by_budget.csv" | grep -c "margin")
+        if [ "${ACTUAL}" -ge "${EXPECTED_BUDGETS}" ]; then
+            echo "  Seed ${SEED} complete (${ACTUAL} budgets), skipping"
+            continue
+        fi
+        echo "  Seed ${SEED} incomplete (${ACTUAL}/${EXPECTED_BUDGETS} budgets), re-running"
     fi
     echo "  Seed ${SEED}..."
     python scripts/collapse_active_maintenance_tls22.py \
