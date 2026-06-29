@@ -601,7 +601,7 @@ All methods use the same evaluation protocol (margin selection, $B{=}1{,}000$, s
   \item \textbf{MEMENTO}~\cite{cerasuolo2024memento}: Full-model fine-tuning (encoder + head) with KD on all-class replay. MEMENTO's output rectification reduces to a no-op when replaying all classes, so we report the core mechanism only.
   \item \textbf{ILETC}~\cite{zhu2023iletc}: A conditional WGAN-GP generates synthetic replay features per class; the head is fine-tuned on target labels + GAN-generated replay without KD.
   \item \textbf{CADE-score}~\cite{yang2021cade}: A contrastive autoencoder computes per-sample drift scores; the top-$B$ highest-scoring samples are selected for labeling instead of margin sampling. Repair uses the same head fine-tuning + replay + KD pipeline as \ours{}.
-  \item \textbf{Expanded head}: The single-layer head (Linear(256, $C$)) is replaced by a two-layer head (Linear(256, 512)$\to$ReLU$\to$Linear(512, $C$)), initialized via a dual-channel decomposition that exactly reproduces the original head's output before fine-tuning.
+  \item \textbf{Expanded head} (inspired by PRIME~\cite{prime2025}): The single-layer head (Linear(256, $C$)) is replaced by a two-layer head (Linear(256, 512)$\to$ReLU$\to$Linear(512, $C$)), initialized via a dual-channel decomposition that exactly reproduces the original head's output before fine-tuning. PRIME targets class-incremental expansion with new classes; our setting is fixed-class collapse repair, so we isolate its capacity-expansion mechanism as a controlled comparison.
 \end{itemize}
 
 \begin{table}[t]
