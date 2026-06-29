@@ -139,7 +139,9 @@ The goal of collapse-aware repair is: given a small label budget $B \ll |\mathca
 \subsection{Experimental Setup}
 \label{sec:setup_analysis}
 
-We use the CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, which contains 507.7M TLS flows across 12 months of 2022 from a university network.
+Most public encrypted-traffic datasets are static snapshots without temporal partitions, making them unsuitable for studying concept drift over time.
+CESNET-TLS-Year22~\cite{hynek2024cesnet} is one of the few datasets that provides month-level temporal splits spanning an entire year, which is essential for our longitudinal collapse analysis.
+It contains 507.7M TLS flows across 12 months of 2022 from a university network.
 We use the \texttt{size=S} split provided by the CESNET DataZoo API, yielding approximately 330K test samples per monthly period across 178 application classes.
 Each flow is represented by Per-Packet Information (PPI): packet sizes, directions, and inter-packet times for the first 30 packets.
 
