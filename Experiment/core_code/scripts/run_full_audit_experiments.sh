@@ -24,8 +24,9 @@ apply_fixes() {
     echo "=========================================="
     echo "Phase 0: Applying code fixes"
     echo "=========================================="
-    python scripts/apply_audit_fixes.py
-    echo "Done. All fixes applied."
+    # LEGACY: script removed — apply_audit_fixes.py no longer exists
+    # python scripts/apply_audit_fixes.py
+    echo "Skipped. (apply_audit_fixes.py removed)"
     echo ""
 }
 

@@ -193,10 +193,11 @@ python evaluate_tta.py \
 #     --save-dir "$ANALYSIS_DIR/figures/"
 
 echo ""
-echo ">>> Step 8c: Generating LaTeX tables..."
-python "$ANALYSIS_DIR/make_paper_tables.py" \
-    --outputs-dir outputs/ \
-    --save-dir "$ANALYSIS_DIR/tables/"
+# LEGACY: script removed — make_paper_tables.py is from an old pipeline
+# echo ">>> Step 8c: Generating LaTeX tables..."
+# python "$ANALYSIS_DIR/make_paper_tables.py" \
+#     --outputs-dir outputs/ \
+#     --save-dir "$ANALYSIS_DIR/tables/"
 
 # ============================================================
 # Done

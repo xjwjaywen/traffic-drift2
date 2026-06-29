@@ -481,12 +481,12 @@ FT+Rpl & \checkmark & \checkmark & & .659$\pm$.003 & .236$\pm$.010 & .854$\pm$.0
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{fig_ablation_bar.pdf}
+\includegraphics[width=\textwidth]{fig_ablation_bar.pdf}
 \caption{Component ablation visualization. Full \ours{} (rightmost) achieves the best trade-off between collapse repair (red) and stable-class preservation (green).}
 \label{fig:ablation_bar}
-\end{figure}
+\end{figure*}
 
 The table separates into three blocks.
 \textbf{Without target labels} (Replay only, Rpl+KD): neither component alone can repair collapse---collapse F1 stays below .05---confirming that labeled target data is essential.
@@ -504,12 +504,12 @@ Each component serves a distinct role: target labels provide the repair signal, 
 \subsection{Selection Strategy Comparison}
 \label{sec:al_baselines}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{fig_strategy_comparison.pdf}
+\includegraphics[width=\textwidth]{fig_strategy_comparison.pdf}
 \caption{Selection strategy comparison. Margin and BADGE consistently outperform entropy and coreset, which fall below the static baseline.}
 \label{fig:strategy_comparison}
-\end{figure}
+\end{figure*}
 
 Margin sampling targets samples where the top-two predictions are close, naturally concentrating on absorber--victim boundaries.
 BADGE~\cite{ash2020badge} achieves the highest collapse F1 ($0.333{\pm}0.040$)---30\% above margin ($0.256{\pm}0.009$)---and macro-F1 ($0.700{\pm}0.003$ vs.\ $0.686{\pm}0.001$).

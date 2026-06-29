@@ -19,7 +19,7 @@ Most tables and figures can be verified by reading the canonical CSVs directly:
 | TTA LR sweep (inline) | `outputs/tta_hyperparam_sweep/sweep_summary.csv` |
 | M3 vs M4 replay (inline) | `outputs/m3_vs_m4_replay_comparison.csv` |
 | Label budget coverage (inline) | `outputs/label_budget_perclass_coverage.csv` |
-| QUICEXT-25 (§6.7) | `outputs/quicext25_care_v3/aggregated_mean_std.csv` |
+| QUICEXT-25 (not in current paper; data retained for future use) | `outputs/quicext25_care_v3/aggregated_mean_std.csv` |
 
 ## Re-running experiments (GPU + dataset required)
 
