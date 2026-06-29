@@ -65,7 +65,7 @@ All `aggregated_mean_std.csv` use sample std (ddof=1) via `scripts/aggregate_see
 - `al_baselines_strict/` — superseded by `unified_al_baselines/` (unified pipeline, all selectors use same replay+KD)
 - `badge_5seeds_strict/` — superseded by `badge_allreplay_5seeds/` (all-class replay)
 - `care_quic22_strict/` — superseded by `quicext25_care_v3/` (newer dataset, all-class proto replay)
-- `quicext25_care_v3_seed{0..4}/` — individual seed runs (M-2024-6 ref, M-2025-5 target, auto-discovered 4 classes [17,21,23,25]); aggregated into `quicext25_care_v3/aggregated_mean_std.csv` which uses the paper's 3-class definition {17,23,25}. Class 21 was excluded because it has recall=0.000 at training time (never correctly classified, not drift-induced collapse). Seed summaries report the auto-discovered 4-class set; canonical aggregated (3-class) is authoritative.
+- `quicext25_care_v3/seed_{0..4}/` — exploratory QUICEXT-25 runs retained for future use (not used in current paper). Seed summaries and canonical aggregation use the 3-class set {17,23,25}; class 21 is excluded because it has recall=0.000 at training time and is not drift-induced collapse.
 - `care_quicext25_m2025_5/`, `care_quicext25_seed{1..4}/`, `eval_quicext25/` — earlier QUICEXT iterations, superseded by `quicext25_care_v3/`
 - `detection_ablation/ablation_summary.json` — uses 14-class GT (support>0); paper now uses `detection_unified_metrics.json` with 12-class GT (support≥50)
 - `weight_sensitivity/weight_sensitivity_summary.json` — uses 14-class GT (n_actual_collapsed=14, F1=0.706); paper now uses `detection_unified_metrics.json` weight_sensitivity section with 12-class GT (F1=0.625)
