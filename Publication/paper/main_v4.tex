@@ -32,7 +32,7 @@
 \begin{abstract}
 Deep-learning encrypted traffic classifiers degrade after deployment due to concept drift.
 We identify a previously unstudied failure mode---the \textit{absorber-collapse pattern}---in which a few dominant classes systematically absorb predictions from victim classes, driving them to near-zero recall.
-On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within nine months; five representative test-time adaptation methods all leave collapse-class F1 below 0.03.
+On CESNET-TLS-Year22, 12 of 178 classes collapse below 0.1 recall within nine months; five traffic-adapted TTA variants all leave collapse-class F1 below 0.03.
 We propose \ours{} (\textbf{C}ollapse-\textbf{A}ware \textbf{RE}pair), a label-efficient maintenance framework that monitors per-class collapse risk, selects 1{,}000 informative target samples via pair-agnostic margin or BADGE sampling, and repairs the classification head through few-label fine-tuning, all-class source replay, and knowledge distillation.
 An unsupervised detection module serves as a diagnostic monitor, flagging at-risk classes without labels.
 Under strict evaluation (queried samples excluded, five seeds), \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.333{\pm}0.040$; the lightweight \ours{}-Margin variant reaches $0.686{\pm}0.001$ in under one second.
@@ -66,7 +66,7 @@ Through systematic confusion analysis on the CESNET-TLS-Year22 dataset~\cite{hyn
 Instead, a small number of dominant ``absorber'' classes systematically attract predictions away from ``victim'' classes, causing the victims to collapse to near-zero recall.
 For example, class~56 is misclassified as class~96 (its absorber) at a rate of 25.2\%, while class~163 loses 41.8\% of its predictions to class~46.
 This pattern affects 12 out of 178 classes within nine months, rendering them effectively undetectable.
-Critically, we show that five representative TTA methods---including SAR~\cite{niu2023sar} and NOTE~\cite{gong2022note} under traffic-adapted implementations---produce collapse-class F1 scores below 0.03, offering no improvement over a static baseline.
+Critically, we show that five traffic-adapted TTA variants---including SAR~\cite{niu2023sar} and NOTE~\cite{gong2022note}---produce collapse-class F1 scores below 0.03 under our implementations, offering no improvement over a static baseline.
 
 % P4: Our solution - CARE
 We propose \ours{}, a collapse-aware repair framework with three complementary components:
@@ -86,7 +86,7 @@ A clean component ablation confirms that each ingredient---fine-tuning, replay, 
 Our contributions are:
 \begin{enumerate}
   \item \textbf{Failure mode discovery.} We identify and formalize the \textit{absorber-collapse pattern}---a systematic failure mode where dominant classes absorb victim-class predictions under concept drift, distinct from uniform degradation or class imbalance. Via Fisher discriminant analysis, we characterize two mechanisms---feature drift (9 of 12 classes) and boundary shift (3 of 12)---with per-class quantitative evidence and recovery analysis for all 12 collapse classes (\S\ref{sec:analysis}).
-  \item \textbf{Negative results.} We show that five TTA methods (collapse F1 ${<}0.03$) and two standard active learning strategies (entropy, coreset) all fail on class collapse, establishing it as a distinct problem that existing approaches do not address (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
+  \item \textbf{Negative results.} We show that five traffic-adapted TTA variants (collapse F1 ${<}0.03$) and two standard active learning strategies (entropy, coreset) do not address class collapse under our implementations, establishing it as a distinct problem (\S\ref{sec:tta_eval}, \S\ref{sec:al_baselines}).
   \item \textbf{Collapse-aware evaluation.} We introduce complementary metrics---collapse-class F1, per-class recovery status, stable-class preservation, and strict query exclusion---that reveal failure modes invisible to aggregate macro-F1 (\S\ref{sec:experiments}).
   \item \textbf{Label-efficient maintenance framework.} We propose \ours{}, a validated maintenance protocol combining margin/BADGE selection, all-class replay, head-only fine-tuning, and knowledge distillation. Each component's contribution is isolated via a 7-configuration ablation; an unsupervised detection module (recall $\geq$0.80) serves as a diagnostic monitor (\S\ref{sec:method}, \S\ref{sec:experiments}).
 \end{enumerate}
@@ -446,7 +446,7 @@ Key findings:
 \begin{itemize}
   \item None of the tested TTA methods address class collapse (collapse F1 $\leq$0.030), confirming that unsupervised adaptation cannot break confident absorber--victim confusion under our traffic-adapted implementations.
   \item Entropy and coreset selection are counterproductive: even with the same all-class replay + KD pipeline, entropy (0.628) and coreset (0.634) barely match the static baseline (0.629) because they select globally uncertain samples dominated by high-traffic classes, systematically avoiding the collapse boundary.
-  \item \ours{}-BADGE achieves the best results: macro-F1 of $0.700{\pm}0.003$ ($+$11.3\%) and collapse F1 of $0.333{\pm}0.040$ ($12{\times}$ improvement). Significance: BADGE$>$margin ($p{=}0.001$), margin$>$random ($p{<}0.001$).
+  \item \ours{}-BADGE achieves the best results: macro-F1 of $0.700{\pm}0.003$ ($+$11.3\%) and collapse F1 of $0.333{\pm}0.040$ ($12{\times}$ improvement). Paired $t$-tests on macro-F1 across 5 seeds: BADGE${>}$margin ($p{=}0.001$), margin${>}$random ($p{<}0.001$); Wilcoxon tests are not significant at $n{=}5$ (minimum attainable $p{=}0.0625$).
   \item \ours{}-Margin is a lightweight alternative ($<$1s selection) with lower variance ($\sigma_{\text{macro}}{=}0.001$ vs.\ 0.003) and strong performance (macro-F1: $0.686{\pm}0.001$).
 \end{itemize}
 
@@ -733,8 +733,10 @@ Prototype replay achieves 98.7\% of real replay's macro-F1 ($0.664{\pm}0.002$ vs
 
 \textbf{Statistical significance.}
 \label{sec:significance}
-Paired $t$-tests (5 seeds) confirm: margin $>$ random ($p{<}0.001$) and BADGE $>$ margin ($p{=}0.001$).
-A retraining audit ($3{\times}3{=}9$ runs) yields training-seed variance $\sigma_{\text{macro}}{=}0.0006$, confirming that absorber-collapse is a data property, not a training artifact.
+Paired $t$-tests on macro-F1 (5 seeds) confirm: margin $>$ random ($p{<}0.001$) and BADGE $>$ margin ($p{=}0.001$).
+With only $n{=}5$ seeds, Wilcoxon signed-rank tests cannot reach $p{<}0.05$ (minimum attainable $p{=}0.0625$), so we rely on the parametric test.
+A retraining audit ($3{\times}3{=}9$ runs) yields static macro-F1 of $0.620{\pm}0.001$ and CARE macro-F1 of $0.667{\pm}0.007$ across training seeds.
+Our primary checkpoint (static $0.629$) benefits from deterministic cuDNN settings used during its original training; the ${\sim}0.009$ gap does not affect CARE's relative improvement, which is consistent across all training seeds.
 
 
 % ============================================================

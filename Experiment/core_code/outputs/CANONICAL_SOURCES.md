@@ -1,6 +1,6 @@
 # Canonical Sources for Paper Tables and Figures
 
-Maps each table/figure in `Publication/paper/main_v3.tex` to its data source.
+Maps each table/figure in `Publication/paper/main_v4.tex` to its data source.
 All paths relative to `Experiment/core_code/`.
 
 ## Tables
@@ -29,7 +29,7 @@ All paths relative to `Experiment/core_code/`.
 | TTA hyperparam sweep | `outputs/tta_hyperparam_sweep/sweep_summary.csv` | 1 |
 | Training seed audit | `outputs/multiseed_audit/{trainseed0,trainseed1,trainseed2}/care/` | 3×3 |
 | FT depth (Discussion) | `outputs/full_ft_baseline_fair_kd/seed_{0..4}/results_by_budget.csv` | 5 |
-| QUICEXT-25 generalization (§6.7) | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` | 5 |
+| QUICEXT-25 generalization (§6.7) | `outputs/quicext25_care_v3/aggregated_mean_std.csv` | 5 |
 | Significance tests | `outputs/significance_tests/significance_tests.json` | — |
 | M3 vs M4 replay | `outputs/m3_vs_m4_replay_comparison.csv` | 5 |
 | Label budget per-class coverage | `outputs/label_budget_perclass_coverage.csv` | 5 |
@@ -42,12 +42,12 @@ All paths relative to `Experiment/core_code/`.
 | Fig 2 | `fig_tsne_multi_pair_m12.pdf` | `outputs/visualizations/` (t-SNE of victim-absorber pairs at M12) |
 | Fig 3 | `fig_ablation_bar.pdf` | `outputs/unified_ablation/*/aggregated_mean_std.csv` |
 | Fig 4 | `fig_strategy_comparison.pdf` | `outputs/unified_al_baselines/` + `outputs/badge_allreplay_5seeds/` |
-| Fig 5 | `fig_budget_sweep.pdf` | `outputs/budget_sweep_allreplay/aggregated_mean_std.csv` |
+| Fig 5 | `fig_budget_sweep.pdf` | `outputs/paper_experiments/budget_curve/aggregated_mean_std.csv` |
 
 ## Collapse Set Definitions
 
 - **12 classes** (main evaluation + detection ground truth): recall < 0.1 AND support ≥ 50 at M-2022-12
-- **3 classes** (QUICEXT-25): classes 21, 23, 25 (recall < 0.1 at M-2025-5)
+- **3 classes** (QUICEXT-25): classes 17, 23, 25 (recall < 0.1 at M-2025-5)
 - **Auto-discovered**: per-period probe-based discovery (class counts vary by period)
 
 ## Aggregation
@@ -64,9 +64,9 @@ All `aggregated_mean_std.csv` use sample std (ddof=1) via `scripts/aggregate_see
 - `ablation_strict/` — superseded by `unified_ablation/` (clean single-variable ablation with all-class replay)
 - `al_baselines_strict/` — superseded by `unified_al_baselines/` (unified pipeline, all selectors use same replay+KD)
 - `badge_5seeds_strict/` — superseded by `badge_allreplay_5seeds/` (all-class replay)
-- `care_quic22_strict/` — superseded by `care_quicext25_canonical/` (newer dataset, all-class proto replay)
-- `care_quicext25_canonical_seed{0..4}/` — individual seed runs (M-2024-6 ref, M-2025-5 target, 4 classes [17,21,23,25]); aggregated into `care_quicext25_canonical/aggregated_mean_std.csv` which uses the paper's 3-class definition. Seed summaries use auto-discovered 4-class set; canonical aggregated is authoritative.
-- `care_quicext25_m2025_5/`, `care_quicext25_seed{1..4}/`, `eval_quicext25/` — earlier QUICEXT iterations, superseded by `care_quicext25_canonical/`
+- `care_quic22_strict/` — superseded by `quicext25_care_v3/` (newer dataset, all-class proto replay)
+- `quicext25_care_v3_seed{0..4}/` — individual seed runs (M-2024-6 ref, M-2025-5 target, 4 classes [17,21,23,25]); aggregated into `quicext25_care_v3/aggregated_mean_std.csv` which uses the paper's 3-class definition. Seed summaries use auto-discovered 4-class set; canonical aggregated is authoritative.
+- `care_quicext25_m2025_5/`, `care_quicext25_seed{1..4}/`, `eval_quicext25/` — earlier QUICEXT iterations, superseded by `quicext25_care_v3/`
 - `detection_ablation/ablation_summary.json` — uses 14-class GT (support>0); paper now uses `detection_unified_metrics.json` with 12-class GT (support≥50)
 - `weight_sensitivity/weight_sensitivity_summary.json` — uses 14-class GT (n_actual_collapsed=14, F1=0.706); paper now uses `detection_unified_metrics.json` weight_sensitivity section with 12-class GT (F1=0.625)
 - `full_ft_baseline/` — superseded by `full_ft_baseline_fair_kd/` (KD only on replay, fair comparison with head-only)

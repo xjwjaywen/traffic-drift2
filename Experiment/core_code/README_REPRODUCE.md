@@ -1,6 +1,6 @@
 # Reproducing Paper Results
 
-All paper results in `Publication/paper/main_v3.tex` trace back to canonical CSV/JSON files
+All paper results in `Publication/paper/main_v4.tex` trace back to canonical CSV/JSON files
 in `outputs/`. The authoritative mapping is `outputs/CANONICAL_SOURCES.md`.
 
 ## Pre-computed results (no GPU needed)
@@ -19,7 +19,7 @@ Most tables and figures can be verified by reading the canonical CSVs directly:
 | TTA LR sweep (inline) | `outputs/tta_hyperparam_sweep/sweep_summary.csv` |
 | M3 vs M4 replay (inline) | `outputs/m3_vs_m4_replay_comparison.csv` |
 | Label budget coverage (inline) | `outputs/label_budget_perclass_coverage.csv` |
-| QUICEXT-25 (§6.7) | `outputs/care_quicext25_canonical/aggregated_mean_std.csv` |
+| QUICEXT-25 (§6.7) | `outputs/quicext25_care_v3/aggregated_mean_std.csv` |
 
 ## Re-running experiments (GPU + dataset required)
 
@@ -37,7 +37,7 @@ bash scripts/run_tta_hyperparam_sweep.sh
 
 # 4. QUICEXT-25 generalization
 # Requires CESNET-QUICEXT-25 dataset; set data_dir in configs/eval_quicext25.yaml
-# See outputs/care_quicext25_canonical/summary.json for config
+# See outputs/quicext25_care_v3/summary.json for config
 ```
 
 ## Collapse set definition

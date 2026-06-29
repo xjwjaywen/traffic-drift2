@@ -120,40 +120,40 @@ python evaluate_tta.py \
 # ============================================================
 # Step 5: Ablation studies
 # ============================================================
-echo ""
-echo ">>> Step 5a: Ablation A1 — SSL task selection..."
-python run_ablation.py \
-    --ablation-config configs/ablation_ssl_tasks.yaml \
-    --checkpoint outputs/quic22_cnn/best_model.pt \
-    --output-dir outputs/ablations/ssl_tasks
+# LEGACY: script removed — run_ablation.py no longer exists
+# echo ">>> Step 5a: Ablation A1 — SSL task selection..."
+# python run_ablation.py \
+#     --ablation-config configs/ablation_ssl_tasks.yaml \
+#     --checkpoint outputs/quic22_cnn/best_model.pt \
+#     --output-dir outputs/ablations/ssl_tasks
 
-echo ""
-echo ">>> Step 5b: Ablation A2 — Mask ratio..."
-python run_ablation.py \
-    --ablation-config configs/ablation_mask_ratio.yaml \
-    --checkpoint outputs/quic22_cnn/best_model.pt \
-    --output-dir outputs/ablations/mask_ratio
+# LEGACY: script removed
+# echo ">>> Step 5b: Ablation A2 — Mask ratio..."
+# python run_ablation.py \
+#     --ablation-config configs/ablation_mask_ratio.yaml \
+#     --checkpoint outputs/quic22_cnn/best_model.pt \
+#     --output-dir outputs/ablations/mask_ratio
 
-echo ""
-echo ">>> Step 5c: Ablation A3 — Adaptation depth..."
-python run_ablation.py \
-    --ablation-config configs/ablation_adapt_depth.yaml \
-    --checkpoint outputs/quic22_cnn/best_model.pt \
-    --output-dir outputs/ablations/adapt_depth
+# LEGACY: script removed
+# echo ">>> Step 5c: Ablation A3 — Adaptation depth..."
+# python run_ablation.py \
+#     --ablation-config configs/ablation_adapt_depth.yaml \
+#     --checkpoint outputs/quic22_cnn/best_model.pt \
+#     --output-dir outputs/ablations/adapt_depth
 
-echo ""
-echo ">>> Step 5d: Ablation A5 — Anti-forgetting mechanisms..."
-python run_ablation.py \
-    --ablation-config configs/ablation_anti_forgetting.yaml \
-    --checkpoint outputs/quic22_cnn/best_model.pt \
-    --output-dir outputs/ablations/anti_forgetting
+# LEGACY: script removed
+# echo ">>> Step 5d: Ablation A5 — Anti-forgetting mechanisms..."
+# python run_ablation.py \
+#     --ablation-config configs/ablation_anti_forgetting.yaml \
+#     --checkpoint outputs/quic22_cnn/best_model.pt \
+#     --output-dir outputs/ablations/anti_forgetting
 
-echo ""
-echo ">>> Step 5e: Ablation A8 — Normalization type..."
-python run_ablation.py \
-    --ablation-config configs/ablation_norm_type.yaml \
-    --checkpoint outputs/quic22_cnn/best_model.pt \
-    --output-dir outputs/ablations/norm_type
+# LEGACY: script removed
+# echo ">>> Step 5e: Ablation A8 — Normalization type..."
+# python run_ablation.py \
+#     --ablation-config configs/ablation_norm_type.yaml \
+#     --checkpoint outputs/quic22_cnn/best_model.pt \
+#     --output-dir outputs/ablations/norm_type
 
 # ============================================================
 # Step 6: Long-term evaluation on TLS-Year22 (9 months)
@@ -180,17 +180,17 @@ python evaluate_tta.py \
 # ============================================================
 # Step 8: Aggregate results + figures + LaTeX tables
 # ============================================================
-echo ""
-echo ">>> Step 8: Aggregating results..."
-python "$ANALYSIS_DIR/aggregate_results.py" \
-    --output-dir outputs/ \
-    --save-dir "$ANALYSIS_DIR/results/"
+# LEGACY: script removed — aggregate_results.py no longer exists
+# echo ">>> Step 8: Aggregating results..."
+# python "$ANALYSIS_DIR/aggregate_results.py" \
+#     --output-dir outputs/ \
+#     --save-dir "$ANALYSIS_DIR/results/"
 
-echo ""
-echo ">>> Step 8b: Generating figures..."
-python "$ANALYSIS_DIR/visualize_results.py" \
-    --outputs-dir outputs/ \
-    --save-dir "$ANALYSIS_DIR/figures/"
+# LEGACY: script removed — visualize_results.py no longer exists
+# echo ">>> Step 8b: Generating figures..."
+# python "$ANALYSIS_DIR/visualize_results.py" \
+#     --outputs-dir outputs/ \
+#     --save-dir "$ANALYSIS_DIR/figures/"
 
 echo ""
 echo ">>> Step 8c: Generating LaTeX tables..."
