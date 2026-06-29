@@ -736,7 +736,7 @@ Prototype replay achieves 98.7\% of real replay's macro-F1 ($0.664{\pm}0.002$ vs
 Paired $t$-tests on macro-F1 (5 seeds) confirm: margin $>$ random ($p{<}0.001$) and BADGE $>$ margin ($p{=}0.001$).
 With only $n{=}5$ seeds, Wilcoxon signed-rank tests cannot reach $p{<}0.05$ (minimum attainable $p{=}0.0625$), so we rely on the parametric test.
 A retraining audit ($3{\times}3{=}9$ runs) yields static macro-F1 of $0.620{\pm}0.001$ and CARE macro-F1 of $0.667{\pm}0.007$ across training seeds.
-Our primary checkpoint (static $0.629$) benefits from deterministic cuDNN settings used during its original training; the ${\sim}0.009$ gap does not affect CARE's relative improvement, which is consistent across all training seeds.
+Our primary checkpoint (static $0.629$, best epoch 27/30, validation F1 $0.892$) was the first training run with default seed; deterministic cuDNN settings explain the ${\sim}0.009$ gap from the audit mean. CARE's relative improvement is consistent across all training seeds.
 
 
 % ============================================================
