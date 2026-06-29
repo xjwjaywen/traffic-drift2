@@ -35,9 +35,9 @@ bash scripts/run_v3_unified_experiments.sh
 # 3. TTA baselines (LR sweep)
 bash scripts/run_tta_hyperparam_sweep.sh
 
-# 4. QUICEXT-25 generalization
+# 4. QUICEXT-25 (not in current paper; data retained for future use)
 # Requires CESNET-QUICEXT-25 dataset; set data_dir in configs/eval_quicext25.yaml
-# See outputs/quicext25_care_v3/summary.json for config
+# Results in outputs/quicext25_care_v3/seed_*/summary.json
 ```
 
 ## Collapse set definition

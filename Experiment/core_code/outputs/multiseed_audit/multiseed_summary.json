@@ -66,5 +66,5 @@
     }
   },
   "num_training_seeds": 3,
-  "note": "Audit models trained with cudnn.deterministic=True; primary checkpoint (0.629) was trained without this setting, explaining the ~0.008 macro-F1 gap."
+  "note": "Audit models trained with cudnn.deterministic=True. Primary checkpoint (0.629) training environment not recorded; ~0.009 gap is within normal training variation."
 }

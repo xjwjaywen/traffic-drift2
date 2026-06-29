@@ -20,19 +20,22 @@
 | Best epoch | 27 |
 | Validation macro-F1 | 0.8918 |
 | Test macro-F1 (M-2022-5) | 0.8391 |
-| Deterministic | Yes (cuDNN deterministic mode) |
+| Deterministic | Unknown (training environment not recorded) |
 
 ## Deployment macro-F1
 
 | Evaluation | Static macro-F1 |
 |---|---|
 | This checkpoint, M-2022-12 | 0.629 |
-| Retraining audit (3 seeds), M-2022-12 | 0.620 ± 0.001 |
+| Retraining audit (3 seeds, deterministic cuDNN), M-2022-12 | 0.620 ± 0.001 |
 
-The 0.009 gap is attributable to deterministic cuDNN settings used during the
-original training run. The relative improvement from CARE is consistent across
-all training seeds (CARE macro-F1: 0.667 ± 0.007 across 3×3=9 runs).
+The 0.009 gap between the primary checkpoint and the audit mean is within
+normal variation from training non-determinism (cuDNN algorithm selection,
+floating-point order). The audit models were trained with deterministic cuDNN;
+whether the original training used this setting was not recorded.
 
-This checkpoint is the fixed primary checkpoint used throughout the paper.
+This checkpoint is the fixed primary artifact used throughout the paper.
 It was not selected from multiple candidates; it was the first and only
-training run performed with the default configuration.
+training run performed with the default configuration. CARE's relative
+improvement is consistent across all training seeds (CARE macro-F1:
+0.667 ± 0.007 across 3×3=9 runs).

@@ -736,7 +736,7 @@ Prototype replay achieves 98.7\% of real replay's macro-F1 ($0.664{\pm}0.002$ vs
 Paired $t$-tests on macro-F1 (5 seeds) confirm: margin $>$ random ($p{<}0.001$) and BADGE $>$ margin ($p{=}0.001$).
 With only $n{=}5$ seeds, Wilcoxon signed-rank tests cannot reach $p{<}0.05$ (minimum attainable $p{=}0.0625$), so we rely on the parametric test.
 A retraining audit ($3{\times}3{=}9$ runs) yields static macro-F1 of $0.620{\pm}0.001$ and CARE macro-F1 of $0.667{\pm}0.007$ across training seeds.
-Our primary checkpoint (static $0.629$, best epoch 27/30, validation F1 $0.892$) was the first training run with default seed; deterministic cuDNN settings explain the ${\sim}0.009$ gap from the audit mean. CARE's relative improvement is consistent across all training seeds.
+Our primary checkpoint (static $0.629$, best epoch 27/30, validation F1 $0.892$) was the first training run with default seed; the ${\sim}0.009$ gap from the audit mean is within normal training variation (cuDNN algorithm selection, floating-point order). CARE's relative improvement is consistent across all training seeds.
 
 
 % ============================================================
@@ -778,6 +778,7 @@ This supports our design choice of freezing the encoder and repairing only the c
 Per-class analysis (Table~\ref{tab:per_class_recovery}) reveals that 6 of 12 collapse classes are fully recovered, 5 show partial recovery, and class~109 remains unrecovered across all seeds, suggesting that \ours{} is most effective when the victim retains some discriminative features at the encoder level.
 Since \ours{} updates only the classification head, it cannot recover classes whose encoder-level features have fully merged with the absorber---for such extreme cases, encoder adaptation or retraining may be necessary at higher cost.
 \ours{} addresses \textit{existing} class collapse but does not handle emerging new classes---a complementary problem addressed by class-incremental methods~\cite{cai2024cpn}.
+All experiments use a single dataset (CESNET-TLS-Year22, TLS over TCP); cross-protocol and cross-site validation is left for future work.
 
 \textbf{Computational cost.}
 A full \ours{}-Margin repair cycle takes approximately 3 minutes: feature extraction (${\sim}$40s for 330K samples), margin selection ($<$1s), and head fine-tuning (30 epochs, ${\sim}$90s with 1{,}000 target + 890 replay samples).

@@ -42,7 +42,7 @@ All paths relative to `Experiment/core_code/`.
 | Fig 2 | `fig_tsne_multi_pair_m12.pdf` | `outputs/visualizations/` (t-SNE of victim-absorber pairs at M12) |
 | Fig 3 | `fig_ablation_bar.pdf` | `outputs/unified_ablation/*/aggregated_mean_std.csv` |
 | Fig 4 | `fig_strategy_comparison.pdf` | `outputs/unified_al_baselines/` + `outputs/badge_allreplay_5seeds/` |
-| Fig 5 | `fig_budget_sweep.pdf` | `outputs/paper_experiments/budget_curve/aggregated_mean_std.csv` |
+| Fig 5 | `budget_curve.pdf` | `outputs/paper_experiments/budget_curve/aggregated_mean_std.csv` |
 
 ## Collapse Set Definitions
 
