@@ -1,0 +1,6 @@
+method,strategy,budget,n_seeds,strict_overall_macro_f1_mean,strict_overall_macro_f1_std,strict_bad_macro_f1_mean,strict_bad_macro_f1_std,strict_stable_macro_f1_mean,strict_stable_macro_f1_std,strict_collapsed_count_mean,strict_collapsed_count_std,full_overall_macro_f1_mean,full_overall_macro_f1_std,full_bad_macro_f1_mean,full_bad_macro_f1_std,full_stable_macro_f1_mean,full_stable_macro_f1_std,full_collapsed_count_mean,full_collapsed_count_std
+self_evolving+replay+kd,confidence>=0.9,0,5,,,,,,,,,0.6356,0.0005,0.0240,0.0013,0.9044,0.0006,12.0000,0.0000
+self_evolving+replay+kd,confidence>=0.95,0,5,,,,,,,,,0.6345,0.0011,0.0250,0.0017,0.9034,0.0015,12.0000,0.0000
+self_evolving+replay+kd,confidence>=0.99,0,5,,,,,,,,,0.6292,0.0007,0.0271,0.0008,0.9029,0.0012,12.0000,0.0000
+self_evolving+replay+kd,confidence>=0.997,0,5,,,,,,,,,0.6259,0.0011,0.0275,0.0007,0.9022,0.0007,12.0000,0.0000
+static,,0,5,,,,,,,,,0.6286,0.0000,0.0276,0.0000,0.9028,0.0000,12.0000,0.0000

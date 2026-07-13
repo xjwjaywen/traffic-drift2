@@ -1,0 +1,15 @@
+{
+  "target_period": "M-2022-12",
+  "reference_period": "M-2022-4",
+  "num_classes": 178,
+  "seed": 3,
+  "thresholds": [
+    0.9,
+    0.95,
+    0.99,
+    0.997
+  ],
+  "replay_mode": "all",
+  "replay_per_class": 5,
+  "replay_distill_weight": 0.5
+}
