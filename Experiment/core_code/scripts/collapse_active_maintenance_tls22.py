@@ -656,6 +656,14 @@ def main():
     parser.add_argument("--min-prototype-support", type=int, default=1)
     parser.add_argument("--collapse-recall-threshold", type=float, default=0.1)
     parser.add_argument("--severe-recall-threshold", type=float, default=0.01)
+    parser.add_argument(
+        "--holdout-ratio",
+        type=float,
+        default=0.0,
+        help="Fraction of target data reserved as holdout for evaluation. "
+             "0.0 (default) = no holdout (backward compatible). "
+             "Set to 0.2 for fair comparison with self-evolving baseline.",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -763,6 +771,7 @@ def main():
     labels = outputs["labels"]
     all_ppi = outputs.get("ppi")
     static_preds = logits.argmax(dim=1).numpy()
+    n_total = len(labels)
     nearest_distance, nearest_proto = prototype_distance_signals(features, prototypes, valid_mask)
 
     ref_preds = ref_outputs["logits"].argmax(dim=1)
@@ -770,6 +779,34 @@ def main():
     for c in range(num_classes):
         ref_pred_counts[c] = (ref_preds == c).sum()
 
+    # --- Optional holdout split ---
+    use_holdout = args.holdout_ratio > 0.0
+    if use_holdout:
+        rng = np.random.RandomState(args.seed + 42)
+        perm = rng.permutation(n_total)
+        n_holdout = max(1, int(n_total * args.holdout_ratio))
+        holdout_split = np.sort(perm[:n_holdout])
+        train_split = np.sort(perm[n_holdout:])
+        # Train-only views for active selection
+        sel_logits = logits[train_split]
+        sel_labels = labels[train_split]
+        sel_features = features[train_split]
+        sel_nearest_distance, sel_nearest_proto = prototype_distance_signals(
+            sel_features, prototypes, valid_mask
+        )
+        holdout_labels = labels[holdout_split]
+        holdout_features = features[holdout_split]
+        holdout_ppi = all_ppi[holdout_split] if all_ppi is not None else None
+        print(f"Holdout split: {len(train_split)} train, {n_holdout} holdout "
+              f"(ratio={args.holdout_ratio})")
+    else:
+        sel_logits = logits
+        sel_labels = labels
+        sel_features = features
+        sel_nearest_distance = nearest_distance
+        sel_nearest_proto = nearest_proto
+        train_split = None
+        holdout_split = None
 
     rows = []
     per_class_rows = []
@@ -778,7 +815,7 @@ def main():
     static_summary, static_report = summarize(
         labels, static_preds, eval_collapse_classes, stable_classes, thresholds
     )
-    rows.append({
+    static_row = {
         "method": "static",
         "strategy": "",
         "budget": 0,
@@ -792,25 +829,37 @@ def main():
         "selected_absorber_preds": 0,
         **{f"strict_{k}": v for k, v in static_summary.items()},
         **{f"full_{k}": v for k, v in static_summary.items()},
-    })
+    }
+    if use_holdout:
+        holdout_static_summary, _ = summarize(
+            holdout_labels, static_preds[holdout_split],
+            eval_collapse_classes, stable_classes, thresholds
+        )
+        static_row.update({f"holdout_{k}": v for k, v in holdout_static_summary.items()})
+    rows.append(static_row)
 
     for strategy in strategies:
         for budget in budgets:
-            idx = select_indices(
+            sel_idx = select_indices(
                 strategy,
-                logits,
-                labels,
+                sel_logits,
+                sel_labels,
                 budget,
                 num_classes,
                 collapse_classes,
                 absorber_classes,
                 args.seed,
-                nearest_distance=nearest_distance,
-                nearest_proto=nearest_proto,
-                features=features,
+                nearest_distance=sel_nearest_distance,
+                nearest_proto=sel_nearest_proto,
+                features=sel_features,
                 prototypes=prototypes,
                 ref_pred_counts=ref_pred_counts,
             )
+            # Map to global indices if using holdout split
+            if train_split is not None:
+                idx = torch.as_tensor(train_split[sel_idx.numpy()], dtype=torch.long)
+            else:
+                idx = sel_idx
             selected_labels = labels[idx.numpy()]
             selected_preds = static_preds[idx.numpy()]
             selected_distance = nearest_distance[idx].numpy()
@@ -861,6 +910,7 @@ def main():
                     is_replay=full_replay_mask,
                 )
                 preds = predict_full_model(ft_model, all_ppi, device)
+                holdout_preds_full = predict_full_model(ft_model, holdout_ppi, device) if use_holdout else None
                 del ft_model
             else:
                 head = fit_head(
@@ -879,6 +929,7 @@ def main():
                     seed=args.seed,
                 )
                 preds = predict_head(head, features, device)
+                holdout_preds_full = predict_head(head, holdout_features, device) if use_holdout else None
 
             # --- Strict evaluation: exclude queried samples ---
             eval_mask = np.ones(len(labels), dtype=bool)
@@ -895,7 +946,7 @@ def main():
             selected_collapse = int(np.isin(selected_labels, collapse_classes).sum())
             selected_absorber = int(np.isin(selected_preds, absorber_classes).sum())
             method_label = "active_full_ft" if args.ft_depth == "full" else "active_head_ft"
-            rows.append({
+            row_data = {
                 "method": method_label,
                 "strategy": strategy,
                 "budget": int(idx.numel()),
@@ -911,11 +962,18 @@ def main():
                 "selected_mean_proto_distance": float(selected_distance.mean()) if selected_distance.size else "",
                 **{f"strict_{k}": v for k, v in strict_summary.items()},
                 **{f"full_{k}": v for k, v in full_summary.items()},
-            })
+            }
+            if use_holdout and holdout_preds_full is not None:
+                holdout_summary, holdout_report = summarize(
+                    holdout_labels, holdout_preds_full,
+                    eval_collapse_classes, stable_classes, thresholds
+                )
+                row_data.update({f"holdout_{k}": v for k, v in holdout_summary.items()})
+            rows.append(row_data)
             for c in eval_collapse_classes:
                 s_item = strict_report.get(str(c), {})
                 f_item = full_report.get(str(c), {})
-                per_class_rows.append({
+                pc_row = {
                     "strategy": strategy,
                     "budget": int(idx.numel()),
                     "class_id": c,
@@ -925,7 +983,15 @@ def main():
                     "full_support": int(f_item.get("support", 0)),
                     "full_recall": float(f_item.get("recall", 0.0)),
                     "full_f1": float(f_item.get("f1-score", 0.0)),
-                })
+                }
+                if use_holdout:
+                    h_item = holdout_report.get(str(c), {})
+                    pc_row.update({
+                        "holdout_support": int(h_item.get("support", 0)),
+                        "holdout_recall": float(h_item.get("recall", 0.0)),
+                        "holdout_f1": float(h_item.get("f1-score", 0.0)),
+                    })
+                per_class_rows.append(pc_row)
             for c in range(num_classes):
                 count = int((selected_labels == c).sum())
                 if count:
@@ -976,6 +1042,7 @@ def main():
         "min_prototype_support": args.min_prototype_support,
         "num_valid_prototypes": int(valid_mask.sum()),
         "ft_depth": args.ft_depth,
+        "holdout_ratio": args.holdout_ratio,
     }
     with open(os.path.join(args.output_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
