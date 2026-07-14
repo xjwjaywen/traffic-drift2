@@ -25,7 +25,7 @@ echo "=== 1. Pure self-evolving (full FFT, no replay) ==="
 BASE_OUT="outputs/baselines/self_evolving_v2"
 for SEED in 0 1 2 3 4; do
     echo "--- Seed ${SEED} ---"
-    python3 scripts/baselines/self_evolving_baseline.py \
+    python scripts/baselines/self_evolving_baseline.py \
         --config "${CONFIG}" \
         --checkpoint "${CHECKPOINT}" \
         --output-dir "${BASE_OUT}/seed_${SEED}" \
@@ -39,14 +39,14 @@ for SEED in 0 1 2 3 4; do
         --replay-mode none
 done
 echo "=== Aggregating seeds ==="
-python3 scripts/aggregate_seeds.py --base-dir "${BASE_OUT}"
+python scripts/aggregate_seeds.py --base-dir "${BASE_OUT}"
 
 echo ""
 echo "=== 2. Self-Evolving + All-Class Replay + KD (full FFT) ==="
 BASE_OUT_RPL="outputs/baselines/self_evolving_replay_kd_v2"
 for SEED in 0 1 2 3 4; do
     echo "--- Seed ${SEED} ---"
-    python3 scripts/baselines/self_evolving_baseline.py \
+    python scripts/baselines/self_evolving_baseline.py \
         --config "${CONFIG}" \
         --checkpoint "${CHECKPOINT}" \
         --output-dir "${BASE_OUT_RPL}/seed_${SEED}" \
@@ -62,14 +62,14 @@ for SEED in 0 1 2 3 4; do
         --replay-distill-weight 0.5
 done
 echo "=== Aggregating replay+kd seeds ==="
-python3 scripts/aggregate_seeds.py --base-dir "${BASE_OUT_RPL}"
+python scripts/aggregate_seeds.py --base-dir "${BASE_OUT_RPL}"
 
 echo ""
 echo "=== 3. Head-only ablation (for comparison with CARE head-only) ==="
 BASE_OUT_HEAD="outputs/baselines/self_evolving_head_v2"
 for SEED in 0 1 2 3 4; do
     echo "--- Seed ${SEED} ---"
-    python3 scripts/baselines/self_evolving_baseline.py \
+    python scripts/baselines/self_evolving_baseline.py \
         --config "${CONFIG}" \
         --checkpoint "${CHECKPOINT}" \
         --output-dir "${BASE_OUT_HEAD}/seed_${SEED}" \
@@ -83,7 +83,7 @@ for SEED in 0 1 2 3 4; do
         --replay-mode none
 done
 echo "=== Aggregating head-only seeds ==="
-python3 scripts/aggregate_seeds.py --base-dir "${BASE_OUT_HEAD}"
+python scripts/aggregate_seeds.py --base-dir "${BASE_OUT_HEAD}"
 
 echo ""
 echo "Done. Results in outputs/baselines/self_evolving_v2/"
