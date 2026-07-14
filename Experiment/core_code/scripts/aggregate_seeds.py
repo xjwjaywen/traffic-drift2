@@ -38,6 +38,8 @@ def aggregate(rows):
         groups[key].append(row)
 
     metrics = [
+        "holdout_overall_macro_f1", "holdout_bad_macro_f1", "holdout_stable_macro_f1",
+        "holdout_collapsed_count",
         "strict_overall_macro_f1", "strict_bad_macro_f1", "strict_stable_macro_f1",
         "strict_collapsed_count",
         "full_overall_macro_f1", "full_bad_macro_f1", "full_stable_macro_f1",
@@ -94,18 +96,21 @@ def main():
 
     print(f"Aggregated {len(rows)} rows from {args.num_seeds} seeds -> {out_path}")
     print()
+    has_holdout = any(r.get("holdout_overall_macro_f1_mean", "") for r in agg)
+    prefix = "holdout" if has_holdout else "strict"
+    label = "Holdout" if has_holdout else "Strict"
     print(f"{'Method':<18} {'Strategy':<22} {'Budget':>6}  "
-          f"{'Strict Macro':>14} {'Strict Collapse':>16} {'Strict Stable':>14} {'Collapsed':>10}")
+          f"{label + ' Macro':>14} {label + ' Collapse':>16} {label + ' Stable':>14} {'Collapsed':>10}")
     print("-" * 110)
     for r in agg:
-        sm = r.get("strict_overall_macro_f1_mean", "")
-        ss = r.get("strict_overall_macro_f1_std", "")
-        cm = r.get("strict_bad_macro_f1_mean", "")
-        cs = r.get("strict_bad_macro_f1_std", "")
-        stm = r.get("strict_stable_macro_f1_mean", "")
-        sts = r.get("strict_stable_macro_f1_std", "")
-        cc = r.get("strict_collapsed_count_mean", "")
-        ccs = r.get("strict_collapsed_count_std", "")
+        sm = r.get(f"{prefix}_overall_macro_f1_mean", "")
+        ss = r.get(f"{prefix}_overall_macro_f1_std", "")
+        cm = r.get(f"{prefix}_bad_macro_f1_mean", "")
+        cs = r.get(f"{prefix}_bad_macro_f1_std", "")
+        stm = r.get(f"{prefix}_stable_macro_f1_mean", "")
+        sts = r.get(f"{prefix}_stable_macro_f1_std", "")
+        cc = r.get(f"{prefix}_collapsed_count_mean", "")
+        ccs = r.get(f"{prefix}_collapsed_count_std", "")
         macro_str = f"{sm}±{ss}" if sm else ""
         collapse_str = f"{cm}±{cs}" if cm else ""
         stable_str = f"{stm}±{sts}" if stm else ""
