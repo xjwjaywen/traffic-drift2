@@ -1,0 +1,5 @@
+method,seed,wall_s,max_rss_kb,exit_code
+care_margin,0,10,1000,0
+care_margin,1,14,1100,0
+chen_p090,0,30,2000,0
+chen_p090,1,34,2200,0
