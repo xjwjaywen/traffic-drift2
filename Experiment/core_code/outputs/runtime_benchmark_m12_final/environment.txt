@@ -1,0 +1,13 @@
+timestamp=2026-07-16T10:26:02+08:00
+hostname=ub01-desktop
+git_sha=3dd53ba4701b16cc0f481a1678b9977690032ab9
+gpu_index=0
+seeds=0 1 2 3 4
+omp_num_threads=8
+mkl_num_threads=8
+python=3.10.20
+torch=2.5.1+cu121
+cuda_runtime=12.1
+cudnn=90100
+cuda_available=True
+NVIDIA L20, GPU-f5f33601-d9b9-928b-e9ef-6c90d8379ebe, 570.133.20, 46068 MiB
