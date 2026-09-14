@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-09-14 — Test whether confirmed absorption relations can guide repair
+
+Implementation commit: `a6281c1` (based on main `00eed70`).
+
+- The user asked to strengthen CARE's own mechanism. Following literature review, ordinary error-neighbor acquisition and generic protection are insufficient novelty claims. First test whether paid-query confusion directions can constrain useful repair. This is a diagnostic and fixed postprocessing pilot, not a trained new method or proof of originality.
+- Added a standalone CPU/NumPy runner using completed BADGE full/KD prediction archives, saved queries and signed completion manifests. It loads no feature cache, extracts no features and trains no models. Original numerical engines and acquisition scripts remain unchanged. Outputs are separate from the source study.
+- Freeze every requested seed's allowed prediction transitions using only the original paid BADGE query labels and old predictions. The freeze phase never reads the bundled complete target labels or repaired predictions. A separate evaluation process requires all frozen relations to verify before label access. A v-to-a confirmed failure permits an a-to-v correction; self-loops preserve old predictions. One observed error is evidence of a direction, not proof that an entire class collapsed.
+- Compare original repairs with confirmed-relation top-1 acceptance/rollback and fixed outdegree-matched random destination gates. Audit all observed true/old/new prediction triples, positive/negative/wrong-to-different-wrong flips, all-class effects, new collapses, lost recovery, and ideal accuracy/recall potential. Do not claim the ideal potential is a macro-F1 bound. Random controls preserve outdegrees, not indegrees or all graph topology; one control per query seed is not an independent replicated study.
+- Keep original common exclusion of Margin and BADGE queries. No labels from prototype/risk-pool experiments enter this pilot. Validate full/KD sample identities, query/reference order and labels, training streams, exact masks and all class metrics; require matching target identities across seeds. Preserve source hashes/mtimes, stream transition tables, and publish completion last. Corrupt or incompatible source/output files fail rather than silently reuse stale analysis.
+- Validation: 44 baseline Python tests passed before editing; final 52 synthetic Python tests and all six shell suites passed. New tests independently check directionality, degrees, gating/flip arithmetic, accuracy/recall potential, zero-support behavior, guarded target-label access, all-seed freeze gates, exact exclusions, source integrity and array-free resume. Separate CLI processes and production import without PyTorch passed; Python 3.10 grammar and original-engine byte identity were checked. These are implementation tests, not CESNET experimental evidence.
+- Real server results remain pending. If a sparse confirmed graph blocks too much valid recovery, or real directions do not help beyond random destinations, stop this hard restriction design before adding training complexity. M12 remains development data. Any later mechanism needs matched-query generic protection/interpolation controls and frozen evaluation outside method-selection data.
+
 ## 2026-09-14 — Hold the risk candidate pool fixed to localize sampling losses
 
 Implementation commit: `1c4f84f` (based on main `84fa51a`).
