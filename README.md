@@ -138,6 +138,24 @@ It verifies and reuses five `badge_full` runs and adds five `badge_kd` runs
 original engine hash, selections, primary runs and tables. New `badge_kd_*.csv`
 tables contain only verified matched seeds, with five seeds recommended.
 Use `badge-kd-summarize` to regenerate the paired tables.
+After all 30 repairs finish, `class-audit` reads the saved common-split class
+metrics and creates a Chinese report plus class recurrence/support tables.
+`stage2` runs that audit first, then the existing Margin sensitivity suite
+(18 additional fits with the default three seeds and matching primary results):
+
+```bash
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh stage2 > kbs-stage2.log 2>&1 &
+```
+
+The audit requires only Python's standard library. It verifies the consumed
+small files and reconciles class metrics with the run summaries. It leaves
+completed runs unchanged and writes only `class_audit/` derived outputs.
+Analysis failures stop stage2 before training. `AUDIT_SEEDS` defaults to 0–4;
+training `SEEDS` defaults to 0–2 for sensitivity.
+Both `sensitivity` and `stage2` finish with `sensitivity_matched_*.csv`, using
+the same requested seeds for every configuration. These exclude baseline-only
+seeds 3–4 retained by the legacy general aggregator. Run `sensitivity-report`
+to regenerate the matched tables from completed runs without training.
 See [the server guide](Experiment/core_code/KBS_SUPPLEMENT.md) for data paths,
 the controlled loss/update protocol, output files, and evaluation details.
 These are additional controlled experiments, not replacements for the archived

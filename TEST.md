@@ -23,8 +23,15 @@ The Python tests use synthetic tensors in temporary directories, never CESNET pa
 - New BADGE runs retain the KD term, disable only reference CE, and reuse the original engine hash and query selections.
 - Paired reporting checks IDs/order, training streams and prediction/evaluation alignment; reports only matched seeds, sample SD and the five-seed requirement.
 - Missing baselines, modified selections, changed study/extension protocols and mismatched reference IDs are rejected.
+- Class audit covers all six configurations, reconciles common-split class metrics with saved run summaries, preserves every input hash/mtime, and generates deterministic reports.
+- Hand-calculated fixtures verify new/residual collapse counts, zero-support exclusions, seed recurrence and worst-class selection. Missing runs, modified files, duplicate classes and metric disagreements fail before writing a report.
+- A completed 30-run synthetic study adds exactly 18 sensitivity fits and none on resume. Matched summaries select seeds 0–2 for all eight configurations (24 rows), excluding the two baselines' extra seeds that remain in the legacy 28-row output. Missing requested seeds fail reporting.
 
 The launcher tests verify path quoting, GPU selection, argument forwarding, and that a failed preparation propagates its exit code and prevents training. The runtime-benchmark shell tests cover the unchanged earlier launcher.
 They also cover `badge-kd`, `badge-kd-plan`, `badge-kd-summarize` dispatch and propagation of a failed follow-up run.
+`class-audit` and `stage2` tests check independent audit/training seed arguments,
+audit → sensitivity preparation → sensitivity run → matched reporting order, quoted paths, and
+that failed analysis prevents any training. `python -S scripts/kbs_class_audit.py --help`
+from `Experiment/core_code` checks the audit's standard-library-only entry.
 
 Real CUDA/CESNET integration must be checked on the server using `preflight` and the primary run. No synthetic score is scientific evidence.

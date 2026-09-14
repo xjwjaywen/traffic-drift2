@@ -216,3 +216,65 @@ bash Experiment/core_code/scripts/run_kbs_supplement.sh badge-kd-summarize
 ```
 
 这是看到 Margin 消融结果之后提出的探索性对照，应报告全部五种子及有利/不利指标。它不增加独立源模型、时间段或数据集的重复数，也不自动证明新配置优于完整方法。
+
+## 9. 逐类分析与敏感性实验顺序执行
+
+完成 primary 的 25 次运行和 BADGE 补跑的 5 次运行后，可以顺序执行逐类分析和已有的 Margin 敏感性实验：
+
+```bash
+cd /data/xjw/traffic-drift2
+conda activate traffic-ncde
+# 先按第 8 节说明拉取 main，再启动：
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh stage2 > kbs-stage2.log 2>&1 &
+tail -f kbs-stage2.log
+```
+
+`stage2` 依次执行：
+
+1. 读取六种配置、种子 0–4 的现有逐类指标、选样记录和运行元数据，生成 `class_audit/`。不加载模型、预测矩阵或原始数据，不进行训练。分析输入先通过小文件哈希、配置一致性、共同评估集的修复前逐类指标/支持数、BADGE 查询/参考 ID 及逐类指标与原汇总的一致性检查。分析失败时停止，不继续启动训练。
+2. 验证并复用特征缓存，执行第 6 节的 Margin 单因素敏感性：8 个唯一配置 × 种子 0–2。复用 `margin_replay` 和 `margin_full` 的 6 次已有运行，默认新增 18 次头部修复；已完成的敏感性运行也会跳过。
+3. 生成 `sensitivity_matched_*.csv`，严格选取每种配置的同一组训练种子（默认 0–2）。原引擎的通用汇总会收进两个基线已保存的种子 3–4，默认形成 28 行，而其他敏感性配置只有三个种子；统一比较应使用新的 matched 表，默认恰好 24 行。
+
+继续使用第一批的 `OUTPUT_DIR`、`CACHE_DIR`、checkpoint、数据路径与环境；原训练引擎、BADGE 补跑入口及其哈希保持不变。重复执行 `stage2` 可重新生成派生报告并续跑敏感性。不要同时对同一输出目录启动其他写入作业。
+
+只分析已有结果时执行：
+
+```bash
+bash Experiment/core_code/scripts/run_kbs_supplement.sh class-audit
+```
+
+逐类分析固定使用 `common` 口径，新增崩溃、残余崩溃和严重退化沿用 `study_manifest.json` 的定义；零支持类别不计入新增崩溃或退化。报告显示支持数，不能为了改变结论临时过滤低支持类别。默认要求六种配置的五个种子齐全；检查部分种子时可显式设置 `AUDIT_SEEDS=0,1`，报告会标明实际种子数和未满足五种子建议。
+
+`SEEDS` 仍只控制训练阶段；`AUDIT_SEEDS` 控制逐类分析。默认训练三个种子、分析已有五个种子。`stage2` 的额外 Python CLI 参数只传给敏感性训练；更改训练协议时需要单独的新实验安排，不能混入原目录。
+
+输出文件：
+
+| 文件（相对输出目录） | 内容 |
+|---|---|
+| `class_audit/report.md` | 中文摘要、六配置比较、BADGE 新增/残余崩溃类别，以及平均 F1 降低最多的类别 |
+| `class_audit/summary.csv` | 各配置均值、样本标准差、分析种子数 |
+| `class_audit/all_classes_by_seed.csv` | 全部 178 类 × 6 配置 × 5 种子的 F1/recall/支持数、查询量、参考样本量及退化标记 |
+| `class_audit/cases_by_seed.csv` | 新增/残余崩溃、严重退化、每次最差十个非崩溃类的明细 |
+| `class_audit/class_recurrence.csv` | 各类别受损次数、对应种子、支持数范围及最差变化 |
+| `class_audit/badge_class_comparison.csv` | 两个 BADGE 配置逐类配对比较，含 KD 减 Full 的平均 F1 |
+| `class_audit/provenance.json` | 分析脚本和读取小文件的哈希、协议、种子及验证范围 |
+| `sensitivity_matched_summary.csv` / `sensitivity_matched_results_by_seed.csv` | 相同种子上的敏感性比较，默认正常完成为 8 行配置汇总和 24 行逐种子结果 |
+
+原 `runs/`、`selections/`、预测/模型和 primary/BADGE 汇总保持原样；重新分析只更新派生的 `class_audit/` 文件。该分析不重新核验大型预测/模型文件，也不推断类别名称或退化因果。
+
+分析报告先于训练结果生成，可直接复制回传：
+
+```bash
+cat Experiment/core_code/outputs/kbs_supplement_v1/class_audit/report.md
+```
+
+敏感性全部完成后再回传：
+
+```bash
+cat Experiment/core_code/outputs/kbs_supplement_v1/sensitivity_matched_summary.csv
+cat Experiment/core_code/outputs/kbs_supplement_v1/sensitivity_matched_results_by_seed.csv
+```
+
+`sensitivity` 和 `stage2` 都会自动生成 matched 表。已有敏感性结果时，执行 `bash Experiment/core_code/scripts/run_kbs_supplement.sh sensitivity-report` 即可单独生成；缺少任一请求配置/种子时会停止，不把不齐的种子混入比较。
+
+本阶段不自动更换默认方法或按最终测试月选择最优超参数。跨时段的新旧 BADGE 对照仍需在决定调整最终方法后单独安排。

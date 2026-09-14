@@ -26,6 +26,12 @@ if [[ -n "${SEEDS:-}" ]]; then common+=(--seeds "$SEEDS"); fi
 if [[ -n "${STEPS:-}" ]]; then common+=(--steps "$STEPS"); fi
 
 case "$mode" in
+    class-audit)
+        exec "$python_bin" "$script_dir/kbs_class_audit.py" --output-dir "$output_dir" --seeds "${AUDIT_SEEDS:-0,1,2,3,4}" "$@"
+        ;;
+    sensitivity-report)
+        exec "$python_bin" "$script_dir/kbs_sensitivity_report.py" "${common[@]}" "$@"
+        ;;
     smoke)
         exec "$python_bin" -m unittest discover -s "$script_dir/tests" -p 'test_kbs*.py'
         ;;
@@ -43,14 +49,22 @@ case "$mode" in
     preflight|prepare)
         exec "$python_bin" "$script_dir/kbs_supplement.py" "$mode" "${common[@]}" "$@"
         ;;
-    primary|sensitivity)
+    primary|sensitivity|stage2)
         mkdir -p "$output_dir"
         log="$output_dir/launcher-${mode}-$(date +%Y%m%d-%H%M%S)-$$.log"
-        "$python_bin" "$script_dir/kbs_supplement.py" prepare --suite "$mode" "${common[@]}" "$@" 2>&1 | tee -a "$log"
-        "$python_bin" "$script_dir/kbs_supplement.py" run --suite "$mode" "${common[@]}" "$@" 2>&1 | tee -a "$log"
+        suite="$mode"
+        if [[ "$mode" == stage2 ]]; then
+            "$python_bin" "$script_dir/kbs_class_audit.py" --output-dir "$output_dir" --seeds "${AUDIT_SEEDS:-0,1,2,3,4}" 2>&1 | tee -a "$log"
+            suite=sensitivity
+        fi
+        "$python_bin" "$script_dir/kbs_supplement.py" prepare --suite "$suite" "${common[@]}" "$@" 2>&1 | tee -a "$log"
+        "$python_bin" "$script_dir/kbs_supplement.py" run --suite "$suite" "${common[@]}" "$@" 2>&1 | tee -a "$log"
+        if [[ "$suite" == sensitivity ]]; then
+            "$python_bin" "$script_dir/kbs_sensitivity_report.py" "${common[@]}" "$@" 2>&1 | tee -a "$log"
+        fi
         ;;
     *)
-        echo "Usage: bash scripts/run_kbs_supplement.sh {preflight|smoke|plan|prepare|primary|sensitivity|summarize|badge-kd|badge-kd-plan|badge-kd-summarize} [Python CLI options]" >&2
+        echo "Usage: bash scripts/run_kbs_supplement.sh {preflight|smoke|plan|prepare|primary|sensitivity|summarize|badge-kd|badge-kd-plan|badge-kd-summarize|class-audit|stage2|sensitivity-report} [Python CLI options]" >&2
         exit 2
         ;;
 esac
