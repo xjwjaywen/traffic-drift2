@@ -1,0 +1,167 @@
+# KBS 第一批补充实验：服务器运行说明
+
+本入口实现 E1（受控组件消融）、E2（全类别保护分析）以及可选 E3（单因素敏感性）。默认不执行检测触发的连续维护实验，也不重复已有跨期、QUIC、全模型微调或旧图 5 实验。
+
+## 1. 拉取后先检查
+
+在服务器仓库根目录执行，使用之前的环境：
+
+```bash
+conda activate traffic-ncde
+git pull --ff-only origin main
+bash Experiment/core_code/scripts/run_kbs_supplement.sh preflight
+bash Experiment/core_code/scripts/run_kbs_supplement.sh smoke
+```
+
+`preflight` 检查 CUDA、数据目录、checkpoint 和主要依赖，并打印 Python 路径、版本与 GPU。它不安装包、不重新训练编码器。`smoke` 只在临时目录运行 CPU 合成数据测试，其数值不能作为论文结果。
+
+默认数据路径是 `Experiment/core_code/data/tls22`，checkpoint 是 `Experiment/core_code/outputs/tls22_cnn/best_model.pt`。沿用仓库的 CESNET 加载逻辑；如果服务器已有另一处数据，先设置实际绝对路径：
+
+```bash
+export DATA_DIR=/你的实际路径/CESNET-TLS-Year22
+# 仅当要指定某块卡时设置，编号先由 nvidia-smi 确认：
+export GPU_ID=0
+# 只有 checkpoint 放在其他位置时才需要：
+# export CHECKPOINT=/你的实际路径/best_model.pt
+bash Experiment/core_code/scripts/run_kbs_supplement.sh preflight
+```
+
+不要把示例路径照抄为真实路径。默认要求 CUDA；必要时可明确设 `DEVICE=cpu`，不会默默回落到 CPU。该入口不修改旧实验脚本、旧输出或环境中的依赖版本。
+
+## 2. 启动第一批
+
+查看任务矩阵：
+
+```bash
+bash Experiment/core_code/scripts/run_kbs_supplement.sh plan
+```
+
+后台运行并查看日志：
+
+```bash
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh primary > kbs-primary.log 2>&1 &
+tail -f kbs-primary.log
+```
+
+第一次先提取、校验并缓存 M-2022-4 与 M-2022-12 的冻结特征/源 logits。之后运行 5 配置 × 5 种子，共 25 次头部修复：
+
+| 运行名 | 选样 | 目标 CE | 参考 CE | 参考 KD |
+|---|---|---|---|---|
+| margin_ft_only | Margin | 开 | 关 | 关 |
+| margin_replay | Margin | 开 | 开 | 关 |
+| margin_kd | Margin | 开 | 关 | 开 |
+| margin_full | Margin | 开 | 开 | 开 |
+| badge_full | BADGE | 开 | 开 | 开 |
+
+默认目标标签预算 1,000，种子 0–4，参考集全部 178 类各取 5 个样本，KD 温度 2、权重 0.5。BADGE 沿用仓库当前实现，包括其梯度近似和降维方式，不声称实现了另一个完整 BADGE 版本。五个种子是修复/选样种子，源模型 checkpoint 固定。
+
+同一条命令支持断点续跑：完整且哈希通过的结果会跳过；未完成的运行从源 head 重新执行。若参数、实现、数据、checkpoint 或已完成文件发生不匹配，脚本停止并要求新输出目录，避免把不同实验混到一个表中。不要在同一输出目录同时启动多个进程。
+
+可以先做单种子服务器试运行，再用默认命令补齐剩余种子：
+
+```bash
+SEEDS=0 bash Experiment/core_code/scripts/run_kbs_supplement.sh primary
+bash Experiment/core_code/scripts/run_kbs_supplement.sh primary
+```
+
+如需改变学习率、步数等协议参数，请使用新的 `OUTPUT_DIR`。修改协议后不能再把旧汇总行直接并入新表。
+
+## 3. 本次消融的训练协议
+
+它是新增的受控消融，**不能将其结果直接当成旧主表的同一次实验**。
+
+每次优化使用固定大小的目标与参考 minibatch，分别从固定的独立随机序列中有放回抽样。目标序列不因开关 Replay/KD 而改变；四种 Margin 配置共用 query ID、reference ID、源 head、学习率和实际更新步数。
+
+```text
+loss = w_target * CE(target)
+     + replay_enabled * w_reference * CE(reference)
+     + lambda * T² * KL(teacher(reference)/T || student(reference)/T)
+
+w_target    = (2 × budget) / (2 × budget + 178 × 5)
+w_reference = (178 × 5) / (2 × budget + 178 × 5)
+```
+
+默认预算 1,000 时两者为 2,000/2,890 与 890/2,890。关闭一项时不重新归一化其他项。敏感性改变 k 时，上述权重仍固定于基准 k=5。
+
+每种配置固定 1,380 次 AdamW 更新（基准 `30 × ceil(2890/64)`），每步目标/参考各 64 个样本，lr=0.001，weight_decay=0.0001。这里只用基准 epoch 推导默认步数；新协议使用固定步数，不再按拼接数据集长度执行不同次数的更新，也没有在代码中重复拼接目标样本。
+
+FT+KD 与完整方法使用同一组参考样本，但参考真实标签不进入 FT+KD 的损失。蒸馏仅发生在参考样本上。源编码器与源 head 不被更新，保存的是其拷贝经过修复后的 head。
+
+## 4. E2：全类别评估自动随 E1 生成
+
+每次输出两个评估集合，并在同一集合上计算修复前与修复后指标：
+
+- `strict`：排除本方法查询的所有样本，用于对应方法的配对变化。
+- `common`：排除同一种子下 Margin 与 BADGE 查询样本的并集，用于跨选样方法比较。
+
+两种集合均由无标签选样决定。最终稿的 12 个坍塌类别列表只用于事后分组评估，不用于触发、选样或训练。原 20 个 Stable 类指标与其余全部 166 个非坍塌类指标分开报告。
+
+保存 178 类的 support、precision、recall、F1、F1 差值、混淆矩阵；汇总残余坍塌数、新增非坍塌组坍塌数、非坍塌类退化数量/比例、下降超过 0.05 的数量以及最差 10 类。
+
+宏平均使用固定类别全集，零支持类别记 F1=0，并另报各组有支持的类别数；新增坍塌与退化计数只针对评估集中有支持的类别。新坍塌定义为修复前 recall≥0.1、修复后 recall<0.1，阈值固定。
+
+## 5. 结果位置与完整备份
+
+默认目录：
+
+```text
+Experiment/core_code/outputs/kbs_supplement_v1/
+  cache/
+    manifest.json             # checkpoint / 输入流 / 数据文件清单 / 特征缓存哈希
+    head.pt
+    reference.pt
+    target.pt
+  study_manifest.json         # 固定协议与初始运行环境
+  selections/{margin,badge}/seed_*/...
+  runs/<配置名>/seed_*/
+    resolved_config.json
+    environment.json
+    repaired_head.pt
+    query_ids.csv
+    replay_ids.csv
+    predictions.npz
+    per_class_metrics.csv
+    worst_noncollapse_classes.csv
+    confusion_matrices.npz
+    training_trace.json
+    metrics.json
+    run.log
+    complete.json             # 最后写入，包含以上结果文件校验和
+  primary_results_by_seed.csv
+  primary_summary.csv
+  sensitivity_results_by_seed.csv
+  sensitivity_summary.csv
+```
+
+汇总保留每个种子和样本标准差；只有一个种子时标准差留空，不写成 0。汇总会列出已完成种子数及是否达到建议数量；生成表格不代表五种子已经全部完成。
+
+`predictions.npz` 包含 `row_id/y_true/static_pred/repaired_pred/queried/strict_eval/common_eval`。ID 定义为 `缓存 fingerprint:reference或target:row_id`，绑定当次输入流顺序；这是可还原的快照行 ID，不是数据集原始 flow ID。原始 PPI/统计量/标签输入流及样本顺序的哈希保存在缓存 manifest 中。后续只靠预测与 manifest 即可重新统计全部类别；保存完整 cache 还能复用特征。
+
+`repaired_head.pt` 中的 `cls_head_state_dict` 可直接装回同一源模型的 `model.cls_head`；文件内还保存对应协议。编码器从 manifest 指定的源 checkpoint 恢复。
+
+耗时分开记录特征缓存、选样、头部训练及推理。RSS 是整个 Python 进程到该时刻的峰值，不能当作每配置独立进程峰值；GPU 分配峰值单列。不要与旧论文的完整独立运行耗时直接混成一张成本比较表。
+
+实验输出受现有 .gitignore 保护，脚本不会自动提交大文件。回传分析至少保留 manifest、summary、逐种子 CSV、各运行的全部小型 CSV/JSON；完整复现还需保留 cache、预测文件及修复后的模型。
+
+需要重新汇总时：
+
+```bash
+bash Experiment/core_code/scripts/run_kbs_supplement.sh summarize
+SUITE=sensitivity bash Experiment/core_code/scripts/run_kbs_supplement.sh summarize
+```
+
+## 6. 第二批：可选敏感性
+
+```bash
+SUITE=sensitivity bash Experiment/core_code/scripts/run_kbs_supplement.sh plan
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh sensitivity > kbs-sensitivity.log 2>&1 &
+```
+
+默认种子 0–2，扫描 lambda={0,0.1,0.5,1}、T={1,2,4}、k={1,5,10}，一次只改一个参数；去重为 8 个配置，共 24 次。若第一批已经完成，协议一致的 `margin_replay` 和 `margin_full` 前三个种子会直接复用，因此新增 18 次。k 不同的参考样本按每类嵌套选取；若某类不足 k 个样本，脚本报错，不悄悄改变实际重放量。
+
+先记录整个扫描的收益与退化，不根据最终测试月成绩重新挑选“默认参数”。需要选参时，另用更早的独立时期。
+
+## 7. 验证范围
+
+代码通过 CPU 合成数据单元测试和 shell 启动器测试，覆盖独立损失开关、固定更新数/抽样流、冻结源模型、样本排除、全类别混淆统计、特征缓存、断点续跑与参数/文件不匹配检查。真实 CESNET 全量运行与 CUDA 执行需在服务器验证；测试数值不是新增实验结论。
+

@@ -77,7 +77,14 @@ rebase 发生冲突时：
 
 **同样的问题不要犯两次！**
 
-## 注意事项
+## KBS 补充实验约定
+
+- 入口：`Experiment/core_code/scripts/run_kbs_supplement.sh`；协议与服务器命令见 `Experiment/core_code/KBS_SUPPLEMENT.md`。
+- 新受控消融固定 optimizer 步数和目标抽样流，参考 CE 与参考 KD 独立开关；不得将新协议结果拼入旧主表。
+- 缓存/运行必须记录数据与代码标识，完成标记最后写入；配置不一致时使用新输出目录，不覆盖已有完成结果。
+- 合成测试仅验证代码，不能作为真实实验结果；测试命令见 `TEST.md`。
+
+## 工作区注意事项
 
 - 在 worktree 中工作时，不要切换到其他分支
 - 完成任务后确保代码可运行、测试通过

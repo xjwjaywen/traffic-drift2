@@ -111,7 +111,27 @@ python scripts/collapse_active_maintenance_tls22.py \
 python scripts/make_paper_figures.py --output-dir ../../Publication/figures
 ```
 
-## Datasets
+## Controlled KBS supplements
+
+For the new fixed-update replay/KD ablation and all-class preservation analysis,
+use the existing server environment and run from the repository root:
+
+```bash
+conda activate traffic-ncde
+bash Experiment/core_code/scripts/run_kbs_supplement.sh preflight
+bash Experiment/core_code/scripts/run_kbs_supplement.sh smoke
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh primary > kbs-primary.log 2>&1 &
+```
+
+This caches frozen features, runs 25 head repairs, saves predictions/checkpoints
+and all-class metrics, and resumes completed runs after integrity checks.
+Optional `sensitivity` runs reuse matching primary configurations.
+See [the server guide](Experiment/core_code/KBS_SUPPLEMENT.md) for data paths,
+the controlled loss/update protocol, output files, and evaluation details.
+These are additional controlled experiments, not replacements for the archived
+main-table runs. No new CESNET results are claimed by the implementation tests.
+
+## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |
 |---------|----------|---------|----------|--------|
