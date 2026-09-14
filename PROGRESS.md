@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-09-14 — Diagnose unsuccessful acquisition before further method development
+
+Implementation commit: `fc0da3b` (based on main `0abd1db`).
+
+- User-reported pilot results did not support the prototype/risk proposal: risk-disagreement selected fewer collapse-class samples than BADGE or random, and its specialist prototype correctness was about 5%. Do not treat increased high-confidence-error retrieval as proof of collapse repair or risk-model value.
+- Added a separate read-only diagnosis that keeps the pilot/engine identities intact. It excludes prototype construction rows from reference evaluation, reconstructs target candidate pools, separates random exploration/specialist/fallback contributions, and reports all classes plus the four head/prototype correctness cells. All reconstructed selection totals reconcile with completed pilot evaluation before results are committed.
+- Audit the first 20% of saved BADGE queries for confirmed target-domain mistakes as a feasibility check for a possible later two-stage, error-guided acquisition policy. This version does not search neighbors, generate new queries or train a model. A later method must count scout labels within its total budget and cannot read unqueried target labels.
+- Validation: 36 synthetic Python tests, new diagnosis launcher plus prior acquisition/supplement/runtime shell tests, Python 3.10 grammar, and byte-identical original pilot/engines. Tests cover hand-calculated cells, empty/unsupported cohorts, prototype-row exclusion, budget/phase arithmetic, source hash/mtime preservation, reproducible candidate reconstruction, evaluation reconciliation, corruption rejection and tensor-free resume.
+- Real diagnosis remains for the user's existing CUDA server. Region-based active learning and feedback-based failure discovery already exist; neither a two-stage name nor a diagnostic table establishes novelty. M12 remains development data and any resulting method needs frozen, separate validation.
+
 ## 2026-09-14 — Exploratory high-confidence-error acquisition pilot
 
 Implementation commit: `d45606f` (based on main `32d59a2`).
