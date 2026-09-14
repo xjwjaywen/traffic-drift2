@@ -22,6 +22,9 @@ For the exploratory high-confidence-error acquisition pilot, see
 It reuses the completed controlled study and feature cache, freezes target-label-free
 query selections, then audits them in a separate process. It does not train or
 replace any published/controlled repair result.
+After a completed pilot, [KBS_ACQUISITION_DIAGNOSIS.md](Experiment/core_code/KBS_ACQUISITION_DIAGNOSIS.md)
+provides a read-only failure diagnosis of reference geometry, target candidate stages,
+and the availability of confirmed mistakes in the first 20% of saved BADGE queries.
 
 ```
 ├── Publication/              # Paper draft and figures

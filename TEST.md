@@ -6,6 +6,7 @@ Run from the repository root in the existing experiment environment.
 python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_kbs*.py'
 bash Experiment/core_code/scripts/tests/test_run_kbs_supplement.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_pilot.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -46,3 +47,13 @@ paired CSV statistics, query-union exclusion, process-separated CLI execution,
 input hash/mtime preservation, no-op resume, changed protocols and corrupt artifacts.
 The new launcher test checks quoting, seed/GPU forwarding and that failed selection
 prevents the label-evaluation process. The pilot uses no CESNET import or model fitting.
+
+Acquisition diagnosis tests check the four head/prototype correctness cells with
+hand-calculated counts, empty/unsupported cohorts, candidate exclusions, phase
+partition arithmetic, and budget-limited scouting. A synthetic completed pilot is
+diagnosed end-to-end: prototype construction rows are excluded from reference
+evaluation, original acquisition metrics reconcile, phase counts sum to full selection,
+all classes survive reporting, and original hashes/mtimes are preserved. Resume loads
+no tensors and preserves derived results. Missing original evaluation, changed source
+identities, invalid seeds/output paths and corrupted derived files fail. The diagnosis
+launcher forwards quoted paths, GPU/seeds/options and nonzero exit status.
