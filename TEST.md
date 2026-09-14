@@ -9,6 +9,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_pilot.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_pool_control.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_relation_audit.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_badge_controls.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -39,6 +40,19 @@ that failed analysis prevents any training. `python -S scripts/kbs_class_audit.p
 from `Experiment/core_code` checks the audit's standard-library-only entry.
 
 Real CUDA/CESNET integration must be checked on the server using `preflight` and the primary run. No synthetic score is scientific evidence.
+
+BADGE component-control tests complete 30 synthetic primary/KD runs with exactly
+10 new fits, then zero on resume without loading any feature cache. They preserve
+every original file's hash/mtime and the source head, verify the four independent
+loss switches, sample streams, exact Margin/BADGE exclusion masks and query truth,
+and recompute metrics from saved predictions. Rehashed semantic inconsistencies in
+IDs, losses, masks and metrics are rejected, as are corrupt files, missing KD
+baselines and changed settings/extension identities. Reports use only seeds complete
+in all four cells, including empty/one-seed cases, and include all classes and paired
+differences. A hand calculation checks sample SD. Separate CLI summary works without
+a feature cache. Launcher tests check quoting, GPU, argument forwarding, isolated
+seed/step settings and failure propagation. These tests do not measure real CESNET
+performance, GPU runtime or KBS suitability.
 
 Acquisition pilot tests cover reference IDs matched to the original five-per-class
 sampling, predicted-frequency risk arithmetic, confident-error discovery on known

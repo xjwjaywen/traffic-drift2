@@ -84,6 +84,7 @@ rebase 发生冲突时：
 - 缓存/运行必须记录数据与代码标识，完成标记最后写入；配置不一致时使用新输出目录，不覆盖已有完成结果。
 - 合成测试仅验证代码，不能作为真实实验结果；测试命令见 `TEST.md`。
 - `badge-kd` 补跑通过独立 `kbs_badge_kd_followup.py` 注册配置和汇总，保留 v1 数值引擎文件及其哈希；先校验已有 BADGE 基线/选样，再新增五次关闭参考 CE 的运行。其汇总仅计入通过 ID、抽样流和评估掩码配对检查的种子，独立输出 `badge_kd_*.csv`。
+- `run_kbs_badge_controls.sh` / `kbs_badge_controls.py` 补齐 BADGE 四格组件对照：已完成 full/KD 是前置条件，只新增 FT-only 和参考 CE 两配置、默认五种子十次头部训练。复用原引擎与全部查询，保留固定 CE 权重和抽样流；独立 `badge_controls_*` 报告仅含四组完整配对种子，重算共同排除后的指标及逐类损伤。`BADGE_CONTROL_SEEDS` 不继承旧任务的 `SEEDS`/`STEPS`；完成后续跑不加载特征。协议/原运行损坏时失败，不绕过哈希或补造基线。详见 `KBS_BADGE_CONTROLS.md`。
 - `class-audit` 用标准库核验现有六配置逐类指标/小文件并写入派生 `class_audit/`，不重跑训练；阈值来自原协议。`stage2` 先分析五种子，再执行已有三种子 Margin 敏感性；分析失败立即停止。`AUDIT_SEEDS` 与训练 `SEEDS` 独立。
 - 敏感性比较使用 `sensitivity_matched_*.csv`，各配置严格使用同一组种子（默认 0–2）；旧引擎的通用汇总会额外纳入两个基线的种子 3–4。`sensitivity-report` 校验完成文件后单独生成配对种子汇总，不修改 v1 引擎。
 

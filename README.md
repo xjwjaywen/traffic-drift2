@@ -17,6 +17,12 @@ All 5 TTA methods fail on class collapse (F1 < 0.03). CARE is a framework: BADGE
 
 ## Repository Structure
 
+To complete the controlled BADGE component ablation, use
+[KBS_BADGE_CONTROLS.md](Experiment/core_code/KBS_BADGE_CONTROLS.md).
+It reuses the completed BADGE full/KD runs and fixed queries, adding only FT-only
+and FT+reference-CE (10 new head fits across five seeds). Independent matched
+reports include class damage and preserve the original study's tables and engines.
+
 For the exploratory high-confidence-error acquisition pilot, see
 [KBS_ACQUISITION_PILOT.md](Experiment/core_code/KBS_ACQUISITION_PILOT.md).
 It reuses the completed controlled study and feature cache, freezes target-label-free
