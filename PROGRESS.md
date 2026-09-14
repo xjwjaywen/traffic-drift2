@@ -1,5 +1,16 @@
 # Progress
 
+## 2026-09-14 — Exploratory high-confidence-error acquisition pilot
+
+Implementation commit: `d45606f` (based on main `32d59a2`).
+
+- Added an independent, no-training pilot after reviewing the completed controlled experiments. It compares saved BADGE/Margin, random, geometric disagreement, predicted-frequency-risk-weighted disagreement, and shuffled-risk control, using five seeds and the original label budget. Reference prototypes use the same five-per-class reference IDs as the controlled engine.
+- Selection and evaluation run in separate processes. Selection drops the target-label field from the existing bundled cache and its APIs do not accept target labels or evaluation collapse groups. All choices are committed and hash-verified before any retrospective label audit. Selection yield is not claimed as model repair quality or methodological novelty.
+- New methods share half-budget random exploration, score-weighted geometric diversity, the candidate cap, and random seeds. Risk is explicitly a predicted-count-drop proxy, not a replication of the manuscript's five-signal monitor. No failed class IDs are hard-coded into acquisition.
+- Preserve original engines, cache and selections. Freeze source/selection/code/software identities, reject changed or partial inputs, and save a per-seed six-method query union for any future common-exclusion evaluation. Changing selectors requires re-evaluating baselines on that common set instead of copying old summary scores.
+- Validation: 32 Python synthetic tests, acquisition and existing supplement/runtime shell suites, Python 3.10 grammar checks, and byte-identical original engine/selector/BADGE-follow-up files. Synthetic tests verify hand-computed metrics, opaque unreadable target labels during acquisition, deterministic choices, fallback/duplicate geometry, full-seed completion gates, paired reports, unchanged input hashes/mtimes, process separation and no-op resume.
+- Real CUDA/CESNET execution and scientific yield remain for the user's server. M12 is exploratory development data; any later confirmatory claim requires a frozen method evaluated outside method-selection/tuning data.
+
 ## 2026-09-14 — Saved class audit and matched sensitivity reports
 
 Implementation commit: `44e1ce3` (based on main `4f113e9`).
