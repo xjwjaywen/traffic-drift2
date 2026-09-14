@@ -1,5 +1,16 @@
 # Progress
 
+## 2026-09-14 — Complete the fixed-query BADGE component ablation
+
+Implementation commit: `4b98d7c` (based on main `d789b6e`).
+
+- The user requested the next submission-focused experiment. Existing BADGE full/KD results leave FT-only and reference-CE-only controls missing. Add these two cells, five query/repair seeds each, rather than changing the method after unsuccessful M12 acquisition and hard-relation-gating pilots. This run tests component effects, not new algorithmic novelty.
+- Added a standalone runner/launcher and server guide. Require completed verified full/KD pairs and both original query selections; add at most ten head fits. Preserve the original numerical engine and all earlier acquisition/analysis script identities. Keep source initialization, fixed optimizer steps, target CE weight, query/reference row order and independent sampling streams identical; switch only reference CE and reference KD. FT-only still loads reference tensors through the old engine but uses no reference loss, so it is not a minimal-memory implementation benchmark.
+- Write separate BADGE controls summaries, paired differences, all-class metrics and a Chinese report. Include only the intersection of requested seeds complete in all four cells. Reconstruct strict/common query exclusions, verify query truth/IDs and loss-use traces, and recompute metrics from predictions. Include static scores, new/residual collapses, class damage and positive/negative flips. Publish a derived status with artifact hashes last; report existence alone does not imply completion.
+- Resume skips verified runs; a fully completed extension loads no feature cache and performs no training. Missing baselines/cache, changed settings/identities and corrupted artifacts fail explicitly. Independent BADGE_CONTROL_SEEDS avoids inheriting earlier three-seed sensitivity settings; the launcher also ignores stale STEPS. Original run files and summary files retain their hashes and modification times in synthetic tests.
+- Validation: 52 baseline Python tests and six shell suites passed before edits. Final 61 synthetic Python tests and all seven shell suites passed, including exactly ten new fits from a 30-run fixture, zero fits on resume, source-head preservation, incomplete/one-seed reporting, paired arithmetic/sample SD, semantic mismatch rejection after rehashing, and separate-process CLI summary without feature tensors. Python 3.10 grammar, shell syntax, and byte identity of all seven previous numerical/analysis scripts were checked. No real CESNET experiment was run locally; CUDA results remain for the user's server.
+- M12 and the shared source checkpoint remain development evidence, not independent environment replications. Sequential monitor-triggered versus scheduled maintenance is a separate next experiment and is not implemented by this addition. Do not mix these fixed-step component controls into the manuscript's older optimization protocol table.
+
 ## 2026-09-14 — Test whether confirmed absorption relations can guide repair
 
 Implementation commit: `a6281c1` (based on main `00eed70`).
