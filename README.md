@@ -25,6 +25,11 @@ replace any published/controlled repair result.
 After a completed pilot, [KBS_ACQUISITION_DIAGNOSIS.md](Experiment/core_code/KBS_ACQUISITION_DIAGNOSIS.md)
 provides a read-only failure diagnosis of reference geometry, target candidate stages,
 and the availability of confirmed mistakes in the first 20% of saved BADGE queries.
+For a bounded follow-up, [KBS_POOL_CONTROL.md](Experiment/core_code/KBS_POOL_CONTROL.md)
+compares uniform, score-only and distance-only sampling in the **same** reconstructed
+risk candidate pool, retaining the original exploration and total budget. It verifies
+the original combined sampler's query order before separate-process retrospective
+evaluation. These controls do not train a model or establish a new method's effectiveness.
 
 ```
 ├── Publication/              # Paper draft and figures

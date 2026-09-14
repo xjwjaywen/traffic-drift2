@@ -7,6 +7,7 @@ python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_kbs*.
 bash Experiment/core_code/scripts/tests/test_run_kbs_supplement.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_pilot.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_diagnosis.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_pool_control.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -57,3 +58,15 @@ all classes survive reporting, and original hashes/mtimes are preserved. Resume 
 no tensors and preserves derived results. Missing original evaluation, changed source
 identities, invalid seeds/output paths and corrupted derived files fail. The diagnosis
 launcher forwards quoted paths, GPU/seeds/options and nonzero exit status.
+
+Fixed-pool control tests independently calculate sequential sampling probabilities
+for uniform, score-only, distance-only and score-times-distance policies. They verify
+original hybrid query order, identical/zero-candidate/exhausted pools, uniqueness and
+shared exploration/fallback, hand-counted phase metrics and sample SD, and target labels
+replaced by an opaque object during selection. End-to-end synthetic tests reconcile
+original metrics, sum phases, include every class, check conditional uniform expectations,
+and exclude the union of all six original methods plus three controls. Original inputs
+retain their hashes/mtimes; no-op resume loads no tensors or modifies result files.
+Missing selection completion, corrupted pool/source files and changed runtime/protocols
+are rejected. Separate CLI subprocesses and launcher failure propagation enforce
+selection before evaluation; independent POOL_SEEDS prevent old seed variables leaking in.

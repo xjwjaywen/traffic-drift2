@@ -91,6 +91,7 @@ rebase 发生冲突时：
 
 - 选样探索独立入口：`run_kbs_acquisition_pilot.sh` / `kbs_acquisition_pilot.py`，协议见 `KBS_ACQUISITION_PILOT.md`。输出必须与旧 study/cache 分开；不修改 v1 引擎。原型复用每类五个参考行，风险仅用预测频率下降代理。先在不传入目标标签的 API 中锁定所有选择，再另进程事后评估；选样结果不等于修复收益。未来训练必须重算六方法查询并集排除后的共同评估。
 - `run_kbs_acquisition_diagnosis.sh` 为 pilot 的独立事后诊断，保持 pilot 文件哈希不变。参考评估排除原型构建行，重建目标候选池并拆分探索/专项/补足，结果与原选样评价逐项对账。只统计已存 BADGE 前 20% 标签中的真实错分作为下一假设的可行性线索；没有第二阶段查询或训练。
+- `run_kbs_pool_control.sh` / `kbs_pool_control.py` 在原风险候选池内做 uniform / score-only / distance-only 对照，冻结池、探索、预算及数值设置；先逐行复现原分数×距离专项选择再继续。保留 pilot/diagnosis/v1 引擎文件哈希，先完成全种子无目标标签选择再另进程评价。输出独立 `kbs_pool_control_v1`；未来修复使用原六方法加新三方法查询并集排除。没有训练或创新性结论。
 
 - 在 worktree 中工作时，不要切换到其他分支
 - 完成任务后确保代码可运行、测试通过
