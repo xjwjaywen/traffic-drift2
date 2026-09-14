@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-09-14 — Saved class audit and matched sensitivity reports
+
+Implementation commit: `44e1ce3` (based on main `4f113e9`).
+
+- Added a standard-library class audit of all six completed configurations: common-split per-class support, recall/F1 changes, new/residual collapse, worst noncollapse classes, query/reference counts and seed recurrence. It checks consumed small-file hashes and reconciles class metrics with run summaries before writing derived CSVs and a Chinese report.
+- Added `stage2` to run the audit first, then the existing Margin sensitivity grid. Audit failures prevent training. Existing numerical engines, selector and BADGE follow-up identities are unchanged.
+- End-to-end testing exposed an aggregation issue: the legacy sensitivity report includes all five saved baseline seeds but only three seeds for new settings, yielding 28 rows. The new `sensitivity-report` emits separate matched tables using the same requested seeds for all eight settings (24 rows by default), without editing the hash-pinned engine or discarding original runs.
+- Validation: 24 Python synthetic tests, shell launch/order/failure tests, Python 3.10 syntax checks, and a complete class-audit run with Python site packages disabled. Hand-calculated fixtures cover support-zero exclusions and repeated class failures. A completed 30-run synthetic study adds exactly 18 sensitivity fits, then zero on resume; original run files retain hashes and modification times.
+- Actual class-level findings and sensitivity scores await the user's server run. Synthetic fixtures are code checks, not paper evidence. Keep exploratory parameter scans distinct from parameter selection on an independent calibration period.
+
 ## 2026-09-14 — Paired BADGE reference-CE follow-up
 
 Implementation commit: `fbe5fdd` (based on main `fdbcd18`).
