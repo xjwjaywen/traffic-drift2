@@ -164,3 +164,55 @@ nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh sensitivity > kbs-
 ## 7. 验证范围
 
 代码通过 CPU 合成数据单元测试和 shell 启动器测试，覆盖独立损失开关、固定更新数/抽样流、冻结源模型、样本排除、全类别混淆统计、特征缓存、断点续跑与参数/文件不匹配检查。真实 CESNET 全量运行与 CUDA 执行需在服务器验证；测试数值不是新增实验结论。
+
+## 8. 第一批之后：BADGE 的参考 CE 对照
+
+这一补跑要求第一批的 `badge_full` 种子 0–4 已完成，并保留原 feature cache、selections 和 runs。新配置 `badge_kd` 仍用 BADGE 查询目标标签、全部类别参考样本与参考 KD，只关闭参考样本的监督 CE。预算 1,000、参考每类 5 个、KD 权重 0.5、温度 2、更新 1,380 步均沿用第一批。
+
+运行矩阵有两个配置、五个种子：校验并复用已有五次 `badge_full`，只新增五次 `badge_kd`。缺少基线或选样文件时会停止，不会默默重跑基线或重新选样。
+
+```bash
+cd /data/xjw/traffic-drift2
+conda activate traffic-ncde
+git pull --ff-only origin main
+bash Experiment/core_code/scripts/run_kbs_supplement.sh badge-kd-plan
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh badge-kd > kbs-badge-kd.log 2>&1 &
+tail -f kbs-badge-kd.log
+```
+
+若该服务器再次出现 `127.0.0.1:7897` 代理拒绝连接，可将上面的拉取命令替换为以下临时绕过代理的命令；它不修改 Git 配置或当前 shell 的代理设置：
+
+```bash
+env -u http_proxy -u https_proxy -u all_proxy \
+    -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+    git -c http.proxy= -c http.https://github.com.proxy= -c remote.origin.proxy= \
+    pull --ff-only origin main
+```
+
+默认复用 `outputs/kbs_supplement_v1`；如果第一批用了自定义目录，`OUTPUT_DIR` 和 `CACHE_DIR` 也必须指向当时的目录。校验阶段会读取缓存和已完成文件的哈希，日志可能暂时没有训练步数输出。同一命令支持安全续跑，`Ctrl+C` 仅退出 `tail -f`。
+
+补跑入口是 `scripts/kbs_badge_kd_followup.py`。原 `kbs_supplement.py` 和选样实现保持原内容，因此第一批记录的实现哈希仍可验证。补跑只注册新配置和独立汇总回调，额外记录 `badge_kd_extension_manifest.json` 中的入口哈希与运行环境；不绕过原协议、缓存或完成文件检查。
+
+每对结果还核对查询 ID、参考 ID 及顺序、目标/参考训练抽样流、更新数、预测行 ID、标签、源预测和 strict/common 评估掩码。新汇总仅包含两种配置均完成且配对检查通过的种子。五种子未齐时会明确显示未满足建议数量；单种子标准差留空。
+
+输出都位于原输出目录，原 `primary_*.csv` 和 25 次已完成运行保持不变：
+
+- `runs/badge_kd/seed_0` 至 `seed_4`：与第一批相同格式的预测、模型、指标及训练轨迹。
+- `badge_kd_summary.csv`：两种配置的均值、样本标准差、已配对种子数。
+- `badge_kd_results_by_seed.csv`：两种配置的逐种子结果，五种子齐全时为 10 行数据。
+- `badge_kd_paired_by_seed.csv`：逐种子差值，方向固定为 **badge_kd 减 badge_full**。F1 差值保留 0–1 单位；退化数/新增崩溃数的负差值表示更少类别受损。
+
+完成后可直接复制这两份小表用于分析：
+
+```bash
+cat Experiment/core_code/outputs/kbs_supplement_v1/badge_kd_summary.csv
+cat Experiment/core_code/outputs/kbs_supplement_v1/badge_kd_paired_by_seed.csv
+```
+
+如需重新校验并汇总：
+
+```bash
+bash Experiment/core_code/scripts/run_kbs_supplement.sh badge-kd-summarize
+```
+
+这是看到 Margin 消融结果之后提出的探索性对照，应报告全部五种子及有利/不利指标。它不增加独立源模型、时间段或数据集的重复数，也不自动证明新配置优于完整方法。

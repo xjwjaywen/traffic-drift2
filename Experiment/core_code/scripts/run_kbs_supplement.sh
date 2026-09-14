@@ -27,7 +27,15 @@ if [[ -n "${STEPS:-}" ]]; then common+=(--steps "$STEPS"); fi
 
 case "$mode" in
     smoke)
-        exec "$python_bin" -m unittest discover -s "$script_dir/tests" -p test_kbs_supplement.py
+        exec "$python_bin" -m unittest discover -s "$script_dir/tests" -p 'test_kbs*.py'
+        ;;
+    badge-kd-plan|badge-kd-summarize)
+        exec "$python_bin" "$script_dir/kbs_badge_kd_followup.py" "${mode#badge-kd-}" "${common[@]}" "$@"
+        ;;
+    badge-kd)
+        mkdir -p "$output_dir"
+        log="$output_dir/launcher-${mode}-$(date +%Y%m%d-%H%M%S)-$$.log"
+        "$python_bin" "$script_dir/kbs_badge_kd_followup.py" run "${common[@]}" "$@" 2>&1 | tee -a "$log"
         ;;
     plan|summarize)
         exec "$python_bin" "$script_dir/kbs_supplement.py" "$mode" --suite "${SUITE:-primary}" "${common[@]}" "$@"
@@ -42,7 +50,7 @@ case "$mode" in
         "$python_bin" "$script_dir/kbs_supplement.py" run --suite "$mode" "${common[@]}" "$@" 2>&1 | tee -a "$log"
         ;;
     *)
-        echo "Usage: bash scripts/run_kbs_supplement.sh {preflight|smoke|plan|prepare|primary|sensitivity|summarize} [Python CLI options]" >&2
+        echo "Usage: bash scripts/run_kbs_supplement.sh {preflight|smoke|plan|prepare|primary|sensitivity|summarize|badge-kd|badge-kd-plan|badge-kd-summarize} [Python CLI options]" >&2
         exit 2
         ;;
 esac

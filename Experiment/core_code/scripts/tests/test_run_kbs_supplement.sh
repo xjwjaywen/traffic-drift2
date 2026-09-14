@@ -13,6 +13,8 @@ with open(os.environ["CALLS"], "a") as stream:
                              "gpu": os.environ.get("CUDA_VISIBLE_DEVICES")}) + "\n")
 if "prepare" in sys.argv and os.environ.get("FAIL_PREPARE") == "1":
     sys.exit(42)
+if "run" in sys.argv and os.environ.get("FAIL_RUN") == "1":
+    sys.exit(43)
 PY
 chmod +x "$scratch/fake-python"
 export PYTHON="$scratch/fake-python" CALLS="$scratch/calls.jsonl"
@@ -37,4 +39,26 @@ code=$?
 set -e
 [[ "$code" == 42 ]]
 [[ "$(wc -l < "$CALLS" | tr -d ' ')" == 1 ]]
+unset FAIL_PREPARE
+
+: > "$CALLS"
+bash "$script_dir/run_kbs_supplement.sh" badge-kd --steps 2 > "$scratch/log" 2>&1
+bash "$script_dir/run_kbs_supplement.sh" badge-kd-plan > "$scratch/log" 2>&1
+bash "$script_dir/run_kbs_supplement.sh" badge-kd-summarize > "$scratch/log" 2>&1
+python3 - "$CALLS" "$DATA_DIR" <<'PY'
+import json, sys
+rows = [json.loads(s) for s in open(sys.argv[1])]
+assert len(rows) == 3
+assert [r["args"][1] for r in rows] == ["run", "plan", "summarize"]
+assert all(r["args"][0].endswith("kbs_badge_kd_followup.py") for r in rows)
+assert all(r["args"][r["args"].index("--data-dir") + 1] == sys.argv[2] for r in rows)
+assert all(r["gpu"] == "2" and "--suite" not in r["args"] for r in rows)
+assert rows[0]["args"][-2:] == ["--steps", "2"]
+PY
+export FAIL_RUN=1
+set +e
+bash "$script_dir/run_kbs_supplement.sh" badge-kd > "$scratch/log" 2>&1
+code=$?
+set -e
+[[ "$code" == 43 ]]
 echo "KBS launcher tests passed"

@@ -126,6 +126,18 @@ nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh primary > kbs-prim
 This caches frozen features, runs 25 head repairs, saves predictions/checkpoints
 and all-class metrics, and resumes completed runs after integrity checks.
 Optional `sensitivity` runs reuse matching primary configurations.
+After completing primary, run the paired BADGE reference-CE follow-up:
+
+```bash
+bash Experiment/core_code/scripts/run_kbs_supplement.sh badge-kd-plan
+nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh badge-kd > kbs-badge-kd.log 2>&1 &
+```
+
+It verifies and reuses five `badge_full` runs and adds five `badge_kd` runs
+(reference KD retained, reference supervised CE disabled). It preserves the
+original engine hash, selections, primary runs and tables. New `badge_kd_*.csv`
+tables contain only verified matched seeds, with five seeds recommended.
+Use `badge-kd-summarize` to regenerate the paired tables.
 See [the server guide](Experiment/core_code/KBS_SUPPLEMENT.md) for data paths,
 the controlled loss/update protocol, output files, and evaluation details.
 These are additional controlled experiments, not replacements for the archived
