@@ -1,5 +1,16 @@
 # Progress
 
+## 2026-09-14 — Hold the risk candidate pool fixed to localize sampling losses
+
+Implementation commit: `1c4f84f` (based on main `84fa51a`).
+
+- The user returned five-seed diagnosis results. Reference prototype accuracy was already 0.445 versus head accuracy 0.904. Risk weighting increased the candidate pool's collapse-class fraction to 727.6 / 20,000 = 3.638%, but the 500 selected specialists contained only 4.0 collapse-class samples (0.8%). This localizes a pool-to-sampler loss; it does not yet identify score weights, geometry or their interaction as the cause. Earlier final-query results alone were insufficient to dismiss the risk proxy at every stage.
+- Added a bounded fixed-pool comparison: original score-times-distance selections, uniform sampling, score-only sampling and distance-only sampling. Reconstruct the original pool with identical numerical settings and require the original specialist query order to reproduce before selecting any new control. Keep exploration, fallback, candidate cap, prototypes and total budget unchanged. Saved BADGE/random queries remain external references.
+- The uniform 500-sample conditional expectation from the reported fixed risk pools is 18.19 collapse samples; with shared exploration, the expected total is 30.19, still below BADGE's reported 44.4. These are analytic expectations, not observed new runs. The report keeps expectations separate from measured yields and does not turn a sampling improvement into a repair or novelty claim.
+- Selection drops bundled target labels and never passes target labels or collapse groups to acquisition APIs; separate-process evaluation begins only after every requested seed has a verified completion. Report full and phase-specific paired counts, all classes, original-metric reconciliation and conditional expectations. Preserve original cache/pilot/diagnosis/engine identities and write a union of all six original policies plus three new controls for possible future common-exclusion repair evaluation.
+- Validation: 44 synthetic Python tests (36 baseline plus 8 new), all five supplement/acquisition/diagnosis/pool/runtime shell suites, Python 3.10 grammar and unchanged original numerical files. Tests independently calculate draw probabilities, reproduce original hybrid order, reject altered order, cover empty/exhausted/duplicated pools, opaque target labels, all-seed evaluation gates, phase sums, all-class reporting, query unions, no-op resume, and original input hashes/mtimes. Separate CLI processes passed locally. Real CUDA/CESNET results remain pending on the user's server.
+- Stop this branch if the fixed controls have no stable benefit; do not keep searching M12 weights/thresholds. BADGE scouting confirms many errors but almost as many distinct pairs, so a later feedback-based retrieval idea needs its own controls and evidence. Any candidate remains development work until frozen and tested on data not used to choose it.
+
 ## 2026-09-14 — Diagnose unsuccessful acquisition before further method development
 
 Implementation commit: `fc0da3b` (based on main `0abd1db`).
