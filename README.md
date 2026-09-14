@@ -17,6 +17,12 @@ All 5 TTA methods fail on class collapse (F1 < 0.03). CARE is a framework: BADGE
 
 ## Repository Structure
 
+For the exploratory high-confidence-error acquisition pilot, see
+[KBS_ACQUISITION_PILOT.md](Experiment/core_code/KBS_ACQUISITION_PILOT.md).
+It reuses the completed controlled study and feature cache, freezes target-label-free
+query selections, then audits them in a separate process. It does not train or
+replace any published/controlled repair result.
+
 ```
 ├── Publication/              # Paper draft and figures
 │   ├── paper/main_v4.tex     # LaTeX source (CARE paper, latest)

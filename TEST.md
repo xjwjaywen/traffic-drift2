@@ -5,6 +5,7 @@ Run from the repository root in the existing experiment environment.
 ```bash
 python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_kbs*.py'
 bash Experiment/core_code/scripts/tests/test_run_kbs_supplement.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_pilot.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -35,3 +36,13 @@ that failed analysis prevents any training. `python -S scripts/kbs_class_audit.p
 from `Experiment/core_code` checks the audit's standard-library-only entry.
 
 Real CUDA/CESNET integration must be checked on the server using `preflight` and the primary run. No synthetic score is scientific evidence.
+
+Acquisition pilot tests cover reference IDs matched to the original five-per-class
+sampling, predicted-frequency risk arithmetic, confident-error discovery on known
+synthetic geometry, zero-score fallback and duplicated features, identical exploration
+and reproducibility, hand-calculated retrieval/coverage metrics, target labels replaced
+by an opaque object during selection, all-seed completion before any label evaluation,
+paired CSV statistics, query-union exclusion, process-separated CLI execution,
+input hash/mtime preservation, no-op resume, changed protocols and corrupt artifacts.
+The new launcher test checks quoting, seed/GPU forwarding and that failed selection
+prevents the label-evaluation process. The pilot uses no CESNET import or model fitting.
