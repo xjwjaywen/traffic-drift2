@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-09-14 — Paired BADGE reference-CE follow-up
+
+Implementation commit: `fbe5fdd` (based on main `fdbcd18`).
+
+- Added `badge-kd` after the server's 25-run primary study, to compare BADGE FT+KD with the completed full BADGE configuration using seeds 0–4. This is an exploratory follow-up motivated by the Margin ablation, not an additional independent source-model or time-period replication.
+- Editing the original runner would change its implementation hash and invalidate resumability. The new entry registers only configuration/reporting callbacks; the numerical engine and selector files remain byte-for-byte unchanged. The extension records its own identity and checks the original hashes normally.
+- Require verified baselines and existing selections before training. Match query/reference IDs and order, training streams, source predictions and evaluation masks before emitting independent paired tables. The 25 original runs and primary tables remain unchanged.
+- Validation: all 18 Python synthetic tests, updated launcher dispatch/failure tests, original runtime-benchmark shell tests, Python 3.10 syntax checks and unchanged v1 implementation hash. A synthetic 25-run study adds exactly five fits, and a repeated follow-up adds zero; every original file retains its hash and modification time.
+- Real BADGE FT+KD scores remain pending the user's CUDA server run. Synthetic test scores are not experimental evidence.
+
 ## 2026-09-14 — Controlled KBS supplements
 
 Implementation commit: `39413d3` (based on main `63992e7`).
