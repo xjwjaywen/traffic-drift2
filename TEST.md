@@ -8,6 +8,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_supplement.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_pilot.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_pool_control.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_relation_audit.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -70,3 +71,17 @@ retain their hashes/mtimes; no-op resume loads no tensors or modifies result fil
 Missing selection completion, corrupted pool/source files and changed runtime/protocols
 are rejected. Separate CLI subprocesses and launcher failure propagation enforce
 selection before evaluation; independent POOL_SEEDS prevent old seed variables leaking in.
+
+Relation audit tests use completed synthetic primary/BADGE-KD fixtures. Independent
+hand calculations check the failure-to-correction direction, self-loops, outdegree
+control, positive/negative/wrong-to-different-wrong flips, achievable accuracy/recall
+bounds and unsupported classes. Recomputed class metrics agree with the original
+engine. End-to-end tests reconcile common metrics and exact query unions, emit all
+classes/observed transitions, preserve input hashes/mtimes, and resume without array
+loads. A guarded npz interface makes target truth and repaired predictions unreadable
+during relation freezing; missing any frozen seed blocks evaluation before any label
+load. Mask/query-truth mismatches fail even after recomputing the completion hashes.
+Source/derived corruption and incompatible output/seed settings fail. Separate CLI
+subprocesses work without a feature cache; importing the production module does not
+import PyTorch. Launcher tests verify quoting, independent RELATION_SEEDS, separate
+freeze/evaluate processes, argument forwarding and failure propagation.

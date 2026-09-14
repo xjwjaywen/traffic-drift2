@@ -175,6 +175,24 @@ the controlled loss/update protocol, output files, and evaluation details.
 These are additional controlled experiments, not replacements for the archived
 main-table runs. No new CESNET results are claimed by the implementation tests.
 
+## Query-confirmed relation audit
+
+For the query-confirmed absorption-relation feasibility audit, reuse completed
+BADGE full/KD results on CPU without loading features or training:
+
+```bash
+bash Experiment/core_code/scripts/run_kbs_relation_audit.sh preflight
+nohup bash Experiment/core_code/scripts/run_kbs_relation_audit.sh run > kbs-relation-audit.log 2>&1 &
+```
+
+This freezes relations from the existing paid BADGE queries before a separate
+evaluation process. It audits prediction transitions and compares existing repair
+predictions with confirmed-relation and outdegree-matched random-destination gates.
+Both prevented negative flips and lost positive flips are reported on the original
+common query-excluded split. See [the relation audit guide](Experiment/core_code/KBS_RELATION_AUDIT.md)
+for input checks, files and limits. This is a development diagnostic, not a trained
+new method or a claim of novelty. Results go to `outputs/kbs_relation_audit_v1`.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |
