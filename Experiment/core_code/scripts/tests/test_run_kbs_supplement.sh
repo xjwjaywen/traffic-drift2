@@ -38,4 +38,3 @@ set -e
 [[ "$code" == 42 ]]
 [[ "$(wc -l < "$CALLS" | tr -d ' ')" == 1 ]]
 echo "KBS launcher tests passed"
-

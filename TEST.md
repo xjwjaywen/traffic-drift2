@@ -23,4 +23,3 @@ The Python tests use synthetic tensors in temporary directories, never CESNET pa
 The launcher tests verify path quoting, GPU selection, argument forwarding, and that a failed preparation propagates its exit code and prevents training. The runtime-benchmark shell tests cover the unchanged earlier launcher.
 
 Real CUDA/CESNET integration must be checked on the server using `preflight` and the primary run. No synthetic score is scientific evidence.
-

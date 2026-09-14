@@ -164,4 +164,3 @@ nohup bash Experiment/core_code/scripts/run_kbs_supplement.sh sensitivity > kbs-
 ## 7. 验证范围
 
 代码通过 CPU 合成数据单元测试和 shell 启动器测试，覆盖独立损失开关、固定更新数/抽样流、冻结源模型、样本排除、全类别混淆统计、特征缓存、断点续跑与参数/文件不匹配检查。真实 CESNET 全量运行与 CUDA 执行需在服务器验证；测试数值不是新增实验结论。
-
