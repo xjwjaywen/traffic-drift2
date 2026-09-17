@@ -1,5 +1,23 @@
 # Tests
 
+Protection-gap diagnostic checks can also run independently:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_kbs_protection_gap_diagnosis.py'
+bash Experiment/core_code/scripts/tests/test_run_kbs_protection_gap_diagnosis.sh
+```
+
+They compare analytical CE gradients (including bias) against independent autograd,
+hand-count training overlap, persistence, class coverage and feature diversity, and
+recompute unified metrics from both completed synthetic studies. Diagnosis blocks
+all fitting/acquisition/full-pool prediction and never loads reference features;
+every input hash/mtime is preserved. Empty denominators, prefix differences, all-class
+rows, source completion, changed seeds/outputs and rehashed stale metrics are checked.
+Resume loads no arrays. Separate CPU CLI invocations and launcher tests cover quoted
+paths, isolated seeds/output, hidden CUDA and exit propagation. These are synthetic
+correctness tests, not evidence for the research hypothesis. See
+`Experiment/core_code/PROTECTION_GAP_DIAGNOSIS.md`.
+
 Run from the repository root in the existing experiment environment.
 
 ```bash
