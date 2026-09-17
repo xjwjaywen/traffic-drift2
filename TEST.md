@@ -10,6 +10,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_acquisition_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_pool_control.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_relation_audit.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_badge_controls.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_repair_aware.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -99,3 +100,15 @@ Source/derived corruption and incompatible output/seed settings fail. Separate C
 subprocesses work without a feature cache; importing the production module does not
 import PyTorch. Launcher tests verify quoting, independent RELATION_SEEDS, separate
 freeze/evaluate processes, argument forwarding and failure propagation.
+
+Repair-aware acquisition tests independently check reverse error-edge weighting,
+uniform/weighted sampling, empty/small-pool fallback, uniqueness, deterministic
+zero-relation equivalence, query budgets, per-class negative flips and sample SD.
+End-to-end synthetic runs enforce scout-only / frozen-query-only label access using
+a guarded label object; replacing every unscouted label leaves acquisition unchanged.
+They verify fresh-source initialization for all five fits per seed, paired training
+streams, recomputed common-union metrics, source hash/mtime preservation and no-op
+resume without loading tensors. Missing earlier stages block before label access;
+corrupted inputs/outputs and changed protocols fail. Separate CLI stages and launcher
+tests cover paths with spaces, GPU forwarding, isolated seed/output variables and
+failure propagation before training/evaluation. See `Experiment/core_code/REPAIR_AWARE_PILOT.md`.
