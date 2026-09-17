@@ -13,6 +13,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_badge_controls.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_repair_aware.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_repair_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_oracle_protection.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_protection_budget.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -141,3 +142,15 @@ Separate CLI stages and launcher tests cover quoted paths, independent oracle se
 inherited runtime, GPU visibility and failure propagation. Synthetic protocol changes
 are confined to temporary fixtures; production hyperparameters are inherited unchanged.
 See `Experiment/core_code/ORACLE_PROTECTION_CONTROL.md`.
+
+Protection-budget tests independently check nested subsets, BADGE rank-order fill,
+overlap removal, exact reused endpoint ordering and retention of the full old
+evaluation exclusion. Three completed synthetic oracle seeds add exactly 12 fits,
+then zero on resume; source hashes/mtimes, fresh source initialization and paired
+training streams are preserved. Selection cannot load tensors; training labels are
+restricted to frozen query IDs. All old metrics reconcile on the unchanged mask,
+and every allocation, pair and class appears in the report. Missing source/selection/
+training stages, rehashed mask/label/metric inconsistencies, incompatible identities
+and corrupt results fail. Separate CLI stages and launcher tests check quoted paths,
+independent budget seed/output variables, inherited runtime and failure propagation.
+See `Experiment/core_code/PROTECTION_BUDGET_CONTROL.md`.
