@@ -11,6 +11,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_pool_control.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_relation_audit.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_badge_controls.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_repair_aware.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_repair_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -112,3 +113,15 @@ resume without loading tensors. Missing earlier stages block before label access
 corrupted inputs/outputs and changed protocols fail. Separate CLI stages and launcher
 tests cover paths with spaces, GPU forwarding, isolated seed/output variables and
 failure propagation before training/evaluation. See `Experiment/core_code/REPAIR_AWARE_PILOT.md`.
+
+Repair diagnosis tests independently hand-calculate coverage, random enrichment,
+damage persistence, relation cohorts, reverse transition counts and exposure-adjusted
+absorber risk. They check zero denominators, unsupported classes, metric-specific
+valid seed counts, query exclusion and count partitions. Completed synthetic pilots
+are diagnosed using only saved labels/logits/predictions while fitting, inference,
+device selection and feature access are blocked. Recomputed metrics must match the
+original evaluation; every input hash/mtime is preserved, and resume loads no arrays.
+Missing stages, changed identities, corrupt outputs and rehashed semantic metric
+mismatches fail. Separate CPU CLI processes and the launcher test check quoted paths,
+ignored GPU/seed variables, CPU visibility and nonzero exit propagation. See
+`Experiment/core_code/REPAIR_DIAGNOSIS.md`.
