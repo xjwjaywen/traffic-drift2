@@ -12,6 +12,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_relation_audit.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_badge_controls.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_repair_aware.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_repair_diagnosis.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_oracle_protection.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -125,3 +126,18 @@ Missing stages, changed identities, corrupt outputs and rehashed semantic metric
 mismatches fail. Separate CPU CLI processes and the launcher test check quoted paths,
 ignored GPU/seed variables, CPU visibility and nonzero exit propagation. See
 `Experiment/core_code/REPAIR_DIAGNOSIS.md`.
+
+Oracle protection tests hand-check uniform sampling from source-correct and
+source-correct/probe-wrong pools, identical-pool equivalence, exact six-arm query
+unions, source-truth privilege accounting and insufficient-pool failure without
+fallback. A completed three-seed synthetic pilot adds exactly six fits with fresh
+source initialization, original reference rows and paired training streams; training
+can read only frozen query labels. Selection cannot read final repair predictions.
+Old baseline metrics reconcile on their original masks; all six arms then recompute
+on the enlarged common exclusion. All original hashes/mtimes remain unchanged;
+resume adds zero fits and loads no arrays. Missing stages, rehashed ineligible queries,
+corrupt artifacts, changed settings and rehashed old metric discrepancies fail.
+Separate CLI stages and launcher tests cover quoted paths, independent oracle seeds,
+inherited runtime, GPU visibility and failure propagation. Synthetic protocol changes
+are confined to temporary fixtures; production hyperparameters are inherited unchanged.
+See `Experiment/core_code/ORACLE_PROTECTION_CONTROL.md`.
