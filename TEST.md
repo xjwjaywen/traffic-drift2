@@ -14,6 +14,7 @@ bash Experiment/core_code/scripts/tests/test_run_kbs_repair_aware.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_repair_diagnosis.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_oracle_protection.sh
 bash Experiment/core_code/scripts/tests/test_run_kbs_protection_budget.sh
+bash Experiment/core_code/scripts/tests/test_run_kbs_learned_protection.sh
 bash Experiment/core_code/scripts/tests/test_run_runtime_benchmark_m12.sh
 bash -n Experiment/core_code/scripts/run_kbs_supplement.sh
 ```
@@ -154,3 +155,16 @@ training stages, rehashed mask/label/metric inconsistencies, incompatible identi
 and corrupt results fail. Separate CLI stages and launcher tests check quoted paths,
 independent budget seed/output variables, inherited runtime and failure propagation.
 See `Experiment/core_code/PROTECTION_BUDGET_CONTROL.md`.
+
+Learned-protection tests check the logistic objective's first-order condition,
+ranking direction, constant signals, insufficient-support/solver fallback, independent
+signal arithmetic and saved-probe alignment. Hand fixtures verify the paid 80%/15%/5%
+partition, top-ranked selection, random ties and empty/small-pool fill. Guarded label
+objects allow only the 15% fit queries during acquisition and frozen full queries
+during training; replacing every other label leaves acquisition unchanged. Completed
+synthetic pilots add exactly 12 paired fresh-source fits, preserve all source hashes/
+mtimes, recompute expanded-mask metrics and resume without tensor loads. Missing stages,
+changed identities, rehashed query/model inconsistencies and stale source metrics fail.
+Separate CLI processes and launcher tests cover quoted paths, isolated learned-policy
+seeds/output, inherited runtime and fail-stop behavior. See
+`Experiment/core_code/LEARNED_PROTECTION_PILOT.md`.
