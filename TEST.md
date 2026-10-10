@@ -1,5 +1,23 @@
 # Tests
 
+The ordinary CARE mixed-query ablation can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_care_mixed_query_ablation.py'
+bash Experiment/core_code/scripts/tests/test_run_care_mixed_query_ablation.sh
+```
+
+Eight synthetic tests check fixed query partitions, shared confidence candidate
+pools, exactly matched predicted-class quotas, feature independence of random
+controls, only three new fits per seed, byte-identical reused heads, guarded paid
+labels, untouched source hashes/mtimes, independent confusion/flip arithmetic,
+paired differences and complete new/old query exclusion. They also check fresh
+continuation without tensors or fitting, incomplete/corrupt sources, output
+overlap, changed settings, rehashed invalid queries/quotas/traces/masks and reused
+head identity, plus separate CLI stages. The foreground shell check covers quoting,
+CPU isolation, independent environment variables and immediate failure propagation.
+See `Experiment/core_code/CARE_MIXED_QUERY_ABLATION.md`; these are not research results.
+
 The target-protection mechanism pilot can be checked with:
 
 ```bash

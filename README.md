@@ -235,6 +235,20 @@ See [the target protection guide](Experiment/core_code/CARE_TARGET_PROTECTION.md
 for foreground server commands, update details, common query exclusion and limits.
 This pilot does not establish novelty or safety outside confirmed queried anchors.
 
+The mixed-query ablation uses ordinary CARE with a shared 800-query Margin core
+and 200 supplements: full-pool random, common-candidate-pool random, predicted-class
+balanced random, and feature coverage. It reuses the completed Margin and coverage
+heads, adds three fits per seed, and reevaluates every arm on one full-target split:
+
+```bash
+bash Experiment/core_code/scripts/run_care_mixed_query_ablation.sh run
+```
+
+See [the mixed-query ablation guide](Experiment/core_code/CARE_MIXED_QUERY_ABLATION.md)
+for foreground server commands, matched candidate pools/class quotas, provenance
+checks, outputs and interpretation. Query sets are fixed across training seeds;
+this is a development ablation rather than evidence of cross-month generalization.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |

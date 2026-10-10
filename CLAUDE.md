@@ -79,6 +79,7 @@ rebase 发生冲突时：
 
 ## KBS 补充实验约定
 
+- 混合查询消融：`run_care_mixed_query_ablation.sh` / `care_mixed_query_ablation.py`，见 `CARE_MIXED_QUERY_ABLATION.md`。固定 800 Margin＋200 补充，比较全池随机/相同高置信候选池随机/相同预测类配额随机/特征覆盖；只用普通 CARE，复用完成的 Margin/coverage 头，每种子新增三次拟合。冻结全部查询后拟合，在所有新旧查询共同排除的完整目标池重评；保留旧脚本和完成结果哈希，CPU 前台运行。训练种子共用查询，候选池效应包含置信度与每类 reservoir 上限，不能称纯置信度消融或跨月份证据。
 - 目标保护机制：`run_care_target_protection.sh` / `care_target_protection.py`，见 `CARE_TARGET_PROTECTION.md`。完成小诊断/完整复评后，固定 1000 标签做 Margin 与 800 修复＋200 源预测分层保护覆盖，交叉原 CARE/逐步可行线段更新，另加付费锚点决定的最终插值控制。只确认查询源正确且间隔充分的锚点，约束全部 rival；独立选样/拟合/评价，共同排除所有新旧查询。复用原 Margin CARE，每种子新增三次拟合；CPU 前台运行，不改变旧脚本/结果哈希，不声称目标全池安全或方法新颖性。
 - 完整小模型复评：`run_small_repair_full_audit.sh` / `small_repair_full_audit.py`，见 `SMALL_REPAIR_FULL_AUDIT.md`。只复用已完成诊断的分类头，先对账原抽样预测与指标，再评价共同查询并集排除后的完整目标池；CPU 前台运行，独立输出逐类损伤/预测三元组/已付费查询锚点覆盖。保持原脚本/引擎/结果哈希，不训练、不增加查询、不加载参考张量；此轮不证明保护约束有效或新颖性。
 - 独立 CPU 可行性诊断：`run_small_repair_diagnostic.sh` / `small_repair_diagnostic.py`，见 `SMALL_REPAIR_DIAGNOSTIC.md`。只需源模型与原缓存，默认三种子、random/Margin、线性 CE/CARE/残差 MLP CARE 共 18 拟合。查询先冻结，训练只用查询目标标签，另进程在共同排除集评价；输出独立，不改 v1 引擎和旧结果。10 万行均匀评估的稀有类指标不能拼入论文主表；此轮不证明新颖性或骨干不可修复。
