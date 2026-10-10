@@ -79,6 +79,7 @@ rebase 发生冲突时：
 
 ## KBS 补充实验约定
 
+- 预定 M11 跨月复验：`run_care_cross_month_replication.sh` / `care_cross_month_replication.py`，见 `CARE_CROSS_MONTH_REPLICATION.md`。完整 M12 查询种子复验为前置；独立缓存按字节复用已校验 M4/源头，只用冻结骨干 CPU 提取 M11。沿用五查询种子、原训练/候选池参数，重新拟合 33 个 Margin/均衡/覆盖头；全部 M11 查询先冻结，训练只读付费标签，另进程评价 M11 查询并集排除集，不混入 M12 行号。主汇总先平均训练种子再按查询种子统计；M12 类组明确为迁移分组，M11 低 F1 组仅在全部拟合后按预定源 F1 规则描述。保留所有旧脚本/缓存/结果哈希，CPU 前台运行；单月复验不证明新颖性。
 - 新选样种子复验：`run_care_query_seed_robustness.sh` / `care_query_seed_robustness.py`，见 `CARE_QUERY_SEED_ROBUSTNESS.md`。完成 mixed 消融后，固定 800 Margin＋200 补充，对相同候选池/配额的类别均衡随机与特征覆盖使用五个新选样种子，交叉原三个训练种子，默认新增 30 CPU 拟合。旧选样种子及纯 Margin 只复用头；旧选样种子不计入主汇总。主单位是先平均配对训练重复后的新选样种子，全部新旧查询共同排除；保留所有旧脚本/结果哈希。月份清单仅检查小 manifest 和文件存在性；当前仍为 M12，下一月份预先定为 M11，不能称已跨月验证。
 - 混合查询消融：`run_care_mixed_query_ablation.sh` / `care_mixed_query_ablation.py`，见 `CARE_MIXED_QUERY_ABLATION.md`。固定 800 Margin＋200 补充，比较全池随机/相同高置信候选池随机/相同预测类配额随机/特征覆盖；只用普通 CARE，复用完成的 Margin/coverage 头，每种子新增三次拟合。冻结全部查询后拟合，在所有新旧查询共同排除的完整目标池重评；保留旧脚本和完成结果哈希，CPU 前台运行。训练种子共用查询，候选池效应包含置信度与每类 reservoir 上限，不能称纯置信度消融或跨月份证据。
 - 目标保护机制：`run_care_target_protection.sh` / `care_target_protection.py`，见 `CARE_TARGET_PROTECTION.md`。完成小诊断/完整复评后，固定 1000 标签做 Margin 与 800 修复＋200 源预测分层保护覆盖，交叉原 CARE/逐步可行线段更新，另加付费锚点决定的最终插值控制。只确认查询源正确且间隔充分的锚点，约束全部 rival；独立选样/拟合/评价，共同排除所有新旧查询。复用原 Margin CARE，每种子新增三次拟合；CPU 前台运行，不改变旧脚本/结果哈希，不声称目标全池安全或方法新颖性。

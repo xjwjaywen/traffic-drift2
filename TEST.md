@@ -1,5 +1,23 @@
 # Tests
 
+The prespecified M11 replication can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_care_cross_month_replication.py'
+bash Experiment/core_code/scripts/tests/test_run_care_cross_month_replication.sh
+```
+
+Synthetic tests check M11-only extraction, exact M4/head copies, interrupted-cache
+failure, empty/wrong-class months, raw-data changes, full provenance validation,
+paid-label guards, all-query freezing, matched quotas/replay/optimizer streams,
+M11-only exclusion masks, independent confusion/flip arithmetic, offline low-F1
+groups, nested query-level summaries and resume without tensor reads or fits.
+Missing/corrupt sources and rehashed quota/mask/stream errors fail. Separate CLI
+stages and shell checks verify foreground order, CPU isolation, quoting, ignored
+old task variables and immediate failure propagation. See
+`Experiment/core_code/CARE_CROSS_MONTH_REPLICATION.md`; synthetic scores are not
+evidence of cross-month effectiveness or novelty.
+
 Fresh query-seed replication can be checked with:
 
 ```bash

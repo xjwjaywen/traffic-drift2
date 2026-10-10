@@ -263,6 +263,21 @@ variation. See [the query-seed replication guide](Experiment/core_code/CARE_QUER
 for foreground commands, provenance checks, nested summaries and a metadata-only
 month-cache inventory. This stage remains on M12; the next month is prespecified M11.
 
+After the five-query-seed M12 replication completes, run the prespecified M11
+comparison with unchanged CARE/query parameters:
+
+```bash
+bash Experiment/core_code/scripts/run_care_cross_month_replication.sh run
+```
+
+This foreground CPU stage copies the verified M4 reference cache and source head,
+extracts only M11 features if needed, freezes all M11 queries, and trains 33 new
+heads. It compares pure Margin, balanced supplementation and feature coverage on
+one full M11 query-excluded evaluation set. See
+[the M11 replication guide](Experiment/core_code/CARE_CROSS_MONTH_REPLICATION.md)
+for server fetch commands, cache provenance, nested summaries and the distinction
+between transferred M12 class groups and offline M11 low-F1 groups.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |
