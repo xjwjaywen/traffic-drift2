@@ -1,5 +1,21 @@
 # Tests
 
+The completed small pilot's full-target audit can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_small_repair_full_audit.py'
+bash Experiment/core_code/scripts/tests/test_run_small_repair_full_audit.sh
+```
+
+Synthetic checks independently count full-pool F1, class flips and changed prediction
+triples, verify the common query-union exclusion, zero-fill absent transition seeds
+and preserve undefined rates. They block fitting/acquisition/reference tensor loading,
+gate truth access on completed source stages, reconcile saved sampled predictions and
+metrics (including rehashed stale results), preserve source hashes/mtimes, and resume
+completed audits without tensor/array loading or inference. CLI/launcher checks cover
+foreground CPU dispatch, quoted paths, isolated settings and exit propagation.
+These checks are not research evidence; see `Experiment/core_code/SMALL_REPAIR_FULL_AUDIT.md`.
+
 The standalone CPU feasibility pilot can be checked with:
 
 ```bash

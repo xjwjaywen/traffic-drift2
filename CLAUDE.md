@@ -79,6 +79,7 @@ rebase 发生冲突时：
 
 ## KBS 补充实验约定
 
+- 完整小模型复评：`run_small_repair_full_audit.sh` / `small_repair_full_audit.py`，见 `SMALL_REPAIR_FULL_AUDIT.md`。只复用已完成诊断的分类头，先对账原抽样预测与指标，再评价共同查询并集排除后的完整目标池；CPU 前台运行，独立输出逐类损伤/预测三元组/已付费查询锚点覆盖。保持原脚本/引擎/结果哈希，不训练、不增加查询、不加载参考张量；此轮不证明保护约束有效或新颖性。
 - 独立 CPU 可行性诊断：`run_small_repair_diagnostic.sh` / `small_repair_diagnostic.py`，见 `SMALL_REPAIR_DIAGNOSTIC.md`。只需源模型与原缓存，默认三种子、random/Margin、线性 CE/CARE/残差 MLP CARE 共 18 拟合。查询先冻结，训练只用查询目标标签，另进程在共同排除集评价；输出独立，不改 v1 引擎和旧结果。10 万行均匀评估的稀有类指标不能拼入论文主表；此轮不证明新颖性或骨干不可修复。
 - 入口：`Experiment/core_code/scripts/run_kbs_supplement.sh`；协议与服务器命令见 `Experiment/core_code/KBS_SUPPLEMENT.md`。
 - 新受控消融固定 optimizer 步数和目标抽样流，参考 CE 与参考 KD 独立开关；不得将新协议结果拼入旧主表。

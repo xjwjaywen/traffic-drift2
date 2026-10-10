@@ -43,12 +43,10 @@ bash Experiment/core_code/scripts/run_small_repair_diagnostic.sh preflight
 出现 `"status": "ready"` 后启动：
 
 ```bash
-nohup bash Experiment/core_code/scripts/run_small_repair_diagnostic.sh run \
-    > small-repair-diagnostic.log 2>&1 &
-tail -f small-repair-diagnostic.log
+bash Experiment/core_code/scripts/run_small_repair_diagnostic.sh run
 ```
 
-`Ctrl+C` 只退出 `tail`。看到 `SMALL_REPAIR_COMPLETE: .../evaluation/report.md` 才表示整个诊断完成。
+日志显示在当前终端；`Ctrl+C` 会中断本次运行。看到 `SMALL_REPAIR_COMPLETE: .../evaluation/report.md` 才表示整个诊断完成。
 若出现 `ERROR` 或 traceback，请先读错误；末尾的 shell 提示符本身不代表运行成功。
 没有测量这台服务器上的实际耗时，不给出运行时长保证。
 
@@ -102,11 +100,11 @@ Margin 对种子不敏感，三种子共享同一 Margin 查询集合。
 总体/指定组 Macro-F1 仍包含零支持类的零值，不能与全 M12 主表直接比较；
 小样本的稀有类 F1/召回和新增崩溃数只作诊断线索。
 
-若需要完整评估，另建输出目录运行：
+已完成小规模诊断后，推荐复用分类头做独立完整复评，见
+[完整复评指南](SMALL_REPAIR_FULL_AUDIT.md)：
 
 ```bash
-SMALL_REPAIR_OUTPUT_DIR=outputs/small_repair_diagnostic_fullM12_v1 \
-    bash Experiment/core_code/scripts/run_small_repair_diagnostic.sh run --eval-size 0
+bash Experiment/core_code/scripts/run_small_repair_full_audit.sh run
 ```
 
 不要用测试指标挑最好种子或扫描超参数。M12 已用于方法开发；这些种子共享月份和源模型，
@@ -124,7 +122,7 @@ SMALL_REPAIR_OUTPUT_DIR=outputs/small_repair_diagnostic_fullM12_v1 \
 - `evaluation/per_class.csv`、`predictions.npz`：全部类别支持和损伤，以及共同评估行/标签/预测，便于复核。
 - 各阶段 `complete.json`：登记结果文件哈希，完成标记最后写入。
 
-输入读取/哈希、选样、拟合、评价的阶段总耗时见 `small-repair-diagnostic.log`；
+输入读取/哈希、选样、拟合、评价的阶段总耗时显示在终端；
 每次拟合和评价耗时另外写入 trace/CSV。旧特征提取成本不计入。
 
 只继承专用变量 `SMALL_REPAIR_CACHE_DIR`、`SMALL_REPAIR_CHECKPOINT`、`SMALL_REPAIR_OUTPUT_DIR`、

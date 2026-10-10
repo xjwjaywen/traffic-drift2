@@ -206,6 +206,22 @@ common query-excluded split. See [the relation audit guide](Experiment/core_code
 for input checks, files and limits. This is a development diagnostic, not a trained
 new method or a claim of novelty. Results go to `outputs/kbs_relation_audit_v1`.
 
+## CPU repair diagnosis and full-target reevaluation
+
+The small pilot compares random/Margin queries and linear CE/CARE/residual MLP CARE
+heads on cached M4/M12 features. See [the pilot guide](Experiment/core_code/SMALL_REPAIR_DIAGNOSTIC.md).
+After it finishes, reuse all saved heads for a foreground CPU evaluation of the
+full target pool, excluding the frozen query union:
+
+```bash
+bash Experiment/core_code/scripts/run_small_repair_full_audit.sh run
+```
+
+This adds no queries or training, reconciles the original sampled predictions and
+metrics, and reports per-class damage, changed prediction triples and paid-query
+anchor coverage. See [the full audit guide](Experiment/core_code/SMALL_REPAIR_FULL_AUDIT.md).
+Outputs are separate from the pilot and are development diagnostics.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |
