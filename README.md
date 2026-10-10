@@ -278,6 +278,28 @@ one full M11 query-excluded evaluation set. See
 for server fetch commands, cache provenance, nested summaries and the distinction
 between transferred M12 class groups and offline M11 low-F1 groups.
 
+After the M11 replication completes, the read-only
+[M11 mechanism diagnosis](Experiment/core_code/CARE_M11_MECHANISM_DIAGNOSTIC.md)
+audits all saved heads/predictions/metrics, separates per-class recovery from
+negative flips and incoming false positives, and inspects paid-query geometry
+and bounded retrospective linear-boundary probes. It adds no fitting or labels:
+
+```bash
+bash Experiment/core_code/scripts/run_care_m11_mechanism_diagnostic.sh run
+```
+
+Completed server development reports, CSVs and JSON protocols can be exported and
+published in a separate results branch without changing the server checkout:
+
+```bash
+bash Experiment/core_code/scripts/run_export_care_results.sh publish
+```
+
+See [the result export guide](Experiment/core_code/CARE_RESULTS_EXPORT.md) for
+the server fetch command, completion/hash checks, bounded text-only scope, ZIP
+fallback and Git authentication requirements. Raw data, caches, heads and prediction
+arrays remain on the server; `CARE_RESULTS_PUSHED` confirms the remote commit.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |

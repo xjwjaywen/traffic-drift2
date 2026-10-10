@@ -1,5 +1,39 @@
 # Tests
 
+Server result export/publication can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_export_care_results.py'
+bash Experiment/core_code/scripts/tests/test_run_export_care_results.sh
+```
+
+Five tests check exact UTF-8 copies, ZIP contents, binary exclusions with retained
+hashes, unfinished-study handling, missing/corrupt completed artifacts, unsafe
+paths, symlinks and size bounds. A temporary local bare remote checks that publication
+changes only the results directory on a fresh results branch, preserving the dirty
+server checkout, staged index, HEAD and main. Push failures retain the ZIP, worktree
+and commit. The M11 diagnosis pipeline also validates all seven real synthetic
+completion layouts against the exporter. No test contacts GitHub or uses real data.
+
+The M11 mechanism diagnosis can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_care_m11_mechanism_diagnostic.py'
+bash Experiment/core_code/scripts/tests/test_run_care_m11_mechanism_diagnostic.sh
+```
+
+Independent hand fixtures check paired outcome partitions, TP/FP/F1 accounting,
+incoming false positives, zero-filled sparse edge summaries, query-level nested
+means/SD, missing-neighbor handling and exact feature/bias boundary algebra.
+Completed synthetic source studies check every head/prediction/CSV reconciliation,
+source preservation, no fitting/new queries/feature extraction/reference loading,
+probe bounds and query exclusion, and resume without tensors. Incomplete sources,
+output aliases, rehashed wrong source metrics/predictions and separate CLI stages
+are covered. Shell checks verify foreground order, quoting, CPU isolation,
+independent environment variables and fail-stop behavior. See
+`Experiment/core_code/CARE_M11_MECHANISM_DIAGNOSTIC.md`; these are correctness
+checks, not mechanism or causal evidence.
+
 The prespecified M11 replication can be checked with:
 
 ```bash

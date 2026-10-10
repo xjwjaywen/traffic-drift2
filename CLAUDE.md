@@ -79,6 +79,7 @@ rebase 发生冲突时：
 
 ## KBS 补充实验约定
 
+- M11 恢复/误伤诊断：`run_care_m11_mechanism_diagnostic.sh` / `care_m11_mechanism_diagnostic.py`，见 `CARE_M11_MECHANISM_DIAGNOSTIC.md`。只复用完整 M11 结果；先对账全部头/完整预测/原 CSV，再分解逐类 TP/FP/F1 与源正确负翻转、错分四元组和类别 Macro 贡献。补充付费覆盖/错误关系、同预测类候选池几何及事后聚焦的限量边界/同真类近邻探针；原始行号、抽样母体和 NA 保留。主汇总按查询种子，稀疏边缺失补零，连续无事件不填零。新增训练/查询/骨干提取均为零，不加载参考张量，旧脚本/缓存/结果保持哈希；CPU 前台分阶段运行，诊断只提供机制线索，不能作因果归因或全池保护证明。
 - 预定 M11 跨月复验：`run_care_cross_month_replication.sh` / `care_cross_month_replication.py`，见 `CARE_CROSS_MONTH_REPLICATION.md`。完整 M12 查询种子复验为前置；独立缓存按字节复用已校验 M4/源头，只用冻结骨干 CPU 提取 M11。沿用五查询种子、原训练/候选池参数，重新拟合 33 个 Margin/均衡/覆盖头；全部 M11 查询先冻结，训练只读付费标签，另进程评价 M11 查询并集排除集，不混入 M12 行号。主汇总先平均训练种子再按查询种子统计；M12 类组明确为迁移分组，M11 低 F1 组仅在全部拟合后按预定源 F1 规则描述。保留所有旧脚本/缓存/结果哈希，CPU 前台运行；单月复验不证明新颖性。
 - 新选样种子复验：`run_care_query_seed_robustness.sh` / `care_query_seed_robustness.py`，见 `CARE_QUERY_SEED_ROBUSTNESS.md`。完成 mixed 消融后，固定 800 Margin＋200 补充，对相同候选池/配额的类别均衡随机与特征覆盖使用五个新选样种子，交叉原三个训练种子，默认新增 30 CPU 拟合。旧选样种子及纯 Margin 只复用头；旧选样种子不计入主汇总。主单位是先平均配对训练重复后的新选样种子，全部新旧查询共同排除；保留所有旧脚本/结果哈希。月份清单仅检查小 manifest 和文件存在性；当前仍为 M12，下一月份预先定为 M11，不能称已跨月验证。
 - 混合查询消融：`run_care_mixed_query_ablation.sh` / `care_mixed_query_ablation.py`，见 `CARE_MIXED_QUERY_ABLATION.md`。固定 800 Margin＋200 补充，比较全池随机/相同高置信候选池随机/相同预测类配额随机/特征覆盖；只用普通 CARE，复用完成的 Margin/coverage 头，每种子新增三次拟合。冻结全部查询后拟合，在所有新旧查询共同排除的完整目标池重评；保留旧脚本和完成结果哈希，CPU 前台运行。训练种子共用查询，候选池效应包含置信度与每类 reservoir 上限，不能称纯置信度消融或跨月份证据。
@@ -95,6 +96,8 @@ rebase 发生冲突时：
 - 敏感性比较使用 `sensitivity_matched_*.csv`，各配置严格使用同一组种子（默认 0–2）；旧引擎的通用汇总会额外纳入两个基线的种子 3–4。`sensitivity-report` 校验完成文件后单独生成配对种子汇总，不修改 v1 引擎。
 
 ## 工作区注意事项
+
+- 服务器结果导出：`run_export_care_results.sh` / `export_care_results.py`，见 `CARE_RESULTS_EXPORT.md`。标准库校验已完成本实验阶段的全部登记文件哈希，原字节导出报告/CSV/JSON到 `Experiment/results/care_development/`，大数组/缓存/权重留服务器。默认七轮已知实验中跳过未完成者，损坏完成结果报错；大小限制、符号链接/越界拒绝。前台 `publish` 从代码分支建立独立 worktree/新结果分支，仅提交结果目录；不改原工作区索引/HEAD/代码，不推 main 或强推。远端对账后才打印上传成功；认证失败保留 ZIP、worktree 和已完成提交。哈希完整性不替代指标重算、外部依赖验证或研究结论。
 
 - 选样探索独立入口：`run_kbs_acquisition_pilot.sh` / `kbs_acquisition_pilot.py`，协议见 `KBS_ACQUISITION_PILOT.md`。输出必须与旧 study/cache 分开；不修改 v1 引擎。原型复用每类五个参考行，风险仅用预测频率下降代理。先在不传入目标标签的 API 中锁定所有选择，再另进程事后评估；选样结果不等于修复收益。未来训练必须重算六方法查询并集排除后的共同评估。
 - `run_kbs_acquisition_diagnosis.sh` 为 pilot 的独立事后诊断，保持 pilot 文件哈希不变。参考评估排除原型构建行，重建目标候选池并拆分探索/专项/补足，结果与原选样评价逐项对账。只统计已存 BADGE 前 20% 标签中的真实错分作为下一假设的可行性线索；没有第二阶段查询或训练。
