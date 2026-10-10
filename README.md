@@ -17,6 +17,13 @@ All 5 TTA methods fail on class collapse (F1 < 0.03). CARE is a framework: BADGE
 
 ## Repository Structure
 
+For the CPU feasibility pilot using only the existing CARE cache and source checkpoint,
+see [SMALL_REPAIR_DIAGNOSTIC.md](Experiment/core_code/SMALL_REPAIR_DIAGNOSTIC.md).
+It freezes random/Margin queries, then runs 18 matched small-head fits across three seeds,
+comparing target-only CE, CARE reference protection and a nonlinear residual head.
+A separate evaluation process uses one common query-excluded sample; this is development
+diagnosis, not a published-table replication or evidence of methodological novelty.
+
 To complete the controlled BADGE component ablation, use
 [KBS_BADGE_CONTROLS.md](Experiment/core_code/KBS_BADGE_CONTROLS.md).
 It reuses the completed BADGE full/KD runs and fixed queries, adding only FT-only

@@ -1,5 +1,23 @@
 # Tests
 
+The standalone CPU feasibility pilot can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_small_repair_diagnostic.py'
+bash Experiment/core_code/scripts/tests/test_run_small_repair_diagnostic.sh
+```
+
+Synthetic fixtures verify label-free selection, all-query union exclusion and fixed
+uniform evaluation sampling, exact source-equivalent residual initialization, queried-only
+target label access through a guard, identical optimization sampling streams and the
+reference protection switches. End-to-end tests independently recompute confusion F1
+and negative flips, verify all-fit completion before evaluation, preserve input hashes/mtimes,
+and resume without loading tensors or fitting. Corrupt results, changed settings, incompatible
+cache/checkpoint/periods and overlapping output paths fail. Separate CLI processes and shell
+tests cover CPU-only operation, independent environment settings, path quoting and failure
+propagation. No synthetic scores are research evidence. See
+`Experiment/core_code/SMALL_REPAIR_DIAGNOSTIC.md`.
+
 Protection-gap diagnostic checks can also run independently:
 
 ```bash
