@@ -249,6 +249,20 @@ for foreground server commands, matched candidate pools/class quotas, provenance
 checks, outputs and interpretation. Query sets are fixed across training seeds;
 this is a development ablation rather than evidence of cross-month generalization.
 
+After the mixed ablation completes, replicate balanced random vs feature coverage
+with five fresh acquisition seeds, each crossed with the original training seeds:
+
+```bash
+bash Experiment/core_code/scripts/run_care_query_seed_robustness.sh run
+```
+
+The original acquisition seed stays a reused development control and is excluded
+from the primary fresh-seed summary. This adds 30 CPU fits by default; paired
+training replicates are averaged within acquisition seeds before reporting their
+variation. See [the query-seed replication guide](Experiment/core_code/CARE_QUERY_SEED_ROBUSTNESS.md)
+for foreground commands, provenance checks, nested summaries and a metadata-only
+month-cache inventory. This stage remains on M12; the next month is prespecified M11.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |

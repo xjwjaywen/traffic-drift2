@@ -1,5 +1,23 @@
 # Tests
 
+Fresh query-seed replication can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_care_query_seed_robustness.py'
+bash Experiment/core_code/scripts/tests/test_run_care_query_seed_robustness.sh
+```
+
+Eight synthetic tests independently check nested paired means and query-level SD,
+development-seed exclusion, all-query freezing, paid-label guards, matched class
+quotas, only fresh fits, exact copied heads, preserved source hashes/mtimes,
+common query-union exclusion and confusion/flip arithmetic. They also check
+fresh continuation without tensors or fitting, invalid/development seeds,
+missing/corrupt parents, changed plans, rehashed invalid query grids/quotas/traces
+and sampling streams, metadata-only inventory without tensor reads or writes,
+and separate CLI stages. Shell checks cover foreground stages, CPU isolation,
+quoting, independent environment variables and failure propagation. See
+`Experiment/core_code/CARE_QUERY_SEED_ROBUSTNESS.md`; no synthetic score is research evidence.
+
 The ordinary CARE mixed-query ablation can be checked with:
 
 ```bash
