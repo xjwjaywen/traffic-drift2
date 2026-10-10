@@ -222,6 +222,19 @@ metrics, and reports per-class damage, changed prediction triples and paid-query
 anchor coverage. See [the full audit guide](Experiment/core_code/SMALL_REPAIR_FULL_AUDIT.md).
 Outputs are separate from the pilot and are development diagnostics.
 
+The next mechanism pilot keeps a fixed label budget and compares the original
+Margin queries with class-stratified target protection coverage, crossed with
+ordinary CARE and feasible per-update anchor margins. It reuses completed Margin
+baselines and adds three fits per seed plus two derived interpolation controls:
+
+```bash
+bash Experiment/core_code/scripts/run_care_target_protection.sh run
+```
+
+See [the target protection guide](Experiment/core_code/CARE_TARGET_PROTECTION.md)
+for foreground server commands, update details, common query exclusion and limits.
+This pilot does not establish novelty or safety outside confirmed queried anchors.
+
 ## Dataset sources
 
 | Dataset | Protocol | Classes | Duration | Source |

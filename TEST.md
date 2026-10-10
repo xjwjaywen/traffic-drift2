@@ -1,5 +1,21 @@
 # Tests
 
+The target-protection mechanism pilot can be checked with:
+
+```bash
+python -m unittest discover -s Experiment/core_code/scripts/tests -p 'test_care_target_protection.py'
+bash Experiment/core_code/scripts/tests/test_run_care_target_protection.sh
+```
+
+Synthetic tests independently compute the limiting all-rival linear constraint,
+reproduce the legacy CARE engine exactly with zero anchors, verify deterministic
+label-free stratified coverage and a fixed query budget, guard paid-label access,
+count only three new fits per seed, preserve all source hashes/mtimes, recompute
+common-split F1/negative flips, and check anchor feasibility and completion gating.
+Separate CLI stages and foreground launcher tests cover failure propagation;
+completed continuation loads no tensors/arrays or fits. See
+`Experiment/core_code/CARE_TARGET_PROTECTION.md`. These are not research results.
+
 The completed small pilot's full-target audit can be checked with:
 
 ```bash
