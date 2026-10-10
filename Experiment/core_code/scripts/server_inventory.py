@@ -38,6 +38,39 @@ def describe(path):
         return {"path": str(path), "error": str(exc)}
 
 
+def expected_care_inputs(root):
+    candidates = [root / "traffic-drift2/Experiment/core_code", root / "Experiment/core_code", root]
+    core = next((path for path in candidates if (path / "configs/eval_tls22.yaml").is_file()
+                 or (path / "scripts/kbs_supplement.py").is_file()), None)
+    if core is None:
+        return {"core": None, "files": {}, "all_present": False}
+    relative_paths = {
+        "TLS dataset": "data/tls22/S/CESNET-TLS-Year22-S.h5",
+        "Source checkpoint": "outputs/tls22_cnn/best_model.pt",
+        "Target features": "outputs/kbs_supplement_v1/cache/target.pt",
+        "Reference features": "outputs/kbs_supplement_v1/cache/reference.pt",
+        "Source head": "outputs/kbs_supplement_v1/cache/head.pt",
+        "Cache manifest": "outputs/kbs_supplement_v1/cache/manifest.json",
+    }
+    files = {}
+    for label, relative in relative_paths.items():
+        path = core / relative
+        files[label] = {**describe(path), "present": path.is_file()}
+    return {"core": str(core), "files": files,
+            "all_present": all(item["present"] for item in files.values())}
+
+
+def print_expected(inputs):
+    print("\nDEFAULT CARE INPUTS (presence only; hashes/content NOT validated)")
+    if inputs["core"] is None:
+        print("  CARE core directory not identified from this root.")
+        return
+    for label, item in inputs["files"].items():
+        status = "PRESENT" if item["present"] else "MISSING"
+        print(" ", status, label + ":", item["path"], "->", item.get("GiB", "?"), "GiB")
+    print("  All six default inputs present:", inputs["all_present"])
+
+
 def environment(root):
     packages = {}
     for name in PACKAGES:
@@ -152,6 +185,9 @@ def print_report(report):
     print("Conda:", env["conda_env"], "prefix:", env["conda_prefix"])
     print("Packages:", ", ".join(name + "=" + (version or "MISSING") for name, version in env["packages"].items()))
     print("CPU cores:", env["cpu_count"], "disk free GiB:", env["disk_free_GiB"], "memory:", env.get("memory", "unavailable"))
+    if scan_result is None:
+        print_expected(report["expected_care_inputs"])
+        return
     print("Top-level folders:", ", ".join(report["top_level_folders"]))
     for category in ["scripts", "configs", "datasets", "checkpoints", "symlinks"]:
         items = scan_result[category]
@@ -161,15 +197,20 @@ def print_report(report):
             print(" ", item["path"], "->", detail)
         if not items:
             print("  No matches within scan limits.")
-    print("\nFEATURE CACHE GROUPS")
-    for group in scan_result["cache_groups"][:12]:
+    candidates = [group for group in scan_result["cache_groups"]
+                  if "target.pt" in group["files"] or "reference.pt" in group["files"]
+                  or "cache" in Path(group["directory"]).parts]
+    candidates.sort(key=lambda group: (not group["all_expected_files_present"], group["directory"]))
+    print("\nFEATURE CACHE GROUPS (found " + str(len(candidates)) + "; showing up to 12)")
+    for group in candidates[:12]:
         present = ",".join(sorted(group["files"]))
         print(" ", group["directory"], "files:", present, "manifest:", group["manifest_present"],
               "all expected files present:", group["all_expected_files_present"])
         if group.get("manifest_metadata"):
             print("  metadata:", json.dumps(group["manifest_metadata"], ensure_ascii=False))
-    if not scan_result["cache_groups"]:
-        print("  No target.pt/reference.pt/head.pt groups within scan limits.")
+    if not candidates:
+        print("  No feature cache candidates within scan limits; standalone trained heads are excluded.")
+    print_expected(report["expected_care_inputs"])
     if "gpu_status" in env:
         print("\nGPU (index,name,total memory,used memory,utilization):\n" + env["gpu_status"])
     print("\nScan seconds:", scan_result["elapsed_seconds"], "depth:", scan_result["max_depth"],
@@ -184,6 +225,7 @@ def main():
     parser.add_argument("--max-depth", type=int, default=8)
     parser.add_argument("--max-entries", type=int, default=150000)
     parser.add_argument("--seconds", type=float, default=30)
+    parser.add_argument("--care-only", action="store_true", help="Check the six default CARE inputs without a recursive scan")
     parser.add_argument("--output", type=Path, help="Optional JSON report; refuses to overwrite an existing file")
     args = parser.parse_args()
     root = Path(args.root).expanduser().absolute()
@@ -199,7 +241,8 @@ def main():
         parser.error(str(exc))
     report = {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "root": str(root), "top_level_folders": top, "environment": environment(root),
-              "scan": scan(root, args.max_depth, args.max_entries, args.seconds)}
+              "expected_care_inputs": expected_care_inputs(root),
+              "scan": None if args.care_only else scan(root, args.max_depth, args.max_entries, args.seconds)}
     print_report(report)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

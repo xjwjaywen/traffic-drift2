@@ -11,6 +11,17 @@
 python Experiment/core_code/scripts/server_inventory.py --root /data/xjw
 ```
 
+只核对正文 CARE 默认使用的 TLS 数据、源检查点和四个缓存文件：
+
+```bash
+python Experiment/core_code/scripts/server_inventory.py --root /data/xjw/traffic-drift2 --care-only
+```
+
+此模式不递归扫描，每个关键文件单独显示 `PRESENT` 或 `MISSING`。
+普通报告也显示这六个文件，并优先展示完整特征缓存；各次训练单独保存的
+`head.pt` 不再占用特征缓存展示位置。默认路径以仓库配置为准，若原实验使用了
+自定义数据或输出目录，需要核对实际路径。文件存在不等于通过完整性和协议校验。
+
 报告包含脚本、TLS 配置、HDF5 数据、检查点、特征缓存和符号链接目标，
 并显示当前 Python、Conda 环境、包版本及服务器可用内存。
 重点核对缓存目录的 `target.pt`、`reference.pt`、`head.pt` 和 `manifest.json`。
