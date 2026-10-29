@@ -1,0 +1,15 @@
+{
+  "commit": "01148bfe360a408ea6e98bbf8787ca88cddfe124",
+  "functions": [
+    {
+      "path": "Experiment/core_code/scripts/kbs_supplement.py",
+      "name": "fit_controlled",
+      "sha256": "833e0a5179a0b825d52780d6e2346c89bd1a7fee6b0690fcad9f79ca0da13585"
+    },
+    {
+      "path": "Experiment/core_code/scripts/collapse_active_maintenance_tls22.py",
+      "name": "badge_selection",
+      "sha256": "5112418485ae56fa2f91f11511c5c8c208bae8e59ff31110b0852c532bfdcb05"
+    }
+  ]
+}
