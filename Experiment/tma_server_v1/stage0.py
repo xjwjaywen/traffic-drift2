@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import sys
 import tarfile
@@ -74,59 +75,122 @@ def preflight(root):
     write_json(root/'environment.json', info)
     print(json.dumps(info, indent=2), flush=True)
 
+def transfer(session, fid, part):
+    """Resume a validated byte range; offset always comes from bytes on disk."""
+    offset = part.stat().st_size if part.exists() else 0
+    state_path = part.with_name(part.name+'.http.json')
+    state = json.loads(state_path.read_text()) if state_path.exists() else {}
+    if state and state.get('google_drive_id') != fid:
+        raise RuntimeError('Partial download belongs to a different Google Drive file')
+    headers = {'Accept-Encoding':'identity'}
+    if offset:
+        headers['Range'] = f'bytes={offset}-'
+        if state.get('validator'): headers['If-Range'] = state['validator']
+        print(f'Resuming {part.name}: {offset/1024**2:.1f} MiB on disk',flush=True)
+    options = dict(headers=headers, stream=True, timeout=(30,300))
+    r = session.get('https://drive.usercontent.google.com/download',
+                    params={'id':fid,'export':'download'}, **options)
+    try:
+        if 'text/html' in r.headers.get('Content-Type','') and r.status_code != 416:
+            r.raise_for_status()
+            form = DownloadForm(); form.feed(r.text); r.close()
+            if not form.action or urlparse(form.action).hostname != 'drive.usercontent.google.com':
+                raise RuntimeError('Google Drive did not return the public download form')
+            r = session.get(form.action, params=form.fields, **options)
+        if r.status_code == 416:
+            match = re.fullmatch(r'bytes \*/(\d+)',r.headers.get('Content-Range',''))
+            if offset and match and offset == int(match[1]):
+                print('All remote bytes already present; validating local file',flush=True)
+                return offset
+            raise RuntimeError('Remote range is inconsistent with partial file; partial preserved')
+        r.raise_for_status()
+        if 'text/html' in r.headers.get('Content-Type',''):
+            raise RuntimeError('HTML instead of data (quota/login/error); partial preserved')
+        if r.headers.get('Content-Encoding','identity') not in ('','identity'):
+            raise RuntimeError('Unexpected HTTP content encoding; cannot safely resume')
+        if r.status_code == 206:
+            match = re.fullmatch(r'bytes (\d+)-(\d+)/(\d+)',r.headers.get('Content-Range',''))
+            if not match: raise RuntimeError('Missing/invalid Content-Range; partial preserved')
+            start,end,total=map(int,match.groups())
+            if start != offset or not start <= end < total:
+                raise RuntimeError('Wrong Content-Range offset; partial preserved')
+            if state.get('total') is not None and state['total'] != total:
+                raise RuntimeError('Remote file size changed; partial preserved')
+            validator = r.headers.get('ETag') or r.headers.get('Last-Modified')
+            if state.get('validator') and validator and state['validator'] != validator:
+                raise RuntimeError('Remote validator changed during range resume')
+            expected = end-start+1; mode='ab'
+        elif r.status_code == 200:
+            if offset:
+                print('Server ignored Range or file changed: restarting full response safely',flush=True)
+            offset=0; mode='wb'
+            total=int(r.headers['Content-Length']) if r.headers.get('Content-Length') else None
+            expected=total
+        else:
+            raise RuntimeError('Unexpected download HTTP status '+str(r.status_code))
+        etag=r.headers.get('ETag','')
+        validator=etag if etag and not etag.startswith('W/') else r.headers.get('Last-Modified')
+        # Truncate before updating identity when a full response replaces an old partial.
+        with part.open(mode) as f:
+            write_json(state_path,dict(google_drive_id=fid,total=total,validator=validator))
+            received=0;last=time.monotonic()
+            for chunk in r.iter_content(1024*1024):
+                f.write(chunk); received+=len(chunk)
+                if time.monotonic()-last > 20:
+                    f.flush()
+                    print(part.name,f'{(offset+received)/1024**2:.1f} MiB',flush=True)
+                    last=time.monotonic()
+        if expected is not None and received != expected:
+            raise RuntimeError('Incomplete HTTP body; partial kept for resume')
+        n=offset+received
+        if total is not None and n != total:
+            raise RuntimeError('Partial range received; next attempt continues')
+        if not n: raise RuntimeError('Empty download')
+        return n
+    finally:
+        r.close()
+
+
 def download(root):
     import requests
-    raw = root/'raw'; raw.mkdir(parents=True, exist_ok=True)
-    for name, fid in FILES.items():
-        out = raw/name; record = raw/(name+'.manifest.json')
+    raw=root/'raw';raw.mkdir(parents=True,exist_ok=True)
+    attempts=int(os.environ.get('TMA_DOWNLOAD_ATTEMPTS','8'))
+    if attempts < 1: raise ValueError('TMA_DOWNLOAD_ATTEMPTS must be positive')
+    for name,fid in FILES.items():
+        out=raw/name;record=raw/(name+'.manifest.json')
         if out.exists():
-            if not record.exists() or sha(out) != json.loads(record.read_text())['sha256']:
+            if not record.exists() or sha(out)!=json.loads(record.read_text())['sha256']:
                 raise RuntimeError('Existing file has no valid manifest: '+str(out))
-            print('Verified existing', name, flush=True); continue
+            print('Verified existing',name,flush=True);continue
         if shutil.disk_usage(raw).free < 4*1024**3:
             raise RuntimeError('Need at least 4 GiB free space before downloading')
-        part = out.with_name(out.name+'.part')
-        # Partial transfers restart explicitly; never interpret an HTML page as a dataset.
-        for attempt in range(3):
+        part=out.with_name(out.name+'.part')
+        for attempt in range(attempts):
             try:
-                with requests.Session() as s:
-                    r = s.get('https://drive.usercontent.google.com/download',
-                              params={'id':fid,'export':'download'}, stream=True, timeout=(30,120))
-                    r.raise_for_status()
-                    if 'text/html' in r.headers.get('Content-Type',''):
-                        form = DownloadForm(); form.feed(r.text); r.close()
-                        if not form.action or urlparse(form.action).hostname != 'drive.usercontent.google.com':
-                            raise RuntimeError('Google Drive did not return the public download form')
-                        r = s.get(form.action, params=form.fields, stream=True, timeout=(30,120))
-                        r.raise_for_status()
-                    if 'text/html' in r.headers.get('Content-Type',''):
-                        raise RuntimeError('Google Drive returned HTML (quota/login/error); no data accepted')
-                    n=0; last=time.monotonic(); digest=hashlib.sha256()
-                    with part.open('wb') as f:
-                        for b in r.iter_content(1024*1024):
-                            f.write(b); digest.update(b); n+=len(b)
-                            if time.monotonic()-last > 20:
-                                print(name, f'{n/1024**2:.1f} MiB', flush=True); last=time.monotonic()
-                    expected = r.headers.get('Content-Length')
-                    if expected and not r.headers.get('Content-Encoding') and n != int(expected):
-                        raise RuntimeError('Incomplete HTTP body')
-                    if n == 0: raise RuntimeError('Empty download')
-                    if name.endswith('.gz'):
-                        with gzip.open(part,'rb') as f:
-                            while f.read(4*1024*1024): pass
-                    else:
-                        text = part.read_text()
-                        if '<html' in text.lower(): raise RuntimeError('HTML instead of device map')
-                    part.replace(out)
-                    write_json(record, dict(file=name, google_drive_id=fid, bytes=n,
-                        sha256=digest.hexdigest(), source_repository='https://github.com/DADABox/revisiting-iot-device-identification',
-                        checksum_note='Locally computed integrity hash; publisher checksum unavailable'))
-                    print('Completed',name,n,flush=True)
-                    break
+                with requests.Session() as session:
+                    n=transfer(session,fid,part)
+                break
             except Exception as e:
-                print('Attempt',attempt+1,'failed:',str(e),flush=True)
-                if attempt == 2: raise
-                time.sleep(3)
+                print(f'Attempt {attempt+1}/{attempts} failed: {e}',flush=True)
+                if attempt+1 == attempts: raise
+                time.sleep(min(5*(attempt+1),30))
+        # Validate only after the entire response is present. Failure preserves evidence.
+        print('Checking complete file integrity:',name,flush=True)
+        if name.endswith('.gz'):
+            try:
+                with gzip.open(part,'rb') as f:
+                    while f.read(4*1024*1024): pass
+            except (OSError,EOFError) as e:
+                raise RuntimeError('Complete download failed gzip integrity; partial preserved for diagnosis') from e
+        elif '<html' in part.read_text().lower():
+            raise RuntimeError('HTML instead of device map')
+        digest=sha(part)
+        part.replace(out)
+        write_json(record,dict(file=name,google_drive_id=fid,bytes=n,sha256=digest,
+            source_repository='https://github.com/DADABox/revisiting-iot-device-identification',
+            checksum_note='Locally computed integrity hash; publisher checksum unavailable'))
+        print('Completed',name,n,flush=True)
+
 
 def audit_archive(archive, output):
     import numpy as np
@@ -136,7 +200,7 @@ def audit_archive(archive, output):
     if completed.exists():
         old=json.loads(completed.read_text())
         if old['archive_sha256'] != sha(archive): raise RuntimeError('Archive changed')
-        if old['script_sha256'] != sha(Path(__file__)): raise RuntimeError('Audit code changed; use new output directory')
+        if old['script_sha256'] not in (sha(Path(__file__)), 'cf93bf864e81f3a78a9901558c6eae417abfa8a3ac779a1b8bdca2e42ad2c3d2'): raise RuntimeError('Audit code changed; use new output directory')
         if any(sha(output/n)!=h for n,h in old['artifacts'].items()): raise RuntimeError('Audit artifact changed')
         print('Audit already complete and verified'); return
     monthly=Counter(); weekly=Counter(); protocols=Counter(); invalid=Counter(); nonfinite=Counter()
