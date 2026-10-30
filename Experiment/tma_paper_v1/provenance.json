@@ -1,0 +1,8 @@
+{
+  "commit": "ba1e004e809a5e426ec2e63e38c801ebd2a14eb2",
+  "path": "Experiment/core_code/scripts/collapse_active_maintenance_tls22.py",
+  "functions": {
+    "build_head_training_set": "abc9c620546d0b2fb7a1188aa2385a5bd74bd3f53c9422125780ba00439bdca9",
+    "fit_head": "932b357e12db7248023506a30d0eea75ff804cb868643b16edd12baf5d9c9750"
+  }
+}

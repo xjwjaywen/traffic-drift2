@@ -8,8 +8,7 @@ CLI 只允许 Linux。Mac 上只运行人工构造的测试夹具，不能在 Ma
 cd /data/xjw/traffic-drift2
 conda activate traffic-ncde
 git pull --ff-only origin main
-nohup python -u Experiment/tma_pilot_v1/pilot.py all > tma-pilot-v1.log 2>&1 &
-tail -f tma-pilot-v1.log
+python -u Experiment/tma_pilot_v1/pilot.py all
 
 依赖 numpy pandas torch scikit-learn scipy joblib，均来自现有环境；不重装 CUDA。
 默认使用 cuda、8 个 CPU 线程；可通过 CUDA_VISIBLE_DEVICES 指定 GPU。
