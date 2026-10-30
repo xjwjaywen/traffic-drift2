@@ -5,10 +5,15 @@ Publisher describes 27 device-specific flow CSVs, 4.94M flows and about 203 days
 Only flows.zip (~95.5 MB compressed) is needed for this audit; do not download PCAPs.
 The dataset is independent of the TMA experiment and has different flow features.
 
-On the server, first obtain flows.zip from the official Dryad page and put it at:
-  /data/xjw/tma-care-data/unsw_iotraffic/flows.zip
-Direct anonymous file downloads returned HTTP 403 in the development environment;
-if the server also gets 403, use the official Dryad browser download and copy the file.
+On the server, first try downloading only flows.zip from Dryad:
+  mkdir -p /data/xjw/tma-care-data/unsw_iotraffic
+  curl -fL --retry 3 \
+    'https://datadryad.org/downloads/file_stream/4322594' \
+    -o /data/xjw/tma-care-data/unsw_iotraffic/flows.zip
+  unzip -t /data/xjw/tma-care-data/unsw_iotraffic/flows.zip
+The audit does not download the archive automatically. Direct anonymous downloads
+returned HTTP 403 in the development environment. If the server also gets 403,
+download flows.zip using the official Dryad webpage and copy it to the path above.
 
 Then run:
   cd /data/xjw/traffic-drift2

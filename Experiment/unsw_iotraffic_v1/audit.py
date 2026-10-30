@@ -123,6 +123,9 @@ def main():
     parser.add_argument('--output', type=Path)
     parser.add_argument('--chunksize', type=int, default=100_000)
     args = parser.parse_args()
+    if not args.flows_zip.is_file():
+        parser.error('flows.zip not found: ' + str(args.flows_zip) +
+                     '; download it from the official Dryad dataset page first')
     path = args.flows_zip.resolve(strict=True)
     output = args.output or path.parent / 'unsw_iotraffic_audit_v1'
     if output.is_symlink() or (output.exists() and any(output.iterdir())):
