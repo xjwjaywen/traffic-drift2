@@ -200,3 +200,23 @@ within-block day-split reference when possible. These are descriptive
 estimates, not a formal hypothesis test or proof that a class's feature
 distribution will remain stable in later windows. No target-period label,
 feature, or timestamp is decoded.
+
+The source audit found many late-appearing classes, while adjacent source
+blocks had similar average class-conditional KS to the within-block day
+reference. This does not establish that class conditionals stay stable in the
+query period. The next audit uses only each seed's already paid 1,000 uniform
+query labels, never pooling seeds into a larger label budget:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/paid_shift_audit.py --home home01
+python -u Experiment/unsw_home_temporal_v1/paid_shift_audit.py
+cat /data/xjw/tma-care-data/unsw_paid_shift_v1/REPORT.txt
+```
+
+It compares query class shares with weighted late-source shares and reports
+Wilson intervals for the paid-label estimate. For classes with at least 30
+matched paid/source rows, it compares source-to-query feature KS with a
+same-size source-to-source reference. This remains exploratory: class-level
+query labels are sparse, seed results are not independent, and no development
+or final-window label or feature is read. The audit is a diagnostic of whether
+prior-only methods deserve further testing, not a new adaptation method.
