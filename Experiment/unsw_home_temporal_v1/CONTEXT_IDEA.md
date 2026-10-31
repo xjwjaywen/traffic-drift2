@@ -37,6 +37,33 @@ a source-preserving RF router from these labels. Even if they do, this is
 only a feasibility signal, because the pair was chosen after looking at
 development outcomes and the five seeds share query rows.
 
+The audit passed its narrow screen for RF-to-class-9 proposals: net wins
+were +4, +2, +11, +4, and -4 across seeds. For the narrower source-6 to
+RF-9 edge they were +5, -2, +1, +4, and -3, so a fixed 6-to-9 correction
+is not supported. Within source-predicted class 6, RF class-9 probability
+ranked true class-9 rows better than the source logit margin in all five
+seeds (RF AUC 0.589--0.749 versus source AUC 0.211--0.443). The pair has
+only 37--60 paid rows per seed. This is a feasibility signal, not a stable
+multiclass result.
+
+`rf_target_route.py` is a deliberately simple next control. It accepts all
+RF-to-class-9 disagreements for a seed only when paid out-of-fold RF wins
+exceed source wins; otherwise it leaves source predictions unchanged. The
+program writes `gate.json` before opening development predictions or
+labels. This route was selected after inspecting the audit and prior
+development results, so its development score is exploratory. Its purpose
+is to establish whether paid evidence transports at all before adding a
+score threshold or a more complex edge-level risk model.
+
+General selective ensembling and risk-controlled model updates are prior
+art. If the simple route succeeds, a possible research method would model
+the *conditional* net gain along every source-to-challenger edge as a
+function of challenger score, with partial pooling across sparse edges and
+an explicit budget on source-correct negative flips. Unlike the TMA
+source-predicted-class CARE gate, the action would depend on the target
+class proposed by a nonlinear challenger and its local score. Whether this
+combination offers a publishable contribution remains open.
+
 ## Observation
 
 On home07, a frozen RF recovers some class-9 flows but greatly worsens the

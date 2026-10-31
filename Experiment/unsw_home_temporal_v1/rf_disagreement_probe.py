@@ -68,6 +68,7 @@ def run(args):
                             prep_model.transform(raw_source[ref_ids]), device).numpy()
     ref_y = source_y[ref_ids]
     model.head.to(device).eval()
+    decisions = []
     for seed in range(5):
         chosen = np.load(verified(base / f"seed_{seed}",
                                   "paid_query_pool_indices.npy"))
@@ -101,6 +102,8 @@ def run(args):
         for name, mask in masks.items():
             row = compare(mask, y, source_pred, rf_pred)
             print(f"seed={seed} group={name} {row}", flush=True)
+            if name == "all_rf_to_target":
+                decisions.append(dict(seed=seed, **row))
         pair = source_pred == args.source_class
         pair_y = y[pair] == args.target_class
         if pair_y.any() and (~pair_y).any():
@@ -116,6 +119,7 @@ def run(args):
                   f"source_ap={ap_source:.4f} source_auc={auc_source:.4f}",
                   flush=True)
     model.cpu()
+    return decisions
 
 
 def main():
