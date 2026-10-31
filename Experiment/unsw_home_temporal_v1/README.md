@@ -236,3 +236,16 @@ the archive or final window. `by_home.csv` treats homes as the independent
 units; `lost_classes.csv` lists present classes whose recall fell to zero.
 Development outcomes were already viewed before this audit was designed, so
 its associations cannot establish a new adaptive method or independent gain.
+
+For the home07 class-collapse mechanism, compare the frozen hard-count prior
+control with a soft-probability-count denominator. Both use the same 1,000
+paid labels per seed and the same bias weight; this is a standard baseline
+check, not a proposed new method:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/soft_count_probe.py --home home07
+```
+
+The probe verifies frozen artifacts, recomputes unlabeled query counts with
+the fixed source model, and evaluates on the already examined development
+window only. It prints whole-model and classes 6, 8, 9, and 10 results.
