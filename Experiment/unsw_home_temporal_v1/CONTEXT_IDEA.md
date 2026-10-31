@@ -4,6 +4,39 @@ Status: exploratory hypothesis. Development labels for the 11 homes were
 already inspected; no final-window data have been used for this direction.
 The home07 class pair below was selected after inspecting development results.
 
+## Result (five overlapping paid seeds)
+
+The fixed source-to-paid-query probe was run on home07. Adding five-minute
+whole-home context to flow features changed AP by -0.0196, -0.1058,
++0.0026, +0.0454, and -0.0517 across seeds 0--4. The corresponding AUC
+changes were -0.0813, -0.1043, -0.0750, -0.0355, and -0.0467. Thus it
+fails the prespecified continuation screen: AUC is worse in all five seeds,
+and AP improves in only two, one negligibly. Do not tune the window length,
+aggregates, or classifier on these same paid draws to rescue the result.
+
+This rules out the tested five-minute *whole-home aggregate plus linear
+classifier* as a promising addition. It does not establish that every
+temporal or relational representation is useless; the source-trained flow
+control itself has AUC 0.40--0.59 on only 53--64 paid pair rows per seed.
+Any new graph or device-association formulation would require a distinct
+mechanism and a fresh validation plan, not relabeling this negative probe.
+
+## Remaining existing-data check
+
+The frozen RF has higher development class-9 F1 than the source model but
+much lower whole-model macro F1. `rf_disagreement_probe.py` tests a narrow
+necessary condition without using development labels: for each existing
+paid seed, five-fold out-of-fold RF predictions identify proposed overrides
+to class 9, and the already paid labels count whether RF wins or the source
+wins on exactly those disagreements. It also compares RF class-9 probability
+ranking against the source margin within source-predicted class 6.
+
+If RF proposed overrides do not have positive paid-label net wins in at
+least four of five overlapping seeds, there is no empirical basis to build
+a source-preserving RF router from these labels. Even if they do, this is
+only a feasibility signal, because the pair was chosen after looking at
+development outcomes and the five seeds share query rows.
+
 ## Observation
 
 On home07, a frozen RF recovers some class-9 flows but greatly worsens the
