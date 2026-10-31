@@ -42,3 +42,15 @@ Read-only development diagnostic after all 12 homes have completed:
 The diagnostic compares CARE/RF disagreements, correct-only rows, and per-class
 F1 against paid class support. It reads development labels and cannot validate
 a proposed router. It does not open the published final test files.
+
+Fixed 1-NN and paid-target three-neighbor consensus controls on the existing
+chronological development split (train.csv only):
+
+  python -u Experiment/cps_iot_independent_v1/nearest_control.py \
+    /data/xjw/tma-care-data/cps_iotsec25
+
+This reconstructs each baseline source model and verifies its static
+predictions exactly before scoring the new controls. It uses the same paid
+query rows and five historical references per class. The published
+test_full.csv remains unopened. Read the resulting REPORT.txt in
+/data/xjw/tma-care-data/cps_iot_nearest_control_v1/.
