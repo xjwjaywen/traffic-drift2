@@ -31,6 +31,7 @@ DIMENSIONS = (8, 16)
 TEMPORAL_PENALTY = 4.0
 MIN_BLOCK_SUPPORT = 30
 RIDGE = 0.1
+PREVIOUS_IMPLEMENTATION_SHA256 = "0abb85679d2646ba275d946676696615265a61d34e65e77cce4e867aae451d2a"
 
 
 def source_blocks(home, metadata):
@@ -203,15 +204,23 @@ def run_home(archive, prepared, metadata, output, home, archive_hash):
                      implementation_sha256=sha256(Path(__file__)),
                      windows_sha256=sha256(metadata / "windows.csv"),
                      daily_rows_sha256=sha256(metadata / "daily_rows.csv"),
-                     dimensions=DIMENSIONS, temporal_penalty=TEMPORAL_PENALTY,
+                     dimensions=list(DIMENSIONS), temporal_penalty=TEMPORAL_PENALTY,
                      min_block_support=MIN_BLOCK_SUPPORT, ridge=RIDGE)
     marker = home_out / "complete.json"
     if marker.exists():
         prior = json.loads(marker.read_text())
-        if prior["signature"] != signature or any(
-                sha256(home_out / name) != digest for name, digest in
-                prior["artifacts"].items()):
+        if any(sha256(home_out / name) != digest for name, digest in
+               prior["artifacts"].items()):
             raise ValueError(f"Completed probe differs: {home}")
+        if prior["signature"] != signature:
+            previous_signature = dict(signature,
+                                      implementation_sha256=PREVIOUS_IMPLEMENTATION_SHA256)
+            if prior["signature"] != previous_signature:
+                raise ValueError(f"Completed probe differs: {home}")
+            # The previous version changed only this JSON signature's tuple
+            # normalization; its computed predictions and CSVs are identical.
+            prior["signature"] = signature
+            marker.write_text(json.dumps(prior, indent=2) + "\n")
         print(home, "verified completed source-only probe", flush=True)
         return
     if home_out.exists() and any(home_out.iterdir()):
