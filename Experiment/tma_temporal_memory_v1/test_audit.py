@@ -10,6 +10,7 @@ import pandas as pd
 import torch
 
 import audit
+import experiment
 
 
 class TemporalMemoryAuditTests(unittest.TestCase):
@@ -68,6 +69,16 @@ class TemporalMemoryAuditTests(unittest.TestCase):
             self.assertEqual(cache.assert_keys, ['ids', 'x', 'y'])
             self.assertEqual(len(paid['labels']), 1000)
             self.assertTrue((paid['labels'] >= 0).all())
+
+    def test_memory_never_draws_from_current_or_exceeds_class_cap(self):
+        jan = dict(labels=np.array([0, 0, 1, 1]))
+        feb = dict(labels=np.array([0, 0, 0, 1, -1]))
+        chosen = experiment.choose_paid_memory([('2020-01', jan),
+                                                 ('2020-02', feb)], [5, 20], 2, 7)
+        self.assertEqual(sum(c == 0 for _, _, c in chosen), 2)
+        self.assertTrue(all(month == '2020-02' for month, _, c in chosen if c == 0))
+        self.assertEqual(sum(c == 1 for _, _, c in chosen), 2)
+        self.assertTrue(all(c >= 0 for _, _, c in chosen))
 
 
 if __name__ == '__main__':
