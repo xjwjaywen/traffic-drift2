@@ -23,6 +23,16 @@ Use source classes as the closed-set prediction vocabulary, set before repair.
 Report query classes absent from the source and final test rows outside the
 source vocabulary separately.
 
+For the initial baseline port, fit the TMA pilot's signed-log standardized
+preprocessor on source rows only. Train its 256/128 tabular MLP with source
+seed 0 for 30 fixed epochs; do not select a checkpoint using development
+labels. Use 500 uniform query anchors plus 500 BADGE selections from the
+remaining pool. Select five source references per class. Fit target-only and
+CARE heads for 500 steps with the pilot's optimizer and CARE loss. Fit the
+frozen-feature random forest with 200 trees, minimum leaf size 2, balanced
+subsample class weights and the same paid labels plus references. These are
+ported controls rather than a reproduction of the manuscript's source CNN.
+
 ## Evaluation and decision rule
 
 Develop the method using the 12 development sets only. Compare at least the
