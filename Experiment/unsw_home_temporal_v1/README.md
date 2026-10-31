@@ -249,3 +249,17 @@ python -u Experiment/unsw_home_temporal_v1/soft_count_probe.py --home home07
 The probe verifies frozen artifacts, recomputes unlabeled query counts with
 the fixed source model, and evaluates on the already examined development
 window only. It prints whole-model and classes 6, 8, 9, and 10 results.
+
+If hard counts over-correct class 9 while soft counts leave it collapsed,
+inspect whether the fixed source logits can rank true class-9 flows among
+flows predicted as class 6. This is a necessary-condition diagnostic for a
+localized repair, not a method result:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/confusion_rank_probe.py
+```
+
+It reports average precision with its within-predicted-class prevalence
+baseline, plus AUROC, on each seed's same paid labels and the already viewed
+development window. The 6-to-9 edge was selected after seeing development
+outcomes, and no final-window data is read.
