@@ -136,3 +136,30 @@ development outcomes of the other ten homes, never from the held-out home's
 development labels. This is a small-sample feasibility audit, not a method
 validation; development outcomes had already been examined when it was
 designed. It reads no final-window data.
+
+## Source-only temporal-invariance feasibility probe
+
+The following diagnostic uses only the existing labeled source reservoir.
+It recovers the retained source rows' dates from the verified archive, splits
+observed source dates into three consecutive blocks, fits projections and the
+same classifier on blocks 1–2, and evaluates block 3. It does not read query,
+development, or final-window rows. The temporal projection adds a class-balanced
+within-class mean-drift penalty to ordinary Fisher separation. The ordinary
+Fisher projection, temporal projection, and full feature view use the same
+classifier; projection comparisons have identical dimensions. Classes with
+fewer than 30 rows in either fit block do not define projection directions,
+but remain in the classifier and evaluation. Inspect their block counts and
+per-class recall; aggregate macro F1 alone is insufficient.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/invariant_probe.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip --home home01
+python -u Experiment/unsw_home_temporal_v1/invariant_probe.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+cat /data/xjw/tma-care-data/unsw_invariant_probe_v1/REPORT.txt
+```
+
+Outputs include `block_counts.csv`, `per_class.csv`, and `summary.csv` per home.
+This was designed after development outcomes were seen. Even a positive
+source-block result would only establish a necessary condition for the
+invariance idea, not a target-month result or a new method.
