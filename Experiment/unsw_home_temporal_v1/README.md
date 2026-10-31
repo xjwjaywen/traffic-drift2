@@ -41,3 +41,21 @@ cat /data/xjw/tma-care-data/unsw_home_source_audit_v1/REPORT.txt
 See [`PROTOCOL.md`](PROTOCOL.md) for the evaluation boundary and the important
 distinction between a curated 24-device benchmark and a mixed-traffic deployment
 stream.
+
+Prepare the fixed source reservoir, unlabeled query candidate reservoir, and
+development features. The preparation stage stores query labels for later
+paid selection, but does not use them to select rows. It does not decode any
+development label or parse any final-window row. Run one home first if desired;
+rerunning a completed home verifies its artifacts and skips the scan.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/prepare.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip \
+  --home home01
+python -u Experiment/unsw_home_temporal_v1/prepare.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+```
+
+The prepared files are written outside the repository under
+`/data/xjw/tma-care-data/unsw_home_temporal_prepared_v1`. Do not load the
+final-window labels during development.
