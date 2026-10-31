@@ -21,3 +21,12 @@ results. Do not tune the neighbor count or gate on these same outcomes and
 then report a confirmatory result. A method claim would additionally need
 comparison to standard dynamic selection and risk-control methods, plus
 independent evaluation.
+
+To check whether the consensus rule adds information beyond the predicted
+class transition, run the post-hoc matched randomization audit. It uses
+future labels for evaluation and has no confirmatory status:
+
+```bash
+python -u Experiment/tma_local_consensus_v1/randomization_audit.py
+cat /data/xjw/tma-care-data/pilot_v1/local_consensus_v1/source_0/randomization_audit/REPORT.txt
+```
