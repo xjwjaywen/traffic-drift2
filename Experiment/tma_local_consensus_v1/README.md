@@ -5,7 +5,8 @@ when cosine 1-NN and CARE disagree, use 1-NN only if the three nearest *paid
 target* anchors unanimously have its predicted class. Otherwise retain CARE.
 The closest historical reference alone cannot trigger a correction. No
 additional labels are bought. A matched random control changes the same
-number of disagreement predictions without using labels.
+number of disagreements within each CARE-to-1-NN predicted-class pair,
+without using true labels.
 
 ```bash
 cd /data/xjw/traffic-drift2

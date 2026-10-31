@@ -53,6 +53,20 @@ def consensus_mask(eval_features, paid_features, paid_y, nearest_pred,
     return supported & (nearest_pred != care_pred)
 
 
+def matched_random_mask(care, nearest, accept, rng):
+    """Match accepted counts within each CARE-to-1-NN prediction pair."""
+    selected = np.zeros(len(care), dtype=bool)
+    pairs = np.stack((care[accept], nearest[accept]), axis=1)
+    for source_class, destination_class in np.unique(pairs, axis=0):
+        pair = (care == source_class) & (nearest == destination_class)
+        candidates = np.flatnonzero(pair)
+        count = int((accept & pair).sum())
+        selected[rng.choice(candidates, count, replace=False)] = True
+    if selected.sum() != accept.sum():
+        raise ValueError("Random control did not match acceptance count")
+    return selected
+
+
 def run(root, source_seed=0, repair_seeds=(0, 1, 2, 3, 4),
         device="cuda", threads=8):
     reader, cache, classes, source_signature = context(root, source_seed)
@@ -69,7 +83,7 @@ def run(root, source_seed=0, repair_seeds=(0, 1, 2, 3, 4),
                         for s in repair_seeds},
         code_sha256=sha(HERE / "experiment.py"),
         rule="top_3_paid_target_neighbors_unanimous_and_match_1nn",
-        random_control="same_override_count_uniform_over_1nn_care_disagreements",
+        random_control="same_override_count_per_care_to_1nn_prediction_pair",
         device=device, threads=threads, months=list(FOCUS))
     output = root / "local_consensus_v1" / f"source_{source_seed}"
     if output.is_symlink() or (output.exists() and any(output.iterdir())
@@ -108,9 +122,7 @@ def run(root, source_seed=0, repair_seeds=(0, 1, 2, 3, 4),
                                     nn, care, torch.device(device))
             disagreement = np.flatnonzero(nn != care)
             rng = np.random.default_rng(20261031 + seed + int(month[-2:]) * 100)
-            random_accept = np.zeros(len(nn), dtype=bool)
-            random_accept[rng.choice(disagreement, int(accept.sum()),
-                                     replace=False)] = True
+            random_accept = matched_random_mask(care, nn, accept, rng)
             consensus_pred, random_pred = care.copy(), care.copy()
             consensus_pred[accept] = nn[accept]
             random_pred[random_accept] = nn[random_accept]
@@ -157,7 +169,7 @@ def run(root, source_seed=0, repair_seeds=(0, 1, 2, 3, 4),
     report = "\n".join([
         "Exploratory target-paid 3-neighbor consensus control, fixed before this run.",
         "No extra labels; same 1000 paid queries and existing CARE/1-NN predictions.",
-        "Random control accepts the same number of 1-NN/CARE disagreements.",
+        "Random control matches acceptance count within each CARE-to-1-NN prediction pair.",
         "All TMA months were examined earlier; this is not independent validation or a novelty claim.",
         "Whole-model means:", grouped.to_string(index=False),
         "Focus-class F1 means:", focus.to_string(index=False),
