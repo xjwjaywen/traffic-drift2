@@ -87,3 +87,16 @@ The evaluator checks all frozen predictions before decoding any development
 label. It excludes flows outside the official 24-device inventory from the
 reported closed-set metrics. It never decodes final-window labels or features.
 These are standard controls, not a new method or a test-set result.
+
+For a read-only diagnosis after the development comparison, quantify paired
+source-to-CARE repairs and harms by true device type:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/interference_audit.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+cat /data/xjw/tma-care-data/unsw_home_temporal_interference_v1/REPORT.txt
+```
+
+This audit only indexes already paid query labels and reopens development
+labels. Its per-class scores and routes cannot be used as a final-test method
+without a new target-label-free rule fixed in advance.
