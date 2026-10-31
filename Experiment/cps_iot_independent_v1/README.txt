@@ -33,3 +33,12 @@ for target-only, original CARE and frozen-feature RF heads over repair seeds
 0-4. The 12 development sets may be used to design the next method; the
 published test labels remain reserved for final evaluation. See
 PROTOCOL.md for the frozen split, methods and metrics.
+
+Read-only development diagnostic after all 12 homes have completed:
+  python -u Experiment/cps_iot_independent_v1/diagnose.py \
+    /data/xjw/tma-care-data/cps_iot_development_v1
+  cat /data/xjw/tma-care-data/cps_iot_diagnostic_v1/REPORT.txt
+
+The diagnostic compares CARE/RF disagreements, correct-only rows, and per-class
+F1 against paid class support. It reads development labels and cannot validate
+a proposed router. It does not open the published final test files.
