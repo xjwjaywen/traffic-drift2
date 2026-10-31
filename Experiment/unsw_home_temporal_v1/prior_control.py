@@ -161,15 +161,13 @@ def evaluate_frozen(archive, baseline, output, manifest):
         static = np.load(baseline / home / "static_mlp.npy", mmap_mode="r")
         base_row, base_classes = metrics(y, static, static, home, -1, "static_mlp")
         rows.append(base_row)
-        classes.extend(dict(home=home, seed=-1, method="static_mlp", **item)
-                       for item in base_classes)
+        classes.extend(base_classes)
         for seed in range(5):
             pred = np.load(output / "predictions" / home / f"seed_{seed}.npy",
                            mmap_mode="r")
             row, per_class = metrics(y, static, pred, home, seed, "prior_static")
             rows.append(row)
-            classes.extend(dict(home=home, seed=seed, method="prior_static", **item)
-                           for item in per_class)
+            classes.extend(per_class)
         print(home, "prior control development evaluated", flush=True)
     table = pd.DataFrame(rows)
     table.to_csv(result / "summary.csv", index=False)
