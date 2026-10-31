@@ -34,5 +34,6 @@ TMA 预算内非线性分类器对照 v1
   python Experiment/tma_nonlinear_head_control_v1/rf_complementarity.py
   cat /data/xjw/tma-care-data/pilot_v1/rf_complementarity_v1/source_0/REPORT.txt
   它统计 RF 与 CARE 各自独有的纠错和新增的源正确样本误判。
-  另算一个使用未来真值选择 RF 预测类的“上界路线”，明确是标签泄漏的
-  事后诊断，绝不能当实际方法的性能。输出目录必须是空的新目录。
+  另算一个使用未来真值选择 RF 预测类的事后路由；它按分组正确数作选择，
+  不最大化宏 F1，也不是宏 F1 的严格上界。它存在标签泄漏，绝不能当
+  实际方法的性能。输出目录必须是空的新目录。

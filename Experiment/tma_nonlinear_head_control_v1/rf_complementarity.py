@@ -117,6 +117,7 @@ def main():
         'Read-only frozen-RF versus CARE complementarity audit.',
         'Future labels are used to evaluate and to choose the oracle route; oracle scores are contaminated.',
         'No routed score here is a valid deployable method result.',
+        'The hindsight route selects by correct counts within RF-predicted classes, not by macro-F1; it is not a strict macro-F1 upper bound.',
         'Across-seed means:', means.to_string(index=False),
         'Focus RF-predicted classes:', focus.to_string(index=False),
         'See per-seed and all-class CSVs before making a routing hypothesis.',
