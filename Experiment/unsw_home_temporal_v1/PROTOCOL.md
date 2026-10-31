@@ -37,15 +37,25 @@ stress test. This decision uses source labels only.
 
 Use the source paper's 11 activity statistics in each direction and the six
 protocol indicators HTTP, HTTPS, DNS, NTP, TCP, and UDP, totaling 28 features.
-The exact names are checked in `audit.py`. Fit preprocessing on source rows
-only. All methods use the same source model, chronological partitions, 1000
-paid labels per home and repair seed, and source references. Query labels are
-revealed only after a query is selected. Development and final labels cannot
-inform query selection or training.
+The exact names are checked in `audit.py`. For the first baseline, retain a
+uniform reservoir of at most 5,000 source rows per official class per home,
+using source seed 0; retain every row of smaller classes. Fit signed-log
+standardization on that reservoir only. Train the existing 256/128 tabular
+MLP for 30 epochs. This is a new tabular port, not the manuscript's source
+CNN. Keep a label-independent uniform reservoir of at most 100,000 curated
+query-window rows per home. For repair, select 1,000 rows from that pool
+uniformly without replacement
+for each of repair seeds 0–4. This choice avoids query-policy confounding in
+the first comparison. Select five historical references per source class from
+the same reservoir. Fit target-only and CARE heads for 500 fixed optimizer
+steps using the existing pilot implementation. Fit a 200-tree frozen-feature
+random forest and cosine 1-NN on the same paid labels and references. No
+method may access query labels outside its selected 1,000 rows. Development
+and final labels cannot inform query selection or training.
 
-Before proposing a new method, compare static source MLP, target-only linear
-head, CARE, frozen-feature random forest, and frozen-feature cosine 1-NN under
-the same budget. Report macro F1 over source-vocabulary types present in the
+The first comparison is static source MLP, target-only linear head, CARE,
+frozen-feature random forest, and frozen-feature cosine 1-NN under the same
+budget. Report macro F1 over source-vocabulary types present in the
 evaluated window, per-class F1/recall/support, zero-recall class count, and
 negative-flip rate relative to the static source MLP. Treat homes as
 independent units; paired repair seeds are repeats, not independent homes.
@@ -53,8 +63,5 @@ Show the macro-F1/negative-flip tradeoff rather than choosing a method from
 one metric. A new method must beat relevant standard controls on development
 before opening the final window.
 
-The specific source subsampling and query-candidate construction will be
-frozen in implementation before any development labels are decoded. They must
-not use query or later device labels. Until then, this document fixes data
-scope, time boundaries, features, and evaluation, but does not authorize a
-final-test run.
+The detailed implementation and its hash must be fixed before any development
+labels are decoded. This document does not authorize a final-test run.
