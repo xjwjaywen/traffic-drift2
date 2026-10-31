@@ -119,3 +119,20 @@ cat /data/xjw/tma-care-data/unsw_home_prior_control_v1/development/REPORT.txt
 The evaluator refuses to read development labels until predictions for all
 11 primary homes and five seeds are complete. It never opens final-window
 labels. This is a test of an existing calibration idea, not a novelty claim.
+
+To test whether the paid query labels can *predict* which home benefits from
+that correction, run the diagnostic transport audit:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/prior_transport_audit.py
+cat /data/xjw/tma-care-data/unsw_home_prior_transport_v1/REPORT.txt
+```
+
+Within each selected 1,000-label query set, it fits the fixed correction on
+the earlier 700 rows by archive order and evaluates it on the later 300. It
+then checks a fixed sign rule and a leave-one-home-out logistic rule against
+the already measured development outcomes. The logistic rule learns from the
+development outcomes of the other ten homes, never from the held-out home's
+development labels. This is a small-sample feasibility audit, not a method
+validation; development outcomes had already been examined when it was
+designed. It reads no final-window data.
