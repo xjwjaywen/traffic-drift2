@@ -220,3 +220,19 @@ same-size source-to-source reference. This remains exploratory: class-level
 query labels are sparse, seed results are not independent, and no development
 or final-window label or feature is read. The audit is a diagnostic of whether
 prior-only methods deserve further testing, not a new adaptation method.
+
+After the paid-shift and prior-control development reports exist, join their
+fixed outputs to check whether query class proportions persist into the
+development window and whether the class-conditional KS signal tracks where
+prior correction harms class F1:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/shift_transport_audit.py
+cat /data/xjw/tma-care-data/unsw_shift_transport_audit_v1/REPORT.txt
+```
+
+This is a read-only, post-hoc audit. It opens only existing CSV artifacts, not
+the archive or final window. `by_home.csv` treats homes as the independent
+units; `lost_classes.csv` lists present classes whose recall fell to zero.
+Development outcomes were already viewed before this audit was designed, so
+its associations cannot establish a new adaptive method or independent gain.
