@@ -1,8 +1,9 @@
 """Source-only test of discriminative temporal-invariance directions.
 
 The first two thirds of observed source days fit every projection and classifier.
-The last third is evaluated once, using only source-window labels. Query,
-development, and final-window rows and labels are never read by this program.
+The last third is evaluated once, using only source-window labels. Archive
+bytes for intervening rows may be traversed, but only retained source-row
+dates are decoded; later labels, features, and timestamps are not decoded.
 This is a diagnostic of a necessary condition, not a target adaptation method.
 """
 
@@ -49,7 +50,7 @@ def source_blocks(home, metadata):
 
 
 def retained_source_blocks(archive, member, ids, day_to_block):
-    """Read timestamps through the latest retained source row; never decode labels."""
+    """Decode dates only for retained source IDs, even if archive rows interleave."""
     if len(ids) == 0 or np.min(ids) < 0 or len(np.unique(ids)) != len(ids):
         raise ValueError("Invalid source row IDs")
     lookup = {int(row): i for i, row in enumerate(ids)}
@@ -62,11 +63,11 @@ def retained_source_blocks(archive, member, ids, day_to_block):
             line = stream.readline()
             if not line:
                 raise ValueError(f"Archive ended before retained source row: {member}")
-            day = line[:10].decode("ascii")
-            if day not in day_to_block:
-                raise ValueError(f"Prepared source row outside source days: {member} {row_id}")
             position = lookup.get(row_id)
             if position is not None:
+                day = line[:10].decode("ascii")
+                if day not in day_to_block:
+                    raise ValueError(f"Prepared source row outside source days: {member} {row_id}")
                 blocks[position] = day_to_block[day]
     if np.any(blocks < 0):
         raise ValueError(f"Source row IDs missing from archive: {member}")
@@ -215,13 +216,13 @@ def run_home(archive, prepared, metadata, output, home, archive_hash):
         return
     if home_out.exists() and any(home_out.iterdir()):
         raise ValueError(f"Incomplete output directory: {home_out}")
-    home_out.mkdir(parents=True, exist_ok=True)
     with np.load(source_path, allow_pickle=False) as data:
         ids, raw_x, y = data["ids"], data["x"], data["y"]
     day_to_block, day_groups = source_blocks(home, metadata)
     blocks = retained_source_blocks(archive, prepared_config["member"],
                                     ids, day_to_block)
     summaries, class_rows, counts = probe_arrays(raw_x, y, blocks)
+    home_out.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(summaries).assign(home=home).to_csv(home_out / "summary.csv", index=False)
     pd.DataFrame(class_rows).assign(home=home).to_csv(home_out / "per_class.csv", index=False)
     pd.DataFrame(counts).assign(home=home).to_csv(home_out / "block_counts.csv", index=False)
@@ -239,7 +240,7 @@ def report(output, homes):
     pivot = summaries.pivot(index="home", columns="method", values="macro_f1_present")
     lines = ["UNSW source-window temporal-invariance feasibility probe.",
              "First two chronological source-day blocks fit projections and classifier;",
-             "third source-day block evaluates them. No query/development/final rows read.",
+             "third source-day block evaluates them. Later labels/features/timestamps not decoded.",
              "Class-balanced Fisher scatter; temporal variant adds a within-class",
              "early-block mean-drift penalty. All classifiers and dimensions match.",
              "This is a source-only diagnostic, not a target adaptation result.",

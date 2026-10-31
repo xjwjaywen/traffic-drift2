@@ -140,10 +140,12 @@ designed. It reads no final-window data.
 ## Source-only temporal-invariance feasibility probe
 
 The following diagnostic uses only the existing labeled source reservoir.
-It recovers the retained source rows' dates from the verified archive, splits
+It recovers only the retained source rows' dates from the verified archive,
+skipping labels, features, and timestamps on all other rows, then splits
 observed source dates into three consecutive blocks, fits projections and the
-same classifier on blocks 1–2, and evaluates block 3. It does not read query,
-development, or final-window rows. The temporal projection adds a class-balanced
+same classifier on blocks 1–2, and evaluates block 3. Archive bytes for
+intervening rows may be traversed to reach retained source IDs; no later
+labels, features, or timestamps are decoded. The temporal projection adds a class-balanced
 within-class mean-drift penalty to ordinary Fisher separation. The ordinary
 Fisher projection, temporal projection, and full feature view use the same
 classifier; projection comparisons have identical dimensions. Classes with
