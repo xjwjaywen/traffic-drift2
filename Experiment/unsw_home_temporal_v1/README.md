@@ -59,3 +59,31 @@ python -u Experiment/unsw_home_temporal_v1/prepare.py \
 The prepared files are written outside the repository under
 `/data/xjw/tma-care-data/unsw_home_temporal_prepared_v1`. Do not load the
 final-window labels during development.
+
+Freeze the first standard-control predictions for the 11 closed-set homes:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/predict.py
+```
+
+This fits a new tabular source MLP and, per repair seed, a target-only head,
+CARE head, frozen-feature random forest, and cosine 1-NN. It indexes only the
+1,000 paid labels selected uniformly for that seed. It never opens the raw
+archive or development/final labels. The output is under
+`/data/xjw/tma-care-data/unsw_home_temporal_predictions_v1`. Completed homes
+and seeds are verified on rerun. If a run stops inside a seed, remove only that
+incomplete `seed_N` directory before rerunning.
+
+After predictions for **all 11 homes and five seeds** are complete, evaluate
+the development window:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/evaluate.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+cat /data/xjw/tma-care-data/unsw_home_temporal_development_v1/REPORT.txt
+```
+
+The evaluator checks all frozen predictions before decoding any development
+label. It excludes flows outside the official 24-device inventory from the
+reported closed-set metrics. It never decodes final-window labels or features.
+These are standard controls, not a new method or a test-set result.

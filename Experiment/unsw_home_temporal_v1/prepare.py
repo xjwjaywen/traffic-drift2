@@ -1,7 +1,8 @@
 """Prepare source/query rows and unlabeled development features from all.zip.
 
 Query membership is curated by the published 24-device inventory. Query labels
-are saved for later paid selection but not used by this preparation stage.
+are used only for that curation and saved for later paid selection; the
+reservoir sampler does not use their class values.
 Development labels are never decoded; final-window rows are never parsed.
 """
 
@@ -150,7 +151,10 @@ def prepare_home(archive, member, home, manifest, output, archive_hash):
     if len(np.unique(source_ids)) != len(source_ids) or len(np.unique(query_ids)) != len(query_ids):
         raise ValueError("Duplicate sampled row IDs")
     np.savez_compressed(home_out / "source.npz", ids=source_ids, x=source_x, y=source_y)
-    np.savez_compressed(home_out / "query.npz", ids=query_ids, x=query_x, y=query_y)
+    # Keep the paid labels in a separate memory-mappable file so a later
+    # experiment can index only its already selected query IDs.
+    np.savez_compressed(home_out / "query.npz", ids=query_ids, x=query_x)
+    np.save(home_out / "query_labels.npy", query_y)
     summary = dict(home=home, raw_rows_by_stage=split_rows.tolist(),
                    curated_source_rows=int(source_seen.sum()),
                    retained_source_rows=len(source_ids),
