@@ -165,3 +165,16 @@ Outputs include `block_counts.csv`, `per_class.csv`, and `summary.csv` per home.
 This was designed after development outcomes were seen. Even a positive
 source-block result would only establish a necessary condition for the
 invariance idea, not a target-month result or a new method.
+
+To check whether the small average difference comes from a few class/home
+pairs, summarize the already generated per-class CSVs without reading the
+archive or later-window data:
+
+```bash
+python Experiment/unsw_home_temporal_v1/invariant_probe_review.py
+cat /data/xjw/tma-care-data/unsw_invariant_probe_v1/REPORT_classes.txt
+```
+
+The review reports class support, projection eligibility, paired F1 changes,
+and each class's contribution to its home's macro-F1 difference. It is
+descriptive and cannot select a class-specific target method after the fact.
