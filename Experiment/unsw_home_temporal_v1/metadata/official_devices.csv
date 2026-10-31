@@ -1,0 +1,289 @@
+home,device_type,manufacturer,category,model,name,mac
+home01,0,elecom,health care,hcs-wfs01,eclear,04:78:63:64:13:c0
+home02,0,elecom,health care,hcs-wfs01,eclear,04:78:63:64:10:0f
+home03,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:a0:3d
+home04,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:a0:8d
+home05,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:a2:4d
+home06,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:a2:55
+home07,0,elecom,health care,hcs-wfs01,eclear,04:78:63:64:0e:74
+home08,0,elecom,health care,hcs-wfs01,eclear,04:78:63:64:14:5c
+home09,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:a1:bf
+home10,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:9c:b3
+home11,0,elecom,health care,hcs-wfs01,eclear,04:78:63:64:13:71
+home12,0,elecom,health care,hcs-wfs01,eclear,04:78:63:62:9f:b6
+home01,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:59:fc
+home02,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:4b:3c
+home03,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:4c:50
+home04,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:4b:d2
+home05,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:47:84
+home06,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:55:48
+home07,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:48:16
+home08,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:4d:d4
+home09,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:49:e4
+home10,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:4c:44
+home11,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:49:d2
+home12,1,withings,health care,wsm02-all-jp,sleep,00:24:e4:9a:58:5e
+home01,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:4c:a6:b0
+home02,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:21:78:8d
+home03,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:4c:c3:a3
+home04,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:4c:b0:79
+home05,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:4c:ab:87
+home06,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:4c:88:bc
+home07,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:21:e6:f0
+home08,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:21:79:2e
+home09,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:49:52:2d
+home10,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:21:e8:19
+home11,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:4c:b3:24
+home12,2,irobot-japan,robot cleaner,roomba960,roomba,50:14:79:04:1c:ff
+home01,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:ef:a0
+home02,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:fe:4d
+home03,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:fc:1b
+home04,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:f1:18
+home05,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:e5:3a
+home06,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:fe:c2
+home07,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:fe:4e
+home08,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:e3:dc
+home09,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:fe:c4
+home10,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:64:f2:d0
+home11,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:65:00:15
+home12,3,switchbot,hub,switchbot-hub-s1,hub-plus,2c:f4:32:65:0c:c8
+home01,4,switchbot,humidifier,w0801800,humidifier,c8:2b:96:b8:ec:cc
+home02,4,switchbot,humidifier,w0801800,humidifier,c4:4f:33:1a:47:75
+home03,4,switchbot,humidifier,w0801800,humidifier,4c:11:ae:b1:10:80
+home04,4,switchbot,humidifier,w0801800,humidifier,4c:11:ae:b4:b8:8c
+home05,4,switchbot,humidifier,w0801800,humidifier,24:0a:c4:4d:5f:fc
+home06,4,switchbot,humidifier,w0801800,humidifier,4c:11:ae:d7:19:c4
+home07,4,switchbot,humidifier,w0801800,humidifier,c8:2b:96:ba:6d:64
+home08,4,switchbot,humidifier,w0801800,humidifier,4c:11:ae:d7:25:10
+home09,4,switchbot,humidifier,w0801800,humidifier,c8:2b:96:b9:a5:2c
+home10,4,switchbot,humidifier,w0801800,humidifier,4c:11:ae:d7:0d:24
+home11,4,switchbot,humidifier,w0801800,humidifier,c8:2b:96:b8:7f:f0
+home12,4,switchbot,humidifier,w0801800,humidifier,c8:2b:96:b8:f1:6c
+home01,5,switchbot,electrical plug,sp11,plug,50:02:91:b2:64:53
+home02,5,switchbot,electrical plug,sp11,plug,d8:f1:5b:12:1b:0a
+home03,5,switchbot,electrical plug,sp11,plug,bc:dd:c2:a9:27:db
+home04,5,switchbot,electrical plug,sp11,plug,48:3f:da:0b:07:c5
+home05,5,switchbot,electrical plug,sp11,plug,f4:cf:a2:4c:3e:9a
+home06,5,switchbot,electrical plug,sp11,plug,f4:cf:a2:4a:45:70
+home07,5,switchbot,electrical plug,sp11,plug,f4:cf:a2:4a:46:3d
+home08,5,switchbot,electrical plug,sp11,plug,bc:dd:c2:a9:27:e1
+home09,5,switchbot,electrical plug,sp11,plug,68:c6:3a:ef:54:09
+home10,5,switchbot,electrical plug,sp11,plug,f4:cf:a2:4a:46:b2
+home11,5,switchbot,electrical plug,sp11,plug,d8:bf:c0:eb:35:7f
+home12,5,switchbot,electrical plug,sp11,plug,bc:dd:c2:a8:fb:4a
+home01,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1a:ee:87
+home02,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:a1:0b
+home03,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:a1:44
+home04,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:11:56:c4
+home05,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:11:56:cd
+home06,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:9e:c6
+home07,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1a:ef:aa
+home08,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:9f:a6
+home09,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1a:ed:95
+home10,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:a0:b5
+home11,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:a1:16
+home12,6,meross,remote controller,mrc100,smart-ir-remote-control,48:e1:e9:1e:a0:dd
+home01,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:54:39
+home02,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:26:f7:7d
+home03,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:26:e3:93
+home04,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:5a:64
+home05,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:5e:9d
+home06,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:5b:a3
+home07,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:5e:b7
+home08,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:5e:7c
+home09,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:64:18
+home10,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:5f:89
+home11,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:1d:57:11
+home12,7,meross,electrical plug,mss110,smart-wifi-plug-mini,48:e1:e9:26:e6:ff
+home01,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:10:9d
+home02,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:11:6a
+home03,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:e5:76
+home04,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:11:93
+home05,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:13:5c
+home06,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:11:32
+home07,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:15:c1
+home08,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:15:72
+home09,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:18:8a:38
+home10,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:e1:a3
+home11,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:e4:d5
+home12,8,meross,electrical plug,mss425f,smart-power-strip,48:e1:e9:1b:0f:eb
+home01,9,meross,humidifier,msxh0,humidifier,48:e1:e9:53:0d:42
+home02,9,meross,humidifier,msxh0,humidifier,48:e1:e9:53:02:4e
+home03,9,meross,humidifier,msxh0,humidifier,48:e1:e9:53:02:4f
+home04,9,meross,humidifier,msxh0,humidifier,48:e1:e9:53:08:9c
+home05,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:0d:78
+home06,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:13:5d
+home07,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:10:d9
+home08,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:11:6c
+home09,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:0e:95
+home10,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:0e:e7
+home11,9,meross,humidifier,msxh0,humidifier,48:e1:e9:1e:13:92
+home12,9,meross,humidifier,msxh0,humidifier,48:e1:e9:52:ff:d1
+home01,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:73:ab
+home02,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:74:2d
+home03,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:74:1b
+home04,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:78:01
+home05,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:74:46
+home06,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:75:27
+home07,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:75:fc
+home08,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:74:14
+home09,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:79:1c
+home10,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:7a:b0
+home11,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:73:77
+home12,10,meross,lightbulb,msl120,smart-light,48:e1:e9:26:73:93
+home01,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:1a:a0:8b
+home02,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:88:7d:d7
+home03,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:13:c7:ac
+home04,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:2a:3c:67
+home05,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:a1:30:19
+home06,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:92:db:85
+home07,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:33:97:49
+home08,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:0e:06:09
+home09,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:84:d6:94
+home10,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:2f:de:8f
+home11,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:13:4c:c6
+home12,11,google,smart speaker,h2c,google-nest-mini,d4:f5:47:9c:a5:07
+home01,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:d8:f9:94
+home02,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:b7:e4:b6
+home03,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:c9:dc:b4
+home04,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:b9:e5:fa
+home05,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:e6:ab:6e
+home06,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:a2:df:c3
+home07,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:c7:83:9a
+home08,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:ae:28:53
+home09,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:a0:06:46
+home10,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:b7:27:ff
+home11,12,google,media player,ga00439-jp,google-chromecast,f8:0f:f9:41:bd:7b
+home12,12,google,media player,ga00439-jp,google-chromecast,b0:e4:d5:a2:0b:e5
+home01,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b4:d1
+home02,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b3:a3
+home03,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b2:b3
+home04,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:aa:1b
+home05,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:a8:1f
+home06,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b3:33
+home07,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b2:d1
+home08,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b6:fb
+home09,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:a8:a6
+home10,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:ad:62
+home11,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b0:78
+home12,13,atom-tech,network camera,ac1,atom-cam,7c:dd:e9:00:b6:c5
+home01,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:a7:3f:56
+home02,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:a7:46:b3
+home03,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:49:7f
+home04,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:49:03
+home05,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:4b:4b
+home06,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:48:a3
+home07,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:49:c8
+home08,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:49:d2
+home09,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:4b:0e
+home10,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:4a:7b
+home11,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:35:4a:12
+home12,14,tp-link,network camera,kc120,kasa-camera-pro,1c:3b:f3:a7:3f:c8
+home01,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:de:32
+home02,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:e6:a5
+home03,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:ee:5f
+home04,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:e5:22
+home05,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:e6:94
+home06,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:e8:fb
+home07,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:ee:a2
+home08,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:f7:20
+home09,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:ca:da:80
+home10,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:e4:47
+home11,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:73:ed:48
+home12,15,tp-link,lightbulb,kl130,kasa-smart-led-lamp,1c:3b:f3:ca:d7:bd
+home01,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:61:30
+home02,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:5c:4c
+home03,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:61:0a
+home04,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:63:be
+home05,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:5a:91
+home06,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:60:b3
+home07,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:61:bd
+home08,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:5e:1d
+home09,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:65:a4
+home10,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:64:80
+home11,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:61:15
+home12,16,tp-link,electrical plug,hs105,wifi-smart-plug,d8:07:b6:a3:5d:8d
+home01,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:ad:10:49
+home02,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:9c:cb
+home03,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:77:6d
+home04,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:76:95
+home05,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:79:d7
+home06,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:8d:d1
+home07,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:7a:a5
+home08,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:7a:61
+home09,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:ed:75:f9
+home10,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:8d:c5
+home11,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:cb:77:63
+home12,17,qrio,hub,q-h1,qrio-hub,d0:c5:d3:ad:0d:cd
+home01,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,40:a2:db:93:cd:b2
+home02,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,f0:f0:a4:75:8b:1d
+home03,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,f4:03:2a:41:ab:b3
+home04,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,f4:03:2a:fd:05:07
+home05,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,a4:08:01:4b:d4:7c
+home06,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,f4:03:2a:51:f0:20
+home07,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,74:58:f3:5f:b4:02
+home08,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,14:0a:c5:03:85:25
+home09,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,1c:4d:66:13:0a:bf
+home10,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,a4:08:01:a9:1c:f3
+home11,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,f0:f0:a4:11:91:29
+home12,18,amazon,media player,b079qrqtcr,fire-tv-stick-4k,a4:08:01:26:e1:4c
+home01,19,amazon,smart speaker,36ebt3,echo-dot,a4:08:01:b0:9f:3a
+home02,19,amazon,smart speaker,36ebt3,echo-dot,f4:03:2a:ac:72:45
+home03,19,amazon,smart speaker,36ebt3,echo-dot,a4:08:01:d8:77:d8
+home04,19,amazon,smart speaker,36ebt3,echo-dot,1c:4d:66:31:d2:f7
+home05,19,amazon,smart speaker,36ebt3,echo-dot,f0:f0:a4:68:34:72
+home06,19,amazon,smart speaker,36ebt3,echo-dot,14:0a:c5:3a:d8:3f
+home07,19,amazon,smart speaker,36ebt3,echo-dot,a4:08:01:e1:ce:d6
+home08,19,amazon,smart speaker,36ebt3,echo-dot,40:a2:db:b7:b8:45
+home09,19,amazon,smart speaker,36ebt3,echo-dot,a4:08:01:fd:86:85
+home10,19,amazon,smart speaker,36ebt3,echo-dot,14:0a:c5:6c:38:22
+home11,19,amazon,smart speaker,36ebt3,echo-dot,f0:f0:a4:19:33:f5
+home12,19,amazon,smart speaker,36ebt3,echo-dot,dc:91:bf:02:13:44
+home01,20,amazon,tablet,m8s26g,fire7-tablet,1c:4d:66:9f:51:97
+home02,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:2e:77:1b
+home03,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:33:f8:16
+home04,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:2f:dd:d0
+home05,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:2f:a6:da
+home06,20,amazon,tablet,m8s26g,fire7-tablet,1c:4d:66:93:47:06
+home07,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:1f:bd:ff
+home08,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:2f:93:18
+home09,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:2f:f4:04
+home10,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:2f:15:ac
+home11,20,amazon,tablet,m8s26g,fire7-tablet,14:91:38:1e:64:20
+home12,20,amazon,tablet,m8s26g,fire7-tablet,1c:4d:66:87:f4:db
+home01,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:57:0b
+home02,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:79:45
+home03,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:7c:4d
+home04,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:7c:55
+home05,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:57:0c
+home06,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:79:13
+home07,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:57:1f
+home08,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:7c:4c
+home09,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:7c:57
+home10,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:57:28
+home11,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:79:3d
+home12,21,panasonic,hub,kx-hjb1000-w,home-unit,bc:c3:42:d8:79:1b
+home01,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:ba:98
+home02,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:88:1a:f7
+home03,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:ba:93
+home04,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:ba:a0
+home05,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:88:8d:c3
+home06,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:ba:90
+home07,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:bb:11
+home08,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:88:1b:00
+home09,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:ba:f1
+home10,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:87:b5:e5
+home11,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:88:1b:15
+home12,22,canon,printer,pixus-ts3330,inkjet-printer,34:9f:7b:86:ba:c2
+home01,23,linkjapan,sensor,a-1,esensor,34:ea:34:e4:9a:31
+home02,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:06:1a
+home03,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:0c:e3
+home04,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:0e:b7
+home05,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:06:07
+home06,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:0d:6b
+home07,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:09:ce
+home08,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:0f:83
+home09,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:0b:f7
+home10,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:10:be
+home11,23,linkjapan,sensor,a-1,esensor,34:ea:34:7b:0f:22
+home12,23,linkjapan,sensor,a-1,esensor,34:ea:34:e4:9a:33
