@@ -178,3 +178,25 @@ cat /data/xjw/tma-care-data/unsw_invariant_probe_v1/REPORT_classes.txt
 The review reports class support, projection eligibility, paired F1 changes,
 and each class's contribution to its home's macro-F1 difference. It is
 descriptive and cannot select a class-specific target method after the fact.
+
+The class review showed no device type improving in at least eight homes.
+Several of the largest class/home F1 changes occurred where the first source
+day block had no retained rows for that class. Before pursuing a prior or
+conditional-shift model, audit both mechanisms using source labels only:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/source_mechanism_audit.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip --home home01
+python -u Experiment/unsw_home_temporal_v1/source_mechanism_audit.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+cat /data/xjw/tma-care-data/unsw_source_mechanism_v1/REPORT.txt
+```
+
+The audit reweights the existing uniform within-class source reservoir by
+each class's reviewed full source count to estimate class shares by source
+day block. It also reports a class-conditional per-feature KS effect size
+between adjacent blocks, when both have at least 100 retained rows, and a
+within-block day-split reference when possible. These are descriptive
+estimates, not a formal hypothesis test or proof that a class's feature
+distribution will remain stable in later windows. No target-period label,
+feature, or timestamp is decoded.
