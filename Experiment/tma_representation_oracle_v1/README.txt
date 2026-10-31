@@ -14,6 +14,11 @@ TMA 表示信息事后审计 v1
   cat /data/xjw/tma-care-data/pilot_v1/representation_oracle_v1/source_0/REPORT.txt
   机器可读数据在同目录 scores.csv。
 
+检查完全相同的特征是否跨时间重复（只读，无需重新拟合模型）
+  python Experiment/tma_representation_oracle_v1/feature_overlap.py
+  若未来样本大量与查询期 1--10 日的 16 维特征完全相同，接近 1 的 AP
+  可能反映重复设备流量模式；不应直接当成跨环境泛化证据。
+
 协议
   复用完成的 pilot 缓存、源模型与源期预处理，不重新下载/prepare/训练源模型。
   事后使用查询池的全部真实标签，按时间将当月 1--10 日作拟合样本、
