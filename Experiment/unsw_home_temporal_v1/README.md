@@ -100,3 +100,22 @@ cat /data/xjw/tma-care-data/unsw_home_temporal_interference_v1/REPORT.txt
 This audit only indexes already paid query labels and reopens development
 labels. Its per-class scores and routes cannot be used as a final-test method
 without a new target-label-free rule fixed in advance.
+
+The read-only audit revealed that a class's F1 can rise even when CARE loses
+true positives, because its false-positive count falls. A small follow-up
+**standard control** tests whether simple prior calibration already explains
+part of this effect. It was specified after viewing development outcomes, so
+its results are exploratory. The fixed rule uses the same 1,000 paid query
+labels, the frozen source model, a pseudocount of one, and half-strength
+log-ratio correction against source prediction frequencies in the unlabeled
+query pool. It has separate prediction and evaluation stages:
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/prior_control.py predict
+python -u Experiment/unsw_home_temporal_v1/prior_control.py evaluate
+cat /data/xjw/tma-care-data/unsw_home_prior_control_v1/development/REPORT.txt
+```
+
+The evaluator refuses to read development labels until predictions for all
+11 primary homes and five seeds are complete. It never opens final-window
+labels. This is a test of an existing calibration idea, not a novelty claim.
