@@ -74,7 +74,11 @@ def run(archive, predictions, prepared, manifest, output):
         y = read_development_labels(archive, members.loc[home, "member"],
                                     home, windows, mapping)
         static = np.load(predictions / home / "static_mlp.npy", mmap_mode="r")
-        paid_labels = np.load(prepared / home / "query_labels.npy", mmap_mode="r")
+        prep_dir = prepared / home
+        prep_artifacts = json.loads((prep_dir / "complete.json").read_text())["artifacts"]
+        if sha256(prep_dir / "query_labels.npy") != prep_artifacts["query_labels.npy"]:
+            raise ValueError(f"Prepared paid-label file changed: {home}")
+        paid_labels = np.load(prep_dir / "query_labels.npy", mmap_mode="r")
         for seed in range(5):
             seed_dir = predictions / home / f"seed_{seed}"
             chosen = np.load(seed_dir / "paid_query_pool_indices.npy")
