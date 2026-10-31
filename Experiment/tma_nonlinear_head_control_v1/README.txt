@@ -29,3 +29,10 @@ TMA 预算内非线性分类器对照 v1
   只要 RF 在完全相同预算下不稳定改善，就不值得沿简单非线性头继续包装。
   即使改善，随机森林本身是现成基线，仍须提出独立机制并做外部验证。
   所有目标月份已经多次检查，结果只能用于探索，不是独立盲测。
+
+零训练的错误互补性审计
+  python Experiment/tma_nonlinear_head_control_v1/rf_complementarity.py
+  cat /data/xjw/tma-care-data/pilot_v1/rf_complementarity_v1/source_0/REPORT.txt
+  它统计 RF 与 CARE 各自独有的纠错和新增的源正确样本误判。
+  另算一个使用未来真值选择 RF 预测类的“上界路线”，明确是标签泄漏的
+  事后诊断，绝不能当实际方法的性能。输出目录必须是空的新目录。
