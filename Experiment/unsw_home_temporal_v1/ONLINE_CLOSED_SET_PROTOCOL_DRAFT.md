@@ -57,6 +57,21 @@ Report per-home paired error and interval behavior; ordinary row bootstrap
 is descriptive only. If the exact-count estimator does not materially improve
 decision accuracy or label efficiency, stop this branch of the method.
 
+**Completed exploratory result.** With 1,000 extra labels and 55 overlapping
+home/seed repeats, the numbers of bootstrap intervals excluding zero were:
+uniform with sampled prediction counts 6, uniform with exact counts 8,
+disagreement-stratified with sampled counts 12, and disagreement-stratified
+with exact counts 15. No resolved direction disagreed with the full
+development comparison in this particular replay, but the interval was
+descriptive and still contained the full difference only 47–49 times out of
+55, depending on the control. The stratified exact-count version left 40/55
+decisions unresolved. Five seeds within a home overlap, so they do not supply
+55 independent datasets. The extra 2–3 resolutions from exact prediction
+counts are too small to justify a method claim.
+Accordingly, stop tuning this estimator on the examined development window.
+The remaining hypothesis concerns **transport of a paired audit across
+time**, not a better calculation of a same-window F1 score.
+
 ```bash
 python -u Experiment/unsw_home_temporal_v1/f1_exact_count_audit.py \
   /data/xjw/tma-care-data/unsw_home_temporal/all.zip
@@ -74,10 +89,34 @@ uncertainty coverage and a justified temporal-change bound. If the bound is
 too wide, the method returns the source model. Negative flips and class
 recall must be reported alongside pooled macro F1.
 
+A candidate transport model partitions flows by the **pair** of frozen
+source and challenger predictions `z=(h0(x),h1(x))`. Let `q[t,z]` be the
+observed fraction of flows in that group and `theta[t,z,c]` the unknown
+conditional true-class fraction. Every source/candidate confusion entry is
+a sum of `q[t,z]*theta[t,z,c]` over relevant groups. The next day's `q`
+is known from unlabeled predictions; its `theta` is not. An audit on day
+`t` can construct a confidence set for `theta[t,z]`. Applying it on day
+`t+1` additionally requires a **stated** bound such as
+`TV(theta[t+1,z],theta[t,z]) <= rho[z]` for each group. A route would be
+used only when the worst-case next-day macro-F1 change is positive and a
+negative-flip constraint holds across this set. This is a research
+hypothesis, not a validated guarantee: `rho[z]` cannot be inferred from
+unlabeled group mass alone, and sparse groups may make the decision set
+vacuous. Test against source-only, always-CARE, ordinary active testing,
+and simpler per-group paid-support gates before claiming value.
+
 This setting overlaps with [active F-measure estimation](https://papers.neurips.cc/paper_files/paper/2010/hash/d7a728a67d909e714c0774e22cb806f2-Abstract.html),
 [active testing](https://proceedings.mlr.press/v139/kossen21a.html),
 [delayed-label stream evaluation](https://link.springer.com/article/10.1007/s10618-019-00654-y),
 and [sequential model confidence sets](https://arxiv.org/abs/2404.18678).
+More direct overlaps are [discordant-pair validation of an updated model](https://pmc.ncbi.nlm.nih.gov/articles/PMC10684559/),
+[active F1 model evaluation](https://www.nature.com/articles/s41598-024-58633-3.pdf),
+and [paired multiclass F1 inference](https://pmc.ncbi.nlm.nih.gov/articles/PMC11483486/).
+The published discordant-pair method is binary and assumes a baseline
+performance and prevalence that transfer to the new period; its authors
+identify drift as a limitation. That is a possible research gap, but merely
+extending a sampling rule to 24 classes or counting prediction marginals
+exactly is not enough to establish novelty or practical value.
 A contribution would require an effective method for **paired macro-F1
 repair under delayed labels and temporal group shift**, with stronger
 evidence than these controls. The novelty boundary must be checked again
