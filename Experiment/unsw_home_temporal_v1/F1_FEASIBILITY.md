@@ -169,6 +169,36 @@ in this setting. Even if it wins, the class, threshold, and home were chosen
 after development inspection, so this remains a mechanism probe and must
 not be reported as an independent method result.
 
+### Completed matched-control result and decision
+
+For every one of the five overlapping home07 seeds, the intersection's
+development macro-F1 change fell inside the 2.5--97.5% range of the
+donor-count-matched random control. Its class-9 F1 change did too. In
+seed 4, the intersection changed macro F1 by +0.953 percentage points;
+random selection with the same number of accepted proposals from each
+source-predicted class averaged +0.962 points. Random selection matching
+only the total number averaged +0.040 points. The intersection kept just
+7 of the full RF's 1,201 class-14-to-9 proposals, none of which was truly
+class 9. The donor-count-matched random control copies the intersection's
+per-donor counts, so it is a diagnostic control, not a deployable policy.
+
+These results support a **donor-allocation** explanation for the apparent
+benefit: avoiding most proposals from the dangerous source-predicted class
+matters, while fold agreement has not demonstrated a reliable advantage
+for ranking individual proposals within a donor class. The intersection's
+seed-4 negative-flip rate was slightly below the donor-matched random range,
+but this does not rescue the row-level macro-F1 claim. Stop developing the
+4-of-5 row-voting rule as a stand-alone method. Do not open the final window
+for this home07-specific rule.
+
+If work continues on selective repair, formulate a class-agnostic donor-level
+decision using only paid labels and observable unlabeled mass/coverage, then
+test its ability to protect macro F1 across independent homes and periods.
+The source-predicted class share can change sharply (0.57% to 18.64% for
+class 14 here), so paid-query accuracy alone is not sufficient to transport
+a routing decision. Any guarantee must state an explicit temporal-shift
+assumption; no unsupported guarantee follows from these audits.
+
 ## Potential research problem, if data support it
 
 Let `h0` be a frozen source classifier, `h1` a nonlinear challenger, and
