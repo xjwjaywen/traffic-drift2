@@ -37,9 +37,14 @@ def frozen_outcomes(root):
         path = root / f"seed_{seed}" / "evaluation_all" / "per_day.csv"
         part = pd.read_csv(path)
         part = part.loc[part.method == "bcwi_050", [
-            "home", "seed", "transition", "tomorrow", "delta_vs_source_pp"]]
+            "home", "seed", "today", "tomorrow", "delta_vs_source_pp"]].copy()
+        part.sort_values(["home", "tomorrow"], inplace=True)
+        part["transition"] = part.groupby("home").cumcount()
         if (set(part.home) != set(PRIMARY) or set(part.seed) != {seed} or
-                part.duplicated(["home", "transition"]).any()):
+                part.duplicated(["home", "tomorrow"]).any() or
+                any(not np.array_equal(group.today.to_numpy()[1:],
+                                       group.tomorrow.to_numpy()[:-1])
+                    for _, group in part.groupby("home"))):
             raise ValueError(f"Frozen BCWI development layout differs: {path}")
         parts.append(part)
     return pd.concat(parts, ignore_index=True)
