@@ -68,12 +68,37 @@ python -u Experiment/unsw_home_temporal_v1/rf_transport_audit.py \
 
 This writes `/data/xjw/tma-care-data/unsw_rf_transport_audit_v1/home07/REPORT.txt`.
 
-The central diagnostic is whether even the optimistic row interval has a
-positive lower endpoint. If it does not, this audit does not establish
-positive macro-F1 gain for this fixed action even under an iid-query
-interpretation, much less under future drift. If it does, compare the
-day-block interval and donor-edge support before designing a policy. Do not
-pick a score threshold on the same development outcomes.
+## Query-to-development transport result
+
+Using the same all-RF-to-class-9 action, development macro-F1 changes were
++0.08, +0.49, -0.01, +0.50, and -0.45 percentage points, far below the
+paid OOF changes. In seed 4, the paid OOF models proposed just one
+source-class-14 to class-9 change, but the full RF proposed 3,233 on
+development. Only about 0.12% of those development proposals were true
+class 9. The 800-label fold models and the full 1,000-label RF differ in
+both training size and random state, so this observation alone cannot tell
+whether refitting or the time shift caused the discrepancy.
+
+`rf_refit_stability.py` sends each existing 800-label fold RF to both its
+held-out paid rows and a fixed uniform sample of 20,000 curated development
+rows. It also compares the already frozen full RF on those same development
+rows. This identifies whether the seed-4 class-14 proposal explosion is
+specific to the full refit or appears in the fold models too. A 4-of-5
+fold-model consensus route is reported as an exploratory stability control;
+the fold models share training rows, so the vote count is not a statistical
+confidence bound. Development outcomes were already viewed and this control
+is not independently validated.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/rf_refit_stability.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+```
+
+This writes `/data/xjw/tma-care-data/unsw_rf_refit_stability_v1/home07/REPORT.txt`.
+Compare proposal **rates** and donor precision because the paid fold and
+development samples have different sizes. Even if the instability can be
+reduced, do not set a route or threshold using the already examined
+development outcomes and present it as independent validation.
 
 ## Potential research problem, if data support it
 
