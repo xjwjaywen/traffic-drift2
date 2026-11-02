@@ -202,3 +202,31 @@ equal-budget controls for daily switching.
 python Experiment/unsw_home_temporal_v1/online_transport_budget_review.py
 cat /data/xjw/tma-care-data/unsw_online_transport_budget_review_v1/REPORT.txt
 ```
+
+**Completed budget comparison.** The daily paid-sign route gained +0.565
+macro-F1 percentage points over source, versus +0.241 for the first-day-fixed
+route, averaged over homes. Daily switching beat the fixed choice in 6/11
+homes, but cost mean 4,818 rather than 1,000 additional labels per seed.
+The cumulative and two-day paid-sign controls gained +0.542 and +0.553,
+respectively, very close to the daily rule at the same cost. Further
+threshold tuning of a **frozen** CARE switch is not a promising main method.
+
+The remaining reason to buy new labels is to **change the candidate model**.
+As a standard feasibility control, refit a fresh ordinary CARE head from the
+frozen source head after each examined development day, using the original
+1,000 paid query labels plus exactly 1,000 selected curated labels from each
+elapsed development day. The source encoder, historical references, 500
+optimizer steps, and source model remain fixed. Predict the next day and
+freeze prediction files before loading full labels for evaluation. Compare
+the updated head with the original fixed CARE and source on the same next-day
+rows. This is not a new method and costs 3,000–5,000 extra development labels
+per home/seed. First run one home as a pipeline check; only then run all
+homes. No final-window data is used.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/online_care_update.py predict \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip --home home01
+python -u Experiment/unsw_home_temporal_v1/online_care_update.py evaluate \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip --home home01
+cat /data/xjw/tma-care-data/unsw_online_care_update_v1/seed_0/evaluation_home01/REPORT.txt
+```
