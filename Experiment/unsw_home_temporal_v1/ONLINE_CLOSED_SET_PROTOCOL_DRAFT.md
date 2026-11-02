@@ -291,3 +291,37 @@ done
 python Experiment/unsw_home_temporal_v1/online_update_compare.py
 cat /data/xjw/tma-care-data/unsw_online_update_compare_v1/REPORT.txt
 ```
+
+**Completed paired update comparison.** Across the 11 homes, updated CARE
+exceeded updated target-only by only +0.125 macro-F1 percentage points on
+average and won in 5/11 homes. Home07 alone contributed +6.692 points to
+that mean; excluding it, updated CARE trailed target-only by about 0.532
+points across the other ten homes. Home07 is not a success for either update:
+both remain below source by 5.614 and 12.306 points, respectively. In
+contrast, CARE's negative-flip rate was lower than target-only in 10/11
+homes, by 3.954 percentage points on average among source-correct rows.
+Home08 and home09 show a substantial F1 advantage for target-only while CARE
+preserves more source-correct predictions. The fixed CARE versus fixed target
+F1 advantage averaged +2.612 points; after repeated paid updates the
+advantage nearly vanished. These numbers identify a stability/plasticity
+tradeoff, not a generally better F1 learner or a novel method.
+
+Literature check (2026-11-02): positive-congruent/focal-distillation training
+already targets negative flips, backward-compatible weight interpolation
+already trades new accuracy against prediction regressions, and GEM/mGEM
+already expresses old-task preservation through gradient constraints. Thus
+simply adding a negative-flip penalty, interpolating heads, or projecting a
+gradient is not a defensible novelty claim. Relevant primary sources:
+Yan et al., CVPR 2021, https://openaccess.thecvf.com/content/CVPR2021/html/Yan_Positive-Congruent_Training_Towards_Regression-Free_Model_Updates_CVPR_2021_paper.html;
+Schumann et al., ICML 2023, https://arxiv.org/abs/2301.10546;
+Lopez-Paz and Ranzato, NeurIPS 2017, https://arxiv.org/abs/1706.08840;
+Fine-Grained Gradient Restriction, arXiv 2024,
+https://arxiv.org/abs/2410.00868.
+
+The useful unresolved question is whether a *traffic-drift-specific* update
+can exceed the F1/negative-flip frontier of these established baselines
+under the same labels and chronological feedback. The current two endpoints
+alone cannot answer this. A next experimental gate should compare at least
+one standard compatibility baseline (focal distillation or weight
+interpolation) and include the source model as a fallback. Do not open the
+final window until a rule and all controls are frozen from development.
