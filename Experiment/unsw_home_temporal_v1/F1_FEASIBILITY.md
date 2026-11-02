@@ -100,6 +100,30 @@ development samples have different sizes. Even if the instability can be
 reduced, do not set a route or threshold using the already examined
 development outcomes and present it as independent validation.
 
+The completed 20,000-row development sample showed that seed-4 fold models
+3 and 4 each proposed 1,201 class-14 to class-9 changes, while folds 0--2
+proposed 0, 6, and 7. The full RF also proposed 1,201. Thus the exceptional
+region is sensitive to which paid rows train the RF; it is not unique to
+the full 1,000-label refit. Four-of-five consensus reduced this edge to six
+proposals and gave +0.88 macro-F1 percentage points for seed 4 on the
+already examined development sample. This is a post-hoc diagnostic, not
+evidence of a validated policy.
+
+The remaining question is whether this region was present in the earlier
+unlabeled query pool or appeared mainly in development. `rf_query_coverage.py`
+reproduces seed-4 folds 3 and 4 and the full RF, checks the full RF against
+frozen predictions, and compares class-14-to-9 proposal rates on the unpaid
+query pool versus the same development sample. It reads no unpaid query
+label; class membership of development rows is used only to retain the
+already curated evaluation population. Query-to-development rate changes
+describe feature coverage and cannot by themselves identify a causal drift
+mechanism.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/rf_query_coverage.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+```
+
 ## Potential research problem, if data support it
 
 Let `h0` be a frozen source classifier, `h1` a nonlinear challenger, and
