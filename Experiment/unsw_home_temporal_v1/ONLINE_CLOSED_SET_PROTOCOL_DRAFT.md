@@ -183,3 +183,22 @@ diagnostic CSV, not the archive or final window:
 python Experiment/unsw_home_temporal_v1/online_transport_decision_review.py
 cat /data/xjw/tma-care-data/unsw_online_transport_decision_review_v1/REPORT.txt
 ```
+
+**Completed simple-route review.** The after-the-fact rule using yesterday's
+1,000-label sign yielded mean next-day macro-F1 gain +0.565 percentage points
+over source across 11 homes, versus -0.228 for always-CARE. It improved 7/11
+homes over source. Full-yesterday-label routing (an oracle unavailable at this
+budget) yielded +0.909, while a tomorrow-label oracle yielded +1.124.
+Home07's high sign persistence was indeed mostly a repeated warning against
+CARE: it was better on none of the examined next days, and the paid-sign
+route's gain was -0.016. These are post-hoc exploratory comparisons, and the
+daily sign rule spends 3,000–5,000 **additional** labels per seed across the
+development transitions. It must be compared against a much cheaper rule:
+use only the first day's 1,000 audit labels to select one route for all
+following days. Cumulative and two-day-smoothed paid signs serve as
+equal-budget controls for daily switching.
+
+```bash
+python Experiment/unsw_home_temporal_v1/online_transport_budget_review.py
+cat /data/xjw/tma-care-data/unsw_online_transport_budget_review_v1/REPORT.txt
+```
