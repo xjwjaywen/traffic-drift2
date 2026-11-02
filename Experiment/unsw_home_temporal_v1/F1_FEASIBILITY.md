@@ -94,20 +94,22 @@ python -u Experiment/unsw_home_temporal_v1/rf_refit_stability.py \
   /data/xjw/tma-care-data/unsw_home_temporal/all.zip
 ```
 
-This writes `/data/xjw/tma-care-data/unsw_rf_refit_stability_v1/home07/REPORT.txt`.
+The corrected run writes `/data/xjw/tma-care-data/unsw_rf_refit_stability_v2/home07/REPORT.txt`.
 Compare proposal **rates** and donor precision because the paid fold and
 development samples have different sizes. Even if the instability can be
 reduced, do not set a route or threshold using the already examined
 development outcomes and present it as independent validation.
 
-The completed 20,000-row development sample showed that seed-4 fold models
-3 and 4 each proposed 1,201 class-14 to class-9 changes, while folds 0--2
-proposed 0, 6, and 7. The full RF also proposed 1,201. Thus the exceptional
-region is sensitive to which paid rows train the RF; it is not unique to
-the full 1,000-label refit. Four-of-five consensus reduced this edge to six
-proposals and gave +0.88 macro-F1 percentage points for seed 4 on the
-already examined development sample. This is a post-hoc diagnostic, not
-evidence of a validated policy.
+The initial 20,000-row development audit reported that seed-4 fold models
+3 and 4 each proposed 1,201 class-14 to class-9 changes. That comparison
+used a different feature-extraction batch order from the frozen full RF;
+its fold counts and consensus result are **superseded**. Under the original
+full-query feature order, a targeted rerun found seven such proposals for
+fold 3 and 1,201 for fold 4. The full RF still proposed 1,201 and exactly
+matched the frozen predictions. This establishes strong sensitivity to
+the paid training subset but does not validate a 4-of-5 voting policy. Run
+`rf_refit_stability.py` again; its corrected output goes to
+`unsw_rf_refit_stability_v2` and checks all five reproduced full RFs.
 
 The remaining question is whether this region was present in the earlier
 unlabeled query pool or appeared mainly in development. `rf_query_coverage.py`
@@ -118,6 +120,17 @@ label; class membership of development rows is used only to retain the
 already curated evaluation population. Query-to-development rate changes
 describe feature coverage and cannot by themselves identify a causal drift
 mechanism.
+
+In the completed query-coverage audit, the frozen source predicted class
+14 on 135/23,759 unpaid query-pool rows (0.57%) versus 3,727/20,000
+development-sample rows (18.64%). This is about a 33-fold change in the
+source-predicted class share, not a measured change in true class-14
+prevalence. The matched full RF proposed 14-to-9 on all 135 early rows
+versus 1,201 later rows; the corresponding population proposal rates are
+0.57% and 6.01%. Fold 3 proposed 105 versus seven, while fold 4 proposed
+135 versus 1,201. Thus a large source-prediction-distribution change and
+RF fit instability are both present in this routing problem. No
+unpaid query correctness can be inferred from this coverage audit.
 
 ```bash
 python -u Experiment/unsw_home_temporal_v1/rf_query_coverage.py \

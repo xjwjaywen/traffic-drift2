@@ -1,7 +1,8 @@
 """Read-only probe of RF refit instability versus temporal transport.
 
-Each previously fixed 5-fold, 800-paid-label RF predicts both its held-out
-paid fold and the same uniform curated development sample. This checks
+Each 5-fold, 800-paid-label RF predicts both its held-out paid fold and the
+same uniform curated development sample. Paid features are now extracted
+exactly as in the frozen full-RF protocol. This checks
 whether full-RF proposals, especially home07 seed-4 source-14 to target-9,
 are also made by the smaller fold models. A fixed 4-of-5 consensus route is
 shown only as an exploratory control. Final-window data stay unopened.
@@ -55,10 +56,8 @@ def main():
                         default=Path("/data/xjw/tma-care-data/unsw_home_temporal_prepared_v1"))
     parser.add_argument("--baseline", type=Path,
                         default=Path("/data/xjw/tma-care-data/unsw_home_temporal_predictions_v1"))
-    parser.add_argument("--gate", type=Path,
-                        default=Path("/data/xjw/tma-care-data/unsw_rf_target_route_v1/home07/gate.json"))
     parser.add_argument("--output", type=Path,
-                        default=Path("/data/xjw/tma-care-data/unsw_rf_refit_stability_v1"))
+                        default=Path("/data/xjw/tma-care-data/unsw_rf_refit_stability_v2"))
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--threads", type=int, default=8)
     args = parser.parse_args()
@@ -67,6 +66,7 @@ def main():
         parser.error("Invalid class or sample size")
     if args.device.startswith("cuda") and not torch.cuda.is_available():
         parser.error("CUDA unavailable; use --device cpu")
+    torch.set_num_threads(args.threads)
     output = args.output.resolve() / args.home
     if output.exists() and any(output.iterdir()):
         parser.error(f"Output must be new and empty: {output}")
@@ -76,10 +76,6 @@ def main():
         "archive_sha256"]
     if sha256(archive) != expected:
         parser.error("Archive differs from reviewed timestamp audit")
-    gate = json.loads(args.gate.resolve(strict=True).read_text())
-    if (gate["home"] != args.home or gate["target_class"] != args.target_class
-            or len(gate["decisions"]) != 5):
-        raise ValueError("Frozen paid gate differs")
     prep = args.prepared.resolve(strict=True) / args.home
     base = args.baseline.resolve(strict=True) / args.home
     verify_prepared(prep)
@@ -118,9 +114,14 @@ def main():
         for c in range(24)])
     device = torch.device(args.device)
     model.encoder.to(device).eval()
-    ref_x = forward_batches(model.encoder,
-                            prep_model.transform(raw_source[ref_ids]), device).numpy()
+    source_x = prep_model.transform(raw_source)
+    ref_x = forward_batches(model.encoder, source_x[ref_ids], device).numpy()
     ref_y = source_y[ref_ids]
+    # Reproduce predict.py: encode the complete query pool, then select paid
+    # indices. Encoding only paid rows changes the GPU batch shape and can
+    # change RF split decisions on tied or near-tied feature values.
+    all_query_x = forward_batches(model.encoder,
+                                  prep_model.transform(raw_query), device).numpy()
     model.head.to(device).eval()
     summaries, fold_rows = [], []
     for seed in range(5):
@@ -129,9 +130,7 @@ def main():
         if chosen.shape != (1000,) or len(np.unique(chosen)) != 1000:
             raise ValueError(f"Paid indices differ: seed {seed}")
         paid_y = np.asarray(labels[chosen], dtype=np.int64)
-        paid_x = forward_batches(model.encoder,
-                                 prep_model.transform(raw_query[chosen]),
-                                 device).numpy()
+        paid_x = all_query_x[chosen]
         paid_static = forward_batches(model.head, paid_x, device).numpy().argmax(1)
         oof_rf = np.empty(1000, dtype=np.int64)
         fold_proposal = np.zeros((5, len(sample)), dtype=bool)
@@ -161,15 +160,19 @@ def main():
         oof_mask = (oof_rf == args.target_class) & (
             paid_static != args.target_class)
         actual = compare(oof_mask, paid_y, paid_static, oof_rf)
-        frozen = gate["decisions"][seed]
-        if frozen["seed"] != seed or any(actual[key] != frozen[key] for key in
-               ("rows", "rf_wins", "source_wins", "both_wrong")):
-            raise ValueError(f"OOF RF differs from frozen paid gate: seed {seed}")
         votes = fold_proposal.sum(axis=0)
         consensus_route = np.where(votes >= 4, args.target_class, dev_static)
         full_rf = np.asarray(np.load(verified(base / f"seed_{seed}",
                                             "frozen_rf.npy"), mmap_mode="r")[sample],
                              dtype=np.int64)
+        full_forest = RandomForestClassifier(**RF, random_state=seed,
+                                             n_jobs=args.threads)
+        full_forest.fit(np.concatenate((paid_x, ref_x)),
+                        np.concatenate((paid_y, ref_y)))
+        mismatch = int(np.count_nonzero(full_forest.predict(dev_features) != full_rf))
+        if mismatch:
+            raise ValueError(f"Full RF differs from frozen predictions: seed "
+                             f"{seed}, {mismatch}/{len(sample)} sampled rows")
         full_route = np.where((full_rf == args.target_class) &
                               (dev_static != args.target_class),
                               args.target_class, dev_static)
@@ -179,6 +182,8 @@ def main():
                             args.target_class, args.donor_class)
         summaries.append(dict(seed=seed, sampled_dev_rows=len(sample),
                               oof_paid_proposals=actual["rows"],
+                              oof_rf_wins=actual["rf_wins"],
+                              oof_source_wins=actual["source_wins"],
                               full_dev_proposals=full["proposals"],
                               consensus_dev_proposals=consensus["proposals"],
                               full_donor_proposals=full["donor_proposals"],
@@ -218,6 +223,9 @@ def main():
     report = "\n".join([
         "Exploratory RF refit-stability audit on a fixed uniform curated development sample.",
         "Each 800-label fold RF predicts both its held-out paid rows and the same development rows.",
+        "Query features are extracted from the complete pool before indexing, matching the original full-RF protocol.",
+        "These OOF counts may differ from the earlier gate, whose paid features were encoded after indexing.",
+        "Every reproduced full RF is checked against frozen development predictions.",
         "Full RF uses all 1000 paid rows and a different random state.",
         "Consensus route requires at least 4 of 5 fold RFs to propose target class.",
         "Fold forests share most training rows; consensus is a stability heuristic, not a confidence interval.",
@@ -234,7 +242,6 @@ def main():
         home=args.home, target_class=args.target_class,
         donor_class=args.donor_class, dev_sample=len(sample),
         sample_rng_seed=8800, archive_sha256=expected,
-        gate_sha256=sha256(args.gate),
         implementation_sha256=sha256(Path(__file__)),
         final_labels_or_features_decoded=False), indent=2) + "\n")
     print(report, flush=True)
