@@ -107,12 +107,40 @@ zero for CARE in 18 and RF in 21. The interval contained the full development
 macro-F1 difference in 47/55 CARE and 48/55 RF comparisons, below the
 nominal 95% expectation; this is a descriptive check, not a coverage proof.
 The random audits observed only 20.89 of the 24 evaluated classes on average.
-That first replay sampled only curated rows, whose membership would itself
-require labels to know in advance, so it is an optimistic information test.
+That first replay sampled only rows selected through the official inventory;
+this matches the existing curated benchmark, but assumes its membership is
+provided before querying and is optimistic for an all-flow deployment.
 The next stratified control samples all development rows and charges a label
 even when a row falls outside the public 24-class inventory. It asks whether
 the information shortage is partly an avoidable sampling problem. Its
 interval method has the same limitations.
+
+The stratified control is now complete. Of 55 overlapping home/seed repeats,
+it resolved 17 decisions versus 12 for uniform sampling, with one versus two
+resolved decisions in the wrong direction. Its descriptive bootstrap interval
+contained the full development difference 48/55 times versus 47/55 for
+uniform sampling. It observed 21.53 of 24 classes per draw versus 19.40,
+and 693 versus 676 curated rows per 1,000 paid labels. These are small,
+exploratory gains, not a safety result or evidence of a new sampling method.
+In home04 the stratified draw contained 264 curated rows on average versus
+87 under uniform sampling, so part of its gain comes from enriching official
+device traffic among all flows. That changes the population relative to the
+existing **curated closed-set** protocol, where the public inventory defines
+the candidate pool in advance. Do not combine these all-flow audit numbers
+with the earlier closed-set model comparison as if they shared a deployment
+task. The four to six examined development days per home are also too few to
+claim a robust sequential adaptation benchmark on their own. Any online
+method needs a separately frozen stream protocol and independent validation.
+
+The label bottleneck is structural for macro F1. If a class occupies fraction
+`q` of the audit population, a uniform `B`-label draw sees no positives with
+probability approximately `(1-q)^B`. At `q=0.001` and `B=1000`, this is about
+36.8%; even ten *expected* positives require 10,000 uniform labels. A rare
+class can still contribute 1/24 of fixed-inventory macro F1. Prediction-based
+strata may help when the candidate recognizes that class, but cannot assure
+coverage if both source and challenger never predict it. This is a reason to
+study the information assumptions and label budget before promising a
+finite-sample improvement guarantee.
 
 1. **Information feasibility.** On already examined development periods,
    simulate a current-window audit with a fixed 1,000-label *additional*
