@@ -325,3 +325,31 @@ alone cannot answer this. A next experimental gate should compare at least
 one standard compatibility baseline (focal distillation or weight
 interpolation) and include the source model as a fallback. Do not open the
 final window until a rule and all controls are frozen from development.
+
+**Fixed-grid BCWI control prepared.** Schumann et al.'s original formula is
+`mixed = alpha * old + (1 - alpha) * new`. Here `old` is the frozen source
+linear head and `new` is the daily target-only head refitted from the same
+paid labels as the completed run. Both share the frozen encoder and source
+initialization. Evaluate the prespecified old-weight grid 0.25, 0.50, 0.75
+without choosing an alpha from development outcomes. Alpha 0 and 1 must
+exactly reproduce the frozen target-only and source predictions before any
+full development label is read. The script reports all grid points, source,
+updated target, and updated CARE. Its negative-flip rate divides by the
+number of source-correct rows, matching our prior reports; the original BCWI
+paper divides by all rows. The ordering of methods within a home is the same
+under either denominator. This is an established baseline, not our method.
+
+Run the `predict` stage for all seeds before `evaluate`:
+
+```bash
+for seed in 0 1 2 3 4; do
+  python -u Experiment/unsw_home_temporal_v1/online_bcwi_control.py predict \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+for seed in 0 1 2 3 4; do
+  python -u Experiment/unsw_home_temporal_v1/online_bcwi_control.py evaluate \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+python Experiment/unsw_home_temporal_v1/online_bcwi_control.py aggregate
+cat /data/xjw/tma-care-data/unsw_bcwi_v1/aggregate_0_1_2_3_4/REPORT.txt
+```
