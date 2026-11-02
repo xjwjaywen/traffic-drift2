@@ -161,3 +161,25 @@ python -u Experiment/unsw_home_temporal_v1/online_transport_feasibility.py \
   /data/xjw/tma-care-data/unsw_home_temporal/all.zip
 cat /data/xjw/tma-care-data/unsw_online_transport_feasibility_v1/REPORT.txt
 ```
+
+**Completed transport diagnostic.** Across 11 homes, the previous day's
+full-label gain had the same sign as the next day's gain in 80.48% of the
+overlapping home/seed transitions on average; yesterday's 1,000-label
+estimate matched in 69.09%. The prediction-pair mass changed by mean total
+variation 0.145, and 8.78% of the next day's mass lay in pair groups with
+fewer than five paid labels the previous day. Home07 was extreme: pair-mass
+TV 0.356, 28.60% low-coverage mass, and 13.03% mass in pairs wholly absent
+the previous day. Its sign-match rate was nevertheless 96%, which could
+simply reflect CARE being consistently worse there. Sign agreement is not
+itself a gain from routing.
+
+Before designing a new route, score the predeclared, elementary rule
+"use CARE tomorrow iff today's paid audit estimates positive gain" against
+always-source and always-CARE. The full-today oracle and tomorrow oracle
+are ceilings, never deployable results. This script reads only the saved
+diagnostic CSV, not the archive or final window:
+
+```bash
+python Experiment/unsw_home_temporal_v1/online_transport_decision_review.py
+cat /data/xjw/tma-care-data/unsw_online_transport_decision_review_v1/REPORT.txt
+```
