@@ -373,3 +373,39 @@ Review paired seed stability without reopening the archive:
 python Experiment/unsw_home_temporal_v1/bcwi_paired_review.py
 cat /data/xjw/tma-care-data/unsw_bcwi_v1/paired_review_v1/REPORT.txt
 ```
+
+**Completed paired BCWI review.** For old-weight alpha 0.50 versus updated
+CARE, the across-home mean F1 gain was +1.882 percentage points and the
+conditional negative-flip reduction was 2.164 points. On average, it beat
+CARE's F1 in 4.27/5 overlapping paid-label seeds per home, lowered negative
+flips in 4.45/5, and improved both metrics in 3.73/5. Nine of 11 homes had
+better mean F1 and lower mean negative flips. Yet home07 remained 4.297 F1
+points below source. The interpolation baseline is stable enough that any
+proposed new method must compare directly with it, but it is not a new
+contribution.
+
+**No-extra-label fallback trial prepared.** The first predicted development
+day uses BCWI alpha 0.50. For each later next-day prediction, score the
+previous day's *already paid* 1,000 examples with the previous day's frozen
+BCWI and source models. Use BCWI tomorrow iff its paid fixed-24 macro F1 is
+strictly higher; otherwise use source. This reuses the update labels and adds
+no budget. Previous-day model predictions and paid labels enter the gate;
+tomorrow's evaluation labels do not. Freeze every gate file in `prepare`
+before `evaluate` reads full development labels. The rule is a simple
+diagnostic, especially for home07, and was designed after seeing development
+results. It is not an independent validation or a novelty claim. Sparse
+class coverage in 1,000 paid labels and drift between days may make the gate
+fail, as earlier fixed-CARE routing already warned.
+
+```bash
+for seed in 0 1 2 3 4; do
+  python -u Experiment/unsw_home_temporal_v1/bcwi_paid_route.py prepare \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+for seed in 0 1 2 3 4; do
+  python -u Experiment/unsw_home_temporal_v1/bcwi_paid_route.py evaluate \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+python Experiment/unsw_home_temporal_v1/bcwi_paid_route.py aggregate
+cat /data/xjw/tma-care-data/unsw_bcwi_paid_route_v1/aggregate_0_1_2_3_4/REPORT.txt
+```
