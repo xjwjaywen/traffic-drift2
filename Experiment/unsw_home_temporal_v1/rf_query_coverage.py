@@ -111,16 +111,17 @@ def main():
     ref_ids = np.concatenate([
         rng.choice(np.flatnonzero(source_y == c), 5, replace=False)
         for c in range(24)])
-    ref_x = forward_batches(model.encoder,
-                            preprocessing.transform(raw_source[ref_ids]),
-                            device).numpy()
-    paid_x = forward_batches(model.encoder,
-                             preprocessing.transform(raw_query[chosen]),
-                             device).numpy()
+    # Match predict.py's feature computation before slicing paid query rows.
+    # A different GPU batch shape can make tiny floating-point differences;
+    # RF split thresholds may turn them into different class predictions.
+    source_x = preprocessing.transform(raw_source)
+    ref_x = forward_batches(model.encoder, source_x[ref_ids], device).numpy()
+    all_query_x = forward_batches(model.encoder,
+                                  preprocessing.transform(raw_query),
+                                  device).numpy()
+    paid_x = all_query_x[chosen]
     paid_y = np.asarray(paid_labels[chosen], dtype=np.int64)
-    query_x = forward_batches(model.encoder,
-                              preprocessing.transform(raw_query[unpaid_mask]),
-                              device).numpy()
+    query_x = all_query_x[unpaid_mask]
     model.head.to(device).eval()
     query_source = forward_batches(model.head, query_x, device).numpy().argmax(1)
     rows = []
@@ -140,8 +141,10 @@ def main():
         if name == "full":
             frozen = np.load(verified(base / f"seed_{args.seed}",
                                       "frozen_rf.npy"), mmap_mode="r")
-            if not np.array_equal(dev_rf, frozen[dev_sample]):
-                raise ValueError("Reproduced full RF differs from frozen predictions")
+            mismatch = int(np.count_nonzero(dev_rf != frozen[dev_sample]))
+            if mismatch:
+                raise ValueError(f"Reproduced full RF differs from frozen predictions: "
+                                 f"{mismatch}/{len(dev_sample)} sampled rows")
         for period, source, challenger in (
             ("unpaid_query_pool", query_source, query_rf),
             ("development_sample", dev_source, dev_rf),
