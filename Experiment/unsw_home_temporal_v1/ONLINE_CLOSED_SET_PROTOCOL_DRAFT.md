@@ -283,6 +283,8 @@ budget, not compute cost.
 for seed in 0 1 2 3 4; do
   python -u Experiment/unsw_home_temporal_v1/online_target_update.py predict \
     /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+for seed in 0 1 2 3 4; do
   python -u Experiment/unsw_home_temporal_v1/online_target_update.py evaluate \
     /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
 done
