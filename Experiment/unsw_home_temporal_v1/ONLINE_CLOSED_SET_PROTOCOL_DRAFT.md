@@ -230,3 +230,29 @@ python -u Experiment/unsw_home_temporal_v1/online_care_update.py evaluate \
   /data/xjw/tma-care-data/unsw_home_temporal/all.zip --home home01
 cat /data/xjw/tma-care-data/unsw_online_care_update_v1/seed_0/evaluation_home01/REPORT.txt
 ```
+
+**Seed-0 all-home control.** On pooled next-day rows, updated CARE exceeded
+fixed CARE in 9/11 homes. The across-home fixed-24-class macro F1 was 0.50368
+for source, 0.50432 for fixed CARE, and 0.51121 for updated CARE. The update
+therefore gained about 0.69 percentage points over fixed CARE on average.
+It still trailed source in home05, home06, home07, home11, and home12. Mean
+negative-flip rates were 0.04968 for fixed CARE and 0.05005 for updated CARE;
+home07 and home08 increased sharply. This is one paid-label seed after prior
+development inspection, so it is feasibility evidence only. Updated CARE
+also spends 3,000–5,000 additional labels per home and has no same-budget
+new-method comparison yet.
+
+Finish all five paid-label seeds and aggregate the paired changes within
+each home. Do not treat seeds as independent homes. The aggregate script
+reads only completed evaluation CSVs and does not open the archive:
+
+```bash
+for seed in 1 2 3 4; do
+  python -u Experiment/unsw_home_temporal_v1/online_care_update.py predict \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+  python -u Experiment/unsw_home_temporal_v1/online_care_update.py evaluate \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+python Experiment/unsw_home_temporal_v1/online_care_update_aggregate.py
+cat /data/xjw/tma-care-data/unsw_online_care_update_v1/aggregate_0_1_2_3_4/REPORT.txt
+```
