@@ -409,3 +409,25 @@ done
 python Experiment/unsw_home_temporal_v1/bcwi_paid_route.py aggregate
 cat /data/xjw/tma-care-data/unsw_bcwi_paid_route_v1/aggregate_0_1_2_3_4/REPORT.txt
 ```
+
+**Completed paid-sign fallback.** It changed pooled macro F1 by only +0.021
+percentage points versus always using BCWI 0.50 across homes, while lowering
+conditional negative flips by 1.009 points. The route beat fixed BCWI in
+only 1/11 homes: home07 improved by +3.972 points, yet still scored 0.325
+points below source. Nine homes lost F1, one tied, and home07 was the only
+clear gain. Its F1 behavior is too narrow for a general method claim. The
+rule's apparent safety gain also has to be viewed against the fixed alpha
+0.75 point, which has a lower across-home negative-flip rate (0.01141 versus
+0.01921) at somewhat lower F1 (0.52897 versus 0.53044).
+
+Before changing thresholds or smoothing, diagnose why home07 still uses
+BCWI on mean 3/5 predicted days. The read-only diagnostic compares the paid
+sample's sign with the *same model's* full-day sign, then compares that
+full-day sign with the following day's sign after a new model update. Both
+full-day signs are post-hoc oracles, never routing inputs. This identifies
+whether the main failure is paid-sample noise or day/model transport:
+
+```bash
+python Experiment/unsw_home_temporal_v1/bcwi_route_diagnostic.py
+cat /data/xjw/tma-care-data/unsw_bcwi_paid_route_v1/transport_diagnostic_v1/REPORT.txt
+```
