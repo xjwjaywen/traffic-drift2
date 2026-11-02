@@ -353,3 +353,23 @@ done
 python Experiment/unsw_home_temporal_v1/online_bcwi_control.py aggregate
 cat /data/xjw/tma-care-data/unsw_bcwi_v1/aggregate_0_1_2_3_4/REPORT.txt
 ```
+
+**Completed fixed-grid BCWI development result.** At old-weight 0.50,
+across-home pooled fixed-24 macro F1 was 0.53023, versus 0.51141 for
+updated CARE, 0.51016 for updated target-only, and 0.50368 for source.
+Conditional negative-flip rates were 0.02930, 0.05095, 0.09049, and 0,
+respectively. Thus alpha 0.50 gained 1.882 F1 percentage points and cut
+negative flips by 2.165 points relative to updated CARE. It improved both
+metrics on the per-home means in 9/11 homes; home04 traded lower F1 for
+fewer flips, and home06 traded higher F1 for more flips. Other alpha points
+also frequently exceeded CARE. This is a strong **existing-method baseline**,
+not evidence of a new algorithm. Alpha 0.50 was one of three fixed grid
+points, but highlighting it after seeing the results is post-hoc. Home07
+remains below source even at alpha 0.75.
+
+Review paired seed stability without reopening the archive:
+
+```bash
+python Experiment/unsw_home_temporal_v1/bcwi_paired_review.py
+cat /data/xjw/tma-care-data/unsw_bcwi_v1/paired_review_v1/REPORT.txt
+```
