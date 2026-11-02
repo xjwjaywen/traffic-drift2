@@ -4,6 +4,10 @@ Status: exploratory feasibility audit, not a new method result. The home07
 class-9 focus was chosen after development outcomes were examined. The final
 window remains unopened.
 
+The archive is not required to be in chronological row order. When mapping
+paid query row IDs to dates, the program decodes timestamps only for those
+selected IDs; other archive rows are streamed past without parsing any field.
+
 ## Why test this before building an optimizer
 
 The paid-label gate accepted RF proposals to class 9 in four of five

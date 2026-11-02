@@ -4,7 +4,8 @@ Reproduce the previously fixed five-fold RF predictions on each 1000-label
 query draw. Evaluate one fixed policy: accept every RF proposal to the
 preselected target class. Row and query-day bootstraps describe uncertainty
 conditional on those OOF predictions. They do not certify future performance.
-No development or final-window label, feature, or timestamp is read.
+Only paid query row timestamps are decoded; other rows are streamed past
+without decoding their timestamp, feature, or label fields.
 """
 
 import argparse
@@ -77,10 +78,10 @@ def selected_query_days(archive, member, last_query_day, selected_ids):
             line = stream.readline()
             if not line:
                 raise ValueError("Archive ended before selected query rows")
-            day = line[:10].decode("ascii")
-            if day > last_query_day:
-                raise ValueError("Selected query row is after query boundary")
             if row_id in selected_ids:
+                day = line[:10].decode("ascii")
+                if day > last_query_day:
+                    raise ValueError(f"Selected paid row is after query boundary: {row_id}")
                 found[row_id] = day
     if found.keys() != selected_ids:
         raise ValueError(f"Missing query timestamps: {len(selected_ids - found.keys())}")
@@ -229,7 +230,7 @@ def main():
         "Bootstrap intervals describe paid-query sampling conditional on OOF models.",
         "Row bootstrap ignores temporal dependence; day bootstrap has few days.",
         "Neither interval guarantees future performance under drift.",
-        "No development or final-window row was read.",
+        "Only selected paid-row timestamps were decoded from the archive.",
         "Summary (F1 changes and intervals in percentage points):",
         summary_frame.round(4).to_string(index=False),
         "Donor edges (source prediction -> RF class 9):",
@@ -241,7 +242,7 @@ def main():
         home=args.home, target_class=args.target_class, draws=args.draws,
         archive_sha256=expected, frozen_gate_sha256=sha256(args.gate),
         implementation_sha256=sha256(Path(__file__)),
-        development_rows_read=False, final_rows_read=False), indent=2) + "\n")
+        later_period_fields_decoded=False), indent=2) + "\n")
     print(report, flush=True)
 
 
