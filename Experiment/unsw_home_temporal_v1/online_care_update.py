@@ -118,8 +118,15 @@ def predict_home(args, archive, windows, members, official, home, device):
     folder.mkdir(parents=True, exist_ok=True)
     config_path = folder / "config.json"
     if config_path.exists():
-        if json.loads(config_path.read_text()) != config:
-            raise ValueError(f"Prediction configuration changed: {folder}")
+        previous = json.loads(config_path.read_text())
+        if previous != config:
+            change = {key for key in config if previous.get(key) != config[key]}
+            completed = any(folder.glob("transition_*/complete.json"))
+            if change != {"implementation_sha256"} or completed:
+                raise ValueError(f"Prediction configuration changed: {folder}")
+            # Only the previous failed implementation reached this home; no
+            # completed prediction is being carried across a code change.
+            config_path.write_text(json.dumps(config, indent=2) + "\n")
     elif any(folder.iterdir()):
         raise ValueError(f"Unexpected partial output: {folder}")
     else:
@@ -171,6 +178,8 @@ def predict_home(args, archive, windows, members, official, home, device):
             archive, members.loc[home, "member"], home, windows,
             mapping, set(paid_by_day[transition].tolist())))
         out = folder / f"transition_{transition}"
+        if out.is_symlink():
+            raise ValueError(f"Transition output must not be a symlink: {out}")
         marker_path = out / "complete.json"
         if marker_path.is_file():
             artifacts = json.loads(marker_path.read_text())["artifacts"]
@@ -180,7 +189,14 @@ def predict_home(args, archive, windows, members, official, home, device):
                   "verified reuse", flush=True)
             continue
         if out.exists() and any(out.iterdir()):
-            raise ValueError(f"Incomplete transition; use new output: {out}")
+            partial = list(out.iterdir())
+            expected_partial = {"paid_dev_indices.npy", "tomorrow_indices.npy",
+                                "updated_care.npy"}
+            if any(p.is_symlink() or not p.is_file() or
+                   p.name not in expected_partial for p in partial):
+                raise ValueError(f"Unexpected incomplete transition files: {out}")
+            for path in partial:
+                path.unlink()
         out.mkdir(parents=True, exist_ok=True)
         paid_so_far = np.concatenate(paid_by_day[:transition + 1])
         if not np.all(days[paid_so_far] <= today):
@@ -202,8 +218,10 @@ def predict_home(args, archive, windows, members, official, home, device):
         tomorrow_ids = np.flatnonzero(days == tomorrow)
         np.save(out / "paid_dev_indices.npy", paid_so_far)
         np.save(out / "tomorrow_indices.npy", tomorrow_ids)
+        head.to(device).eval()
         predict_head(head, dev_features[tomorrow_ids],
                      out / "updated_care.npy", device)
+        head.cpu()
         artifacts = {p.name: sha256(p) for p in out.iterdir() if p.is_file()}
         marker_path.write_text(json.dumps(dict(
             today=today, tomorrow=tomorrow,
@@ -334,6 +352,8 @@ def main():
                                                     "observed_days"]) - 1
             for t in range(expected_transitions):
                 out = folder / f"transition_{t}"
+                if not (out / "complete.json").is_file():
+                    raise ValueError(f"Prediction stage incomplete: {out}")
                 marker = json.loads((out / "complete.json").read_text())
                 if any(sha256(out / name) != digest
                        for name, digest in marker["artifacts"].items()):
