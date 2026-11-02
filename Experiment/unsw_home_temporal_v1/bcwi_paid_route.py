@@ -280,6 +280,11 @@ def aggregate(root):
         mean_route_minus_source_f1_pp=("route_minus_source_f1_pp", "mean"),
         mean_route_minus_care_f1_pp=("route_minus_care_f1_pp", "mean"),
         mean_route_minus_bcwi_nfr_pp=("route_minus_bcwi_nfr_pp", "mean"))
+    route_days = (frame.loc[frame.method == "paid_sign_route"]
+                  .groupby("home", as_index=False)
+                  .agg(mean_bcwi_days=("chosen_bcwi_days", "mean"),
+                       transition_days=("transition_days", "mean")))
+    by_home = by_home.merge(route_days, on="home", validate="one_to_one")
     output = root / "aggregate_0_1_2_3_4"
     if output.is_symlink() or (output.exists() and any(output.iterdir())):
         raise ValueError(f"Aggregate output must be new and empty: {output}")
