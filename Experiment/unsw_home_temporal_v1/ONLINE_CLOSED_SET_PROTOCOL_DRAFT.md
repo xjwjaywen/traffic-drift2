@@ -134,3 +134,30 @@ python -u Experiment/unsw_home_temporal_v1/online_day_feasibility.py \
   /data/xjw/tma-care-data/unsw_home_temporal/all.zip
 cat /data/xjw/tma-care-data/unsw_online_day_feasibility_v1/REPORT.txt
 ```
+
+**Completed capacity result.** Every examined development day has at least
+3,001 curated flows, so a 1,000-label daily sample is physically possible.
+That would, however, cost 4,000–6,000 labels per home just for development,
+well above the earlier 1,000-label **total** repair budget. Many daily
+classes are too rare for stable F1 auditing: for example home12 has a median
+of 11 present classes per day with fewer than five *expected* positives in
+1,000 uniform curated labels. Home07 has only eight or nine active classes
+per day, despite having all 24 in its source period. Pooling days can improve
+support but reduces the number of sequential decisions. No budget or block
+size should be called final until this tradeoff is measured.
+
+The existing CARE heads use 1,000 labels drawn across the **entire query
+window**, so evaluating them on earlier query days would leak future labels.
+For a first temporal transport diagnostic, use only the already examined
+development days. CARE and source predictions for those days were frozen
+before their labels were read. Compare each day's full-oracle CARE gain and
+its 1,000-label estimate with the following day's full gain. Also measure
+how much next-day prediction-pair mass lies in groups barely covered by the
+earlier paid sample. This diagnoses whether yesterday's information can
+support tomorrow's route; it does not train or validate a new method.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/online_transport_feasibility.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+cat /data/xjw/tma-care-data/unsw_online_transport_feasibility_v1/REPORT.txt
+```
