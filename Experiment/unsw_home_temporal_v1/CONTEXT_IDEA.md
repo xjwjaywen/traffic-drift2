@@ -55,6 +55,33 @@ development results, so its development score is exploratory. Its purpose
 is to establish whether paid evidence transports at all before adding a
 score threshold or a more complex edge-level risk model.
 
+The completed development run accepted seeds 0--3 and left seed 4 static.
+Mean macro F1 across the five routed seeds was 0.5757 versus 0.5736 for
+static (+0.21 percentage points). Seed differences were +0.08, +0.49,
+-0.01, +0.51, and 0.00 percentage points. Mean class-9 F1 increased from
+0 to 0.1695, but class-6 F1 decreased from 0.3556 to 0.3166 and class-10
+F1 from 0.2282 to 0.1503; class 8 was unchanged. Mean negative-flip rate
+among originally correct source predictions was approximately 0.0031.
+This is a weak whole-model gain on a previously inspected development home,
+not sufficient evidence of a useful general method. The paid gate counts
+**accuracy** wins/losses, whereas the reported objective is macro F1:
+correcting some class-9 rows can still reduce F1 for classes donating flows.
+Do not tune a score cutoff on these development outcomes and call the
+result independently validated.
+
+For a candidate override from source class `s` to RF class `t`, the
+single-class metric is `F1_c = 2 TP_c / (N_c + P_c)`, where `N_c` is true
+support and `P_c` is the number predicted as `c`. The override always
+decreases `P_s` and increases `P_t`; its effect on `TP_s` and `TP_t`
+depends on the unknown true label. Thus a decision based only on paid
+accuracy wins (`Pr[Y=t] > Pr[Y=s]`) is not generally the decision that
+maximizes macro F1. A possible next formulation would estimate the
+*paired F1 change* from cross-fitted paid labels, account for uncertainty
+in rare-class support and edge outcomes, and limit source-correct flips.
+This formulation needs evidence across independent homes and a comparison
+with existing F-measure optimization and imbalanced-expert deferral work;
+changing the objective alone is not a novelty claim.
+
 General selective ensembling and risk-controlled model updates are prior
 art. If the simple route succeeds, a possible research method would model
 the *conditional* net gain along every source-to-challenger edge as a
@@ -127,3 +154,5 @@ Relevant prior work:
 - 2025 IoT label-shift study: https://www2.ee.unsw.edu.au/~hhabibi/pubs/conf/25cpsiotsec-labelshift.pdf
 - 2018/2020 optimal-transport shift adaptation: https://arxiv.org/abs/1803.04899 ; https://arxiv.org/abs/2006.08161
 - 2023 longitudinal IoT study: https://www2.ee.unsw.edu.au/~hhabibi/pubs/jrnl/23conceptDriftJIoT.pdf
+- 2015 F1 threshold analysis: https://pmc.ncbi.nlm.nih.gov/articles/PMC4442797/
+- 2026 imbalanced-expert deferral: https://proceedings.mlr.press/v306/cortes26b.html
