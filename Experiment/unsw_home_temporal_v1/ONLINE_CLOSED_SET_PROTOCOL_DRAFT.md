@@ -431,3 +431,30 @@ whether the main failure is paid-sample noise or day/model transport:
 python Experiment/unsw_home_temporal_v1/bcwi_route_diagnostic.py
 cat /data/xjw/tma-care-data/unsw_bcwi_paid_route_v1/transport_diagnostic_v1/REPORT.txt
 ```
+
+**Completed routing-error attribution.** Across homes, the 1,000-label
+direction matched the same model's full-today direction 76.36% of the time;
+the full-today direction matched the following day's direction 84.55%.
+For home07 the rates were 75% and 65%, respectively. Its largest next-day
+BCWI failures were sudden drops of roughly 8–9 F1 points from previous-day
+gains near zero. The paid class count then jumped from 8–9 to 21–22 on the
+new day. This is evidence that both sparse paid-sample error and day/model
+transport matter, with abrupt regime changes particularly harmful in home07.
+These full-day signs use evaluation labels post hoc; they cannot be put into
+an online rule. Stop tuning a previous-day F1 threshold on the examined
+development period.
+
+Before proposing a shift-triggered fallback, check whether a **label-free**
+change is visible at all. The source-prediction total-variation audit uses
+official-device membership and frozen source hard-prediction proportions on
+adjacent development days. It compares this full-day unlabeled shift with
+the already examined BCWI gain change and reports the largest shifts across
+all homes. Full-day current statistics arrive too late for an early online
+decision, so this is only a signal-feasibility probe. It reads no final-
+window labels or features:
+
+```bash
+python Experiment/unsw_home_temporal_v1/bcwi_unlabeled_shift_probe.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+cat /data/xjw/tma-care-data/unsw_bcwi_unlabeled_shift_probe_v1/REPORT.txt
+```
