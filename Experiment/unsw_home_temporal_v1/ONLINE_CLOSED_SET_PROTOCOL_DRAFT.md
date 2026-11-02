@@ -256,3 +256,36 @@ done
 python Experiment/unsw_home_temporal_v1/online_care_update_aggregate.py
 cat /data/xjw/tma-care-data/unsw_online_care_update_v1/aggregate_0_1_2_3_4/REPORT.txt
 ```
+
+**Completed five-seed update control.** The mean pooled fixed-24-class
+macro-F1 difference, updated CARE minus fixed CARE, was +0.909 percentage
+points across the 11 independent homes. It was positive on average in 11/11
+homes; updated CARE exceeded source in only 6/11. Mean negative-flip rate
+versus source fell from 0.0551 to 0.0509, although home05 and home08 worsened.
+This is strong evidence that adding recent paid labels can improve a fixed
+CARE head in this replay. It does not identify which CARE loss term matters,
+nor does it establish a new method. The five overlapping paid-label seeds
+reduce sampling sensitivity but do not create 55 independent test units.
+
+Next, use exactly the same frozen daily paid identities and original query
+labels to train a fresh target-only head from the same source head. Keep the
+500 optimizer steps, target minibatch stream, and next-day prediction rows
+identical. Remove only historical replay CE and KD. Freeze all target-only
+predictions before decoding full development labels. Evaluate target-only,
+fixed target, and source, then compare the paired updated-target and
+updated-CARE scores by home. This checks whether the apparent benefit comes
+from continuing adaptation or from CARE's historical constraints. Since
+the target-only control uses fewer loss evaluations per step, runtime is not
+matched; the comparison isolates the losses under a fixed optimizer-step
+budget, not compute cost.
+
+```bash
+for seed in 0 1 2 3 4; do
+  python -u Experiment/unsw_home_temporal_v1/online_target_update.py predict \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+  python -u Experiment/unsw_home_temporal_v1/online_target_update.py evaluate \
+    /data/xjw/tma-care-data/unsw_home_temporal/all.zip --seed "$seed" || break
+done
+python Experiment/unsw_home_temporal_v1/online_update_compare.py
+cat /data/xjw/tma-care-data/unsw_online_update_compare_v1/REPORT.txt
+```
