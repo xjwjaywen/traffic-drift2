@@ -86,3 +86,30 @@ to emerging groups without sacrificing broad class coverage. If support is
 often adequate, test a fully specified group-level rule against always-source,
 full RF, random matched donor groups, and simpler paid-support/share guards
 across homes before using the untouched final window.
+
+## Completed 11-home result and decision
+
+The coverage audit found seven source-predicted donor groups in home07 with
+at least 100 development rows and at least four-fold share growth. They
+account for 52.81% of that home's curated development predictions; groups
+with fewer than ten paid donor rows account for 51.30%. Class 14 grew about
+33.5-fold and had a median of just three paid donor rows across the
+overlapping seeds; class 12 grew about 684-fold and had median zero.
+
+The same sparse-growth mass was 4.52% in home01, 0.43% in home11, 0.11% in
+home12, and zero in the other seven homes. Home08 had a 7.41% growing donor
+group, but its median paid support was 18, so it did not meet the audit's
+under-ten description. These are descriptive flags, not calibrated error
+risks. The home07 failure mode is severe but not common enough in these 11
+homes to support a stand-alone method built around a fixed donor-share
+threshold. Stop treating a static donor-coverage gate as the main claim.
+
+The information pattern matters more than the threshold. An early query
+window cannot supply labels for a large donor group that only becomes common
+later. Under unrestricted future conditional drift, old labels and unlabeled
+new flows cannot certify whether the challenger's overrides are correct.
+A plausible next problem therefore needs **online feedback after a shift**:
+predict first, detect a change from unlabeled flows, spend a fixed label
+budget on affected groups, and update only after those labels arrive. This
+changes the experimental protocol and must be compared with uniform and
+standard active-query baselines under the same total label budget.
