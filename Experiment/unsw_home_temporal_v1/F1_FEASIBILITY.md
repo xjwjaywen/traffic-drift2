@@ -137,6 +137,38 @@ python -u Experiment/unsw_home_temporal_v1/rf_query_coverage.py \
   /data/xjw/tma-care-data/unsw_home_temporal/all.zip
 ```
 
+## Count-matched stability falsification
+
+The corrected development audit gave a positive signal for 4-of-5 fold
+consensus, but that route is a separate 800-label ensemble: it may propose
+class 9 even when the full 1,000-label RF does not. It also accepts far
+fewer changes. For seed 4, the full route changed development macro F1 by
+-0.45 percentage points with an 8.39% negative-flip rate; consensus changed
+macro F1 by +0.95 points with a 0.26% negative-flip rate. Across the other
+four overlapping seeds, consensus was better twice and worse twice. In
+seed 4, corrected fold models 2 and 4 each proposed 1,201 class-14-to-9
+changes on the development sample, while folds 0, 1, and 3 proposed 0, 7,
+and 7. `rf_stability_matched_control.py` tests the narrower action
+`full RF proposes class 9 AND at least four fold RFs agree`. It compares
+this intersection with two random controls using the same full-RF proposal
+set: one keeps the same total number of proposals, and one additionally
+keeps the same number from each source-predicted donor class. Both random
+controls use 200 fixed draws per seed; their intervals describe only
+random assignment on the already examined development sample. The script
+checks every fold's proposal counts against the corrected v2 audit.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/rf_stability_matched_control.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+```
+
+Output: `/data/xjw/tma-care-data/unsw_rf_stability_matched_v1/home07/REPORT.txt`.
+If the intersection performs like count-matched random selection, fold
+agreement supplies no evidence of identifying better individual overrides
+in this setting. Even if it wins, the class, threshold, and home were chosen
+after development inspection, so this remains a mechanism probe and must
+not be reported as an independent method result.
+
 ## Potential research problem, if data support it
 
 Let `h0` be a frozen source classifier, `h1` a nonlinear challenger, and
