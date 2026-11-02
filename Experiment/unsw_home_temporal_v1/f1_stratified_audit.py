@@ -135,8 +135,10 @@ def main():
     for home_index, home in enumerate(homes):
         mapping = (official.loc[official.home == home]
                    .set_index("mac").device_type.to_dict())
+        # The archive reader stores labels as int8; macro_f1 encodes y*24+pred.
+        # Promote before arithmetic so class IDs >= 6 cannot overflow int8.
         y_all = read_development_labels(archive, members.loc[home, "member"],
-                                        home, windows, mapping)
+                                        home, windows, mapping).astype(np.int64)
         selected = y_all >= 0
         if len(y_all) < args.audit_labels or not selected.any():
             raise ValueError(f"Too few development rows: {home}")
