@@ -38,6 +38,36 @@ python -u Experiment/unsw_home_temporal_v1/f1_feasibility.py \
 The output is `/data/xjw/tma-care-data/unsw_f1_feasibility_v1/home07/REPORT.txt`,
 with `summary.csv` and `edges.csv` for inspection.
 
+## Completed home07 audit
+
+The fixed all-RF-to-class-9 action increased paid-query OOF macro F1 by
+3.67, 2.66, 4.24, 3.68, and 0.71 percentage points across the five
+overlapping seeds. The row-bootstrap lower endpoint was above zero for
+seeds 0, 2, and 3; the seven-day block-bootstrap lower endpoint was above
+zero for seeds 1, 2, and 3. Neither set of intervals is uniformly positive.
+There were only 19--38 proposed overrides per paid draw, making donor-edge
+estimates especially uncertain.
+
+One concrete objective mismatch appears in seed 1: source-6 to RF-9 had
+one RF accuracy win and three source wins, yet its stand-alone paid macro-F1
+change was slightly positive (+0.07 percentage points). Macro F1 cannot be
+replaced by a simple tally of corrected minus damaged rows. However, the
+previous home07 development result from a paid-gated route improved mean
+macro F1 by only +0.21 percentage points. Those two comparisons differ in
+both policy (fixed all-proposals versus seed-wise gate) and RF training size
+(800 versus 1,000 paid rows), as well as time period. The next read-only
+audit, `rf_transport_audit.py`, compares the same all-proposals route and
+its donor edges on query versus development to separate what can be seen
+without opening the final window. It still cannot causally isolate time
+drift from the RF training-size change.
+
+```bash
+python -u Experiment/unsw_home_temporal_v1/rf_transport_audit.py \
+  /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+```
+
+This writes `/data/xjw/tma-care-data/unsw_rf_transport_audit_v1/home07/REPORT.txt`.
+
 The central diagnostic is whether even the optimistic row interval has a
 positive lower endpoint. If it does not, this audit does not establish
 positive macro-F1 gain for this fixed action even under an iid-query
