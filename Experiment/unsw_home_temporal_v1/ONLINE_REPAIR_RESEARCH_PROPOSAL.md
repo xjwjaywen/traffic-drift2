@@ -101,6 +101,19 @@ checked against the full papers and confirmed by theory and experiments.
 
 ## Falsification order
 
+The first uniform replay is complete. Out of 55 overlapping home/seed
+replications, a 1,000-label audit produced a row-bootstrap interval excluding
+zero for CARE in 18 and RF in 21. The interval contained the full development
+macro-F1 difference in 47/55 CARE and 48/55 RF comparisons, below the
+nominal 95% expectation; this is a descriptive check, not a coverage proof.
+The random audits observed only 20.89 of the 24 evaluated classes on average.
+That first replay sampled only curated rows, whose membership would itself
+require labels to know in advance, so it is an optimistic information test.
+The next stratified control samples all development rows and charges a label
+even when a row falls outside the public 24-class inventory. It asks whether
+the information shortage is partly an avoidable sampling problem. Its
+interval method has the same limitations.
+
 1. **Information feasibility.** On already examined development periods,
    simulate a current-window audit with a fixed 1,000-label *additional*
    budget. Estimate whether source-versus-CARE/RF macro-F1 differences can
@@ -116,7 +129,16 @@ checked against the full papers and confirmed by theory and experiments.
    ```
 2. **Sampling value.** Compare uniform, active testing/F1 estimation,
    BADGE, class quota, and the proposed decision-width allocation with
-   exactly equal total query counts and known selection probabilities.
+   exactly equal total query counts and known selection probabilities. The
+   first limited-label control compares uniform sampling with a fixed
+   prediction-pair stratification; it is a standard sampling idea and is
+   **not** a novel method. Run:
+
+   ```bash
+   python -u Experiment/unsw_home_temporal_v1/f1_stratified_audit.py \
+     /data/xjw/tma-care-data/unsw_home_temporal/all.zip
+   cat /data/xjw/tma-care-data/unsw_f1_stratified_audit_v1/REPORT.txt
+   ```
 3. **Decision value.** Compare source-only, CARE, RF, simpler per-donor
    paid-support gates, and a robust macro-F1 route. Include negative flips,
    zero-recall classes, class F1, query cost, and block latency.
