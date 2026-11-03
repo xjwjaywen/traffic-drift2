@@ -8,6 +8,11 @@
 \usepackage[section]{placeins}
 \usepackage{xcolor}
 \usepackage[hidelinks,hypertexnames=false]{hyperref}
+\hypersetup{
+  pdftitle={Collapse-Aware Repair for Encrypted Traffic Classification under Concept Drift},
+  pdfauthor={Junwei Xiao, Xiaobo Jin, Xiucheng Wu, Dongjie Liu},
+  pdfsubject={Encrypted traffic classification under concept drift}
+}
 \usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{pgfplots}
@@ -34,7 +39,7 @@
 \maketitle
 
 \begin{abstract}
-Traffic inference supports device management and security monitoring in Internet of Things (IoT) networks, where evolving traffic creates a need for reliable classifier maintenance. Yet aggregate metrics of encrypted-traffic classifiers can conceal severe class-specific failures. We formalize absorber collapse, a class-asymmetric failure in which dominant classes absorb predictions from victim classes and drive their recall toward zero. On CESNET-TLS-Year22, 12 of 178 classes collapse within nine months, while five tested traffic-adapted test-time adaptation methods leave collapse-class F1 below 0.031. We propose Collapse-Aware Repair (CARE), a label-efficient maintenance framework that combines an unsupervised class-health monitor with head-only repair using actively selected target labels, all-class reference replay, and knowledge distillation. Monitoring supports diagnosis; it does not guide the default query selector. Using Batch Active Learning by Diverse Gradient Embeddings (BADGE), CARE raises macro-F1 from 0.629 to 0.700 and collapse-class F1 from 0.028 to 0.332 with 1{,}000 target labels under strict query-excluded evaluation over five repair seeds, while retaining stable-class F1 near the static level (0.894 versus 0.903). Improvements persist across the evaluated drift periods and architectures. A QUIC cross-protocol stress test identifies limits under more severe shift. CARE provides a class-aware approach to maintaining reliable predictions with scarce supervision; validation on IoT device-type traffic and across deployment sites remains open.
+Traffic-based inference supports device management and security monitoring in Internet of Things (IoT) networks, where evolving traffic creates a need for reliable classifier maintenance. Motivated by this challenge, we examine longitudinal encrypted application traffic, where aggregate metrics can conceal severe class-specific failures. We formalize absorber collapse, a class-asymmetric failure in which dominant classes absorb predictions from victim classes and drive their recall toward zero. On CESNET-TLS-Year22, 12 of 178 classes collapse within nine months, while five tested traffic-adapted test-time adaptation methods leave collapse-class F1 below 0.031. We propose Collapse-Aware Repair (CARE), a label-efficient maintenance framework that combines an unsupervised class-health monitor with head-only repair using actively selected target labels, all-class reference replay, and knowledge distillation. Monitoring supports diagnosis; it does not guide the default query selector. Using Batch Active Learning by Diverse Gradient Embeddings (BADGE), CARE raises macro-F1 from 0.629 to 0.700 and collapse-class F1 from 0.028 to 0.332 with 1{,}000 target labels under strict query-excluded evaluation over five repair seeds, while retaining stable-class F1 near the static level (0.894 versus 0.903). Improvements persist across the evaluated drift periods and architectures. A QUIC cross-protocol stress test identifies limits under more severe shift. CARE provides a class-aware approach to maintaining reliable predictions with scarce supervision; validation on IoT device-type traffic and across deployment sites remains open.
 \end{abstract}
 
 \begin{IEEEkeywords}
