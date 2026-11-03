@@ -10,7 +10,6 @@
 \usepackage[hidelinks,hypertexnames=false]{hyperref}
 \hypersetup{
   pdftitle={Collapse-Aware Repair for Encrypted Traffic Classification under Concept Drift},
-  pdfauthor={Junwei Xiao, Xiaobo Jin, Xiucheng Wu, Dongjie Liu},
   pdfsubject={Encrypted traffic classification under concept drift}
 }
 \usepackage{algorithm}
@@ -30,11 +29,7 @@
 
 \title{Collapse-Aware Repair for Encrypted Traffic Classification under Concept Drift}
 
-\author{Junwei~Xiao, Xiaobo~Jin, Xiucheng~Wu, and Dongjie~Liu%
-\thanks{Junwei Xiao and Dongjie Liu are with the College of Cyber Security, Jinan University, Guangzhou, China (e-mail: xjw20528@stu2024.jnu.edu.cn; djliu@jnu.edu.cn).}%
-\thanks{Xiaobo Jin is with the Department of Intelligent Science, School of Advanced Technology, Xi'an Jiaotong-Liverpool University, Suzhou, China (e-mail: Xiaobo.Jin@xjtlu.edu.cn).}%
-\thanks{Xiucheng Wu is with Coremail, Guangzhou, China (e-mail: mwu@coremail.cn).}%
-\thanks{Dongjie Liu is the corresponding author (ORCID: 0009-0001-8405-166X).}}
+\author{}
 
 \maketitle
 
@@ -946,12 +941,6 @@ Reliable encrypted traffic classification requires tracking failures that aggreg
 Under strict query-excluded evaluation, \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.332{\pm}0.040$ using 1{,}000 target labels and 890 replay features, while retaining stable-class F1 of 0.894. Tested TTA variants leave collapse F1 below 0.031. On seed-matched holdouts, our Chen-inspired self-evolving implementation leaves all 12 collapsed classes below the recall threshold. These comparisons support the value of verified target labels for this failure mode; they do not equate the methods' supervision or update budgets.
 
 The component evidence supports evaluating target supervision with reference-based preservation, while the controls in S2 qualify the incremental value of reference cross-entropy. It does not establish that every loss term is necessary. Positive gains across the tested drift periods and backbones support reuse within these settings; the QUIC stress test exposes limits under a different protocol. CARE therefore offers an empirically supported maintenance framework for class-level prediction reliability on the evaluated encrypted application traffic. Fully merged representations, emerging classes, source-period sensitivity, validation on IoT device traffic and across sites, annotation cost, and privacy-preserving replay remain open issues.
-
-\section*{CRediT Author Contribution Statement}
-\textbf{Junwei Xiao}: Methodology; Software; Validation; Formal analysis; Writing -- original draft.
-\textbf{Xiaobo Jin}: Supervision; Writing -- review and editing.
-\textbf{Xiucheng Wu}: Validation; Writing -- review and editing.
-\textbf{Dongjie Liu}: Supervision; Writing -- review and editing; Resources.
 
 \section*{Funding}
 This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
