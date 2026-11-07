@@ -25,8 +25,13 @@ workflow test. The IoT derived CSVs and prediction records are not in the older
 Figshare S1 archive. Use `export_iot_supplement.py` on the server to verify and
 package them as S3, then make that package reviewer-accessible before submission.
 
-Author names, affiliations, contact details, the contribution statement, and
-the PDF author metadata are intentionally omitted from this review draft.
+The author line follows the teacher's requested order, with Zhiquan Liu
+penultimate and Dongjie Liu corresponding. The first, second, third, and last
+authors' contact details come from the previous submission. Zhiquan Liu's
+affiliation and email were checked against Jinan University's faculty page
+(`https://faculty.jnu.edu.cn/wlkjaqxy/lzq3/list.htm`); IEEE VTS uses the
+English spelling `Zhiquan Liu` (`https://vtsociety.org/contact/zhiquan-liu`).
+All authors should review this information and supply ORCIDs in the portal.
 
 Build from this directory with:
 
