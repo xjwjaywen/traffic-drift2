@@ -10,4 +10,4 @@ Checked artifacts:
 - `submission_files/S1_CARE_IoTJ_ten_page.zip`: 49,278,330 bytes; SHA-256 `34af8da2761bf77ac095353a3d025cc360bf07de2162bbebe5f9930feb3882e3`.
 - `submission_files/LaTeX_source_IoTJ_ten_page.zip`: 92,192 bytes; SHA-256 `d4f80a2ac8bcc24ead69231a397e8cb8ee7bcdede7bdeb2c0fd067dc0a2006e1`.
 
-S1 scientific payloads match the verified complete-version archive byte-for-byte. S2 remains in `../iotj_minimal_20261103/submission_files/`; the server-generated S3 accompanies the IoT final-window results. Submission ZIP files are local artifacts and are ignored by Git.
+S1 scientific payloads match the verified complete-version archive byte-for-byte. A local copy of S2 is in `submission_files/`; the server-generated S3 accompanies the IoT final-window results. Submission ZIP files are local artifacts and are ignored by Git. See `SUBMISSION_CHECK.md` for the current submission audit and author/portal items.
