@@ -8,6 +8,8 @@ To examine the IoT scope directly, we include a separate, chronologically held-o
 
 We believe the paper will interest readers studying reliable IoT traffic analytics, network manageability, and maintenance of learning systems under temporal drift. The manuscript and supplementary materials identify the original CESNET experiments and the separate IoT protocol and records.
 
+This manuscript is not under consideration elsewhere.
+
 Sincerely,
 Dongjie Liu
 College of Cyber Security, Jinan University

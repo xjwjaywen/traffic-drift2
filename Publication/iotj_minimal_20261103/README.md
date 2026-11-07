@@ -22,8 +22,11 @@ CARE improves final low-recall-class mean F1, but its equal-home macro-F1 is
 control is 0.852 points above static. This is a temporally held-out test on the
 same examined archive, not an independent cross-site validation or a full CARE
 workflow test. The IoT derived CSVs and prediction records are not in the older
-Figshare S1 archive. Use `export_iot_supplement.py` on the server to verify and
-package them as S3, then make that package reviewer-accessible before submission.
+Figshare S1 archive. They are packaged as S3 at
+`/data/xjw/tma-care-data/unsw_iot_final_holdout_v1/submission/S3_IoT_final_holdout.zip`
+on the server (16,728,571 bytes; SHA256
+`f2e7bf501e24366c48bf3a72bc71f3a75bfbadf41f1fafe1572a0b5d6f558e0c`).
+Attach this exact archive to the IoT-J submission.
 
 The author line follows the teacher's requested order, with Zhiquan Liu
 penultimate and Dongjie Liu corresponding. The first, second, third, and last
@@ -39,7 +42,7 @@ Build from this directory with:
 latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex
 ```
 
-The current IEEE double-column PDF is 19 pages. The private Figshare reviewer
-link is inherited from the JNCA submission. See `SUBMISSION_STATUS.md` for the
-remaining author, journal-status, and supplement steps. This is a review draft,
-not a submission package.
+The current IEEE double-column PDF is 19 pages. `submission_files/` contains
+the relabeled S1 archive, updated S2 PDF, and a manuscript-source ZIP. The S3
+archive remains on the server and must be transferred for portal upload.
+See `SUBMISSION_STATUS.md` for the upload map and remaining author checks.
