@@ -34,7 +34,7 @@
 \maketitle
 
 \begin{abstract}
-Traffic-based inference supports device management and security monitoring in Internet of Things (IoT) networks, where evolving traffic creates a need for reliable classifier maintenance. Motivated by this challenge, we examine longitudinal encrypted application traffic, where aggregate metrics can conceal severe class-specific failures. We formalize absorber collapse, a class-asymmetric failure in which dominant classes absorb predictions from victim classes and drive their recall toward zero. On CESNET-TLS-Year22, 12 of 178 classes collapse within nine months, while five tested traffic-adapted test-time adaptation methods leave collapse-class F1 below 0.031. We propose Collapse-Aware Repair (CARE), a label-efficient maintenance framework that combines an unsupervised class-health monitor with head-only repair using actively selected target labels, all-class reference replay, and knowledge distillation. Monitoring supports diagnosis; it does not guide the default query selector. Using Batch Active Learning by Diverse Gradient Embeddings (BADGE), CARE raises macro-F1 from 0.629 to 0.700 and collapse-class F1 from 0.028 to 0.332 with 1{,}000 target labels under strict query-excluded evaluation over five repair seeds, while retaining stable-class F1 near the static level (0.894 versus 0.903). Improvements persist across the evaluated drift periods and architectures. A QUIC cross-protocol stress test identifies limits under more severe shift. CARE provides a class-aware approach to maintaining reliable predictions with scarce supervision; validation on IoT device-type traffic and across deployment sites remains open.
+Traffic-based inference supports device management and security monitoring in Internet of Things (IoT) networks, where evolving traffic calls for reliable classifier maintenance. We examine longitudinal encrypted application traffic, where aggregate metrics can conceal severe class-specific failures. We formalize absorber collapse, a class-asymmetric failure in which dominant classes absorb predictions from victim classes and drive their recall toward zero. On CESNET-TLS-Year22, 12 of 178 classes collapse within nine months, while five tested traffic-adapted test-time adaptation methods leave collapse-class F1 below 0.031. We propose Collapse-Aware Repair (CARE), which combines unsupervised class-health monitoring with head-only repair using newly labeled target samples, all-class reference replay, and knowledge distillation. Monitoring supports operator diagnosis; it does not guide the default query selector. With Batch Active Learning by Diverse Gradient Embeddings (BADGE), CARE raises macro-F1 from 0.629 to 0.700 and collapse-class F1 from 0.028 to 0.332 using 1{,}000 target labels under strict query-excluded evaluation over five repair seeds, while retaining stable-class F1 near the static level (0.894 versus 0.903). A QUIC stress test probes cross-protocol transfer. In a separate exploratory test on device-type traffic from 11 IoT households, CARE improves F1 for low-recall classes but yields only a small mean macro-F1 gain and degrades five households. These findings expose both the potential and the limits of class-aware maintenance under heterogeneous traffic; independent IoT validation remains open.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -46,7 +46,7 @@ Encrypted traffic classification, concept drift, class collapse, label-efficient
 \label{sec:intro}
 
 % P1: IoT motivation and the encrypted-application maintenance testbed
-Traffic-based inference supports device inventory and security monitoring in IoT networks, even when traffic payloads are unavailable. Longitudinal studies of residential IoT networks document temporal and cross-home drift in device-type inference~\cite{pashamokhtari2023dynamic}; subsequent work examines class-prior adaptation~\cite{azizi2025labelshift} and drift-dependent labeling budgets~\cite{azizi2026budget}. These findings motivate a broader maintenance question for traffic classifiers: can aggregate performance conceal the failure of individual classes, and can a limited number of fresh labels repair them without damaging stable classes? We investigate this question in longitudinal encrypted application traffic.
+Traffic-based inference supports device inventory and security monitoring in IoT networks, even when traffic payloads are unavailable. Longitudinal studies of residential IoT networks document temporal and cross-home drift in device-type inference~\cite{pashamokhtari2023dynamic}; subsequent work examines class-prior adaptation~\cite{azizi2025labelshift} and drift-dependent labeling budgets~\cite{azizi2026budget}. These findings motivate a broader maintenance question for traffic classifiers: can aggregate performance conceal the failure of individual classes, and can a limited number of fresh labels repair them without damaging stable classes? We investigate this question primarily in longitudinal encrypted application traffic and use a separate IoT device-type stress test to examine its scope.
 
 Deep learning has become a common approach for encrypted application traffic classification, achieving high accuracy on benchmark datasets~\cite{lin2022etbert, zhao2023yatc, pacheco2019towards, wang2019survey}.
 However, a growing body of evidence shows that these classifiers degrade rapidly after deployment.
@@ -86,7 +86,7 @@ The bounded head-only update and operator-reviewed activation process make the f
 % P6: Evaluation and generalization
 Our evaluation is designed to test both repair effectiveness and its operating limits.
 The main experiments use strict query exclusion, repeated runs, collapse/stable F1, and per-class recovery status; additional matched-holdout experiments compare \ours{} with a Chen-inspired self-evolving baseline, while broader comparisons cover TTA variants, standard active-learning selectors, and adapted continual-learning or drift methods.
-Further studies examine different drift periods, model backbones, and a QUIC cross-protocol stress test to assess transferability and delimit the framework's operating range.
+Further studies examine different drift periods, model backbones, a QUIC cross-protocol stress test, and an exploratory 11-household IoT device-type task to assess the framework's operating range.
 
 Together, these results assess class recovery and preservation within one diagnosis-and-repair procedure.
 
@@ -96,7 +96,7 @@ First, we formalize absorber collapse and provide longitudinal, per-class eviden
 
 Second, we develop and evaluate a label-efficient repair framework that integrates diagnostic monitoring, active target-label selection, all-class reference replay, and head-only updating in an operator-reviewed offline workflow. Its contribution is this maintenance formulation and integration, using established active-learning and distillation techniques.
 
-Third, we evaluate class recovery and stable-class damage with strict query exclusion, matched holdouts, comparative baselines, runtime measurements, multiple drift periods and backbones, and a QUIC cross-protocol stress test, while reporting the resulting operating limits.
+Third, we evaluate class recovery and stable-class damage with strict query exclusion, matched holdouts, comparative baselines, multiple drift periods and backbones, and a QUIC cross-protocol stress test. A separate exploratory evaluation on 11 IoT households examines device-type repair and its heterogeneous gains and harms; it does not establish deployment-wide IoT efficacy.
 
 
 % ============================================================
@@ -288,6 +288,7 @@ Higher learning rates cause Tent to catastrophically degrade (macro-F1 drops fro
 Algorithm~\ref{alg:care} summarizes the procedure.
 
 Figure~\ref{fig:care_workflow} gives the proposed operator-reviewed workflow.
+In a possible IoT use case, a gateway would extract flow metadata and feed a deployed device- or application-type classifier. The monitor would rank classes at risk from unlabeled predictions for operator review; only a verified maintenance request would proceed to label acquisition, head repair, validation, and a controlled model update. This is an illustrative workflow, not a deployed IoT system. The household experiment in Section~\ref{sec:iot_homes} tests a port of the repair stage, not this complete monitoring and activation pipeline.
 
 \begin{figure*}[!t]
 \centering
@@ -391,7 +392,7 @@ The full training loss is:
 \section{Experiments}
 \label{sec:experiments}
 
-This section evaluates \ours{} from four complementary perspectives: overall repair performance and baseline comparisons, internal mechanisms and design choices, generalization and robustness, and diagnostic detection quality. We first describe the datasets, evaluation protocols, metrics, and implementation settings.
+This section evaluates \ours{} through overall repair performance and baseline comparisons, internal mechanisms, cross-setting stress tests, and diagnostic detection quality. We first describe the primary datasets, evaluation protocols, metrics, and implementation settings; the distinct IoT household protocol is specified with its results.
 
 \subsection{Experimental Setup}
 \label{sec:exp_setup}
@@ -836,6 +837,44 @@ The QUICEXT-25 stress test demonstrates positive cross-protocol transfer: \ours{
 A targeted-replay retraining audit ($3{\times}3{=}9$ runs) yields static macro-F1 of $0.620{\pm}0.001$ and CARE macro-F1 of $0.667{\pm}0.007$ across training seeds.
 Our primary checkpoint (static $0.629$, best epoch 27/30, validation F1 $0.892$) is about 0.009 above the audit mean, larger than the audit standard deviation and therefore evidence of checkpoint/run sensitivity. The targeted-replay CARE variant improves over its corresponding static model in all audited training seeds, although the gain magnitude varies.
 
+\subsubsection{Exploratory IoT Device-Type Stress Test}
+\label{sec:iot_homes}
+
+To examine the scope of head repair on an actual IoT label space, we use the public residential IoT flow archive associated with~\cite{pashamokhtari2023dynamic}. The task identifies 24 device types from flow metadata, rather than the encrypted application classes of our primary benchmark. The archive contains mixed-protocol traffic; this test is not an encrypted-only IoT evaluation. The official device inventory maps device MAC addresses to type labels. We restrict evaluation to flows from those known devices, while excluding MAC addresses, IP addresses, ports, device labels, and timestamps from model input. This curated closed-set task does not test unknown-device detection or a deployment-time traffic filter.
+
+For each home, observed days are ordered and split chronologically into source, query, development, and untouched final windows at approximately 50\%, 70\%, and 85\% of the days. Eleven homes have all 24 types in the source window; the remaining home lacks two source types and is excluded from this fixed-vocabulary comparison. We train a new tabular MLP on source-period flow statistics and protocol indicators, then draw 1{,}000 uniform query labels per home and repair seed (five overlapping seeds). The ported \ours{} head update uses those labels and five historical reference features per source class. Target-only head updating, a frozen-feature random forest, and nearest-anchor classification use the same paid labels. This protocol changes the source architecture, feature set, query selector, and update schedule relative to the CNN/BADGE primary experiment. It does not evaluate the proposed monitor or operator-approved deployment workflow. All reported scores are on the development window; the final window remains unopened.
+
+Table~\ref{tab:iot_homes} reports the paired static-versus-\ours{} results. The equal-home mean macro-F1 changes only from 0.542786 to 0.544238 (\mbox{+0.145} percentage points), with gains in 6 of 11 homes. The median home gain is 0.836 points, the sample standard deviation is 3.438 points, and the range is $-5.748$ to $+4.828$ points. The mean conditional negative-flip rate is 0.054: among rows classified correctly by the static model, about 5.4\% become incorrect after repair. Under the same paid-label budget, target-only, frozen-feature random forest, and nearest-anchor controls have equal-home mean macro-F1 of 0.517, 0.482, and 0.456, respectively. Thus the ported repair avoids the larger average losses of these controls, but its improvement over the static model is small and varies substantially by home.
+
+\begin{table*}[!t]
+\centering
+\caption{Exploratory IoT device-type evaluation on chronologically separated development windows. Each home uses a separate source MLP and 1{,}000 uniform paid labels per repair seed; \ours{} values average five overlapping seeds. Macro-F1 averages device types present in that home's development window. $\Delta$ uses unrounded values and is in percentage points; NFR is the fraction of static-correct flows flipped to incorrect by \ours{}. Homes, rather than seeds, are independent units.}
+\label{tab:iot_homes}
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Home & Present types & Static F1 & \ours{} F1 & $\Delta$ (pp) & NFR \\
+\midrule
+01 & 24 & 0.603 & 0.618 & $+1.486$ & 0.036 \\
+02 & 22 & 0.558 & 0.566 & $+0.836$ & 0.067 \\
+03 & 22 & 0.504 & 0.522 & $+1.745$ & 0.057 \\
+04 & 24 & 0.500 & 0.549 & $+4.828$ & 0.046 \\
+05 & 19 & 0.531 & 0.498 & $-3.334$ & 0.019 \\
+06 & 23 & 0.498 & 0.472 & $-2.539$ & 0.023 \\
+07 & 23 & 0.574 & 0.516 & $-5.748$ & 0.129 \\
+08 & 23 & 0.495 & 0.530 & $+3.512$ & 0.077 \\
+09 & 18 & 0.571 & 0.614 & $+4.326$ & 0.063 \\
+11 & 24 & 0.567 & 0.558 & $-0.925$ & 0.041 \\
+12 & 24 & 0.569 & 0.543 & $-2.589$ & 0.041 \\
+\midrule
+Equal-home mean & --- & 0.542786 & 0.544238 & $+0.145$ & 0.054 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The class-level outcomes reveal a recovery--interference trade-off hidden by the near-zero average gain. Among 17 home--device-type pairs with at least 50 development rows and static recall below 0.1, mean \ours{} F1 improves for all 17 and mean recall reaches at least 0.1 for 11. However, across all 246 home--type pairs present in development, mean F1 improves for 124, falls for 120, and is unchanged for two. Among 75 pairs with static recall at least 0.8 and support at least 50, seven lose more than five F1 points while eight gain more than five. Class-level F1 may also change through precision while recall moves in the opposite direction. These groups are selected descriptively from already examined development labels: low baseline recall here does not establish drift-induced absorber collapse, and high baseline recall does not define the stable-class set used for TLS. Twelve of the 17 low-recall pairs have fewer than five paid positive examples on average, but the observed heterogeneity cannot be causally attributed to label coverage or class imbalance from these data alone. The household experiment therefore probes the limits of class-aware maintenance rather than validating a general IoT benefit.
+
 \subsection{Diagnostic Detector Evaluation}
 \label{sec:detection_eval}
 
@@ -905,7 +944,7 @@ Why adjacent methods are insufficient.
 The empirical gap is not simply a lack of generic adaptation. Entropy- and pseudo-label-based TTA receives little corrective signal when an absorber makes confident but wrong predictions, whereas continual-learning and drift-adaptation baselines primarily target new classes, forgetting, or global objectives. \ours{} instead couples a collapse-specific diagnostic with verified target labels and preservation constraints. The comparison is not cost- or supervision-matched in every case, but the consistently near-zero collapse F1 of tested label-free methods and the weaker recovery of generic active selectors support the evaluated use of verified labels and preservation-aware maintenance for class repair.
 
 Generalization of the observed effect.
-\ours{} improves macro-F1 at every evaluated TLS drift period and remains effective with CNN and Transformer backbones; the QUICEXT-25 stress test further shows that the repair principle transfers beyond TLS, although larger budgets are needed there. These results support robustness to the tested drift severity, architecture, and protocol changes, but they do not establish universal transfer across networks or organizations. The strongest claim supported by the evidence is therefore that collapse-aware, label-efficient repair is reusable across the evaluated settings, not that one fixed configuration is universally optimal.
+\ours{} improves macro-F1 at every evaluated TLS drift period and remains effective with CNN and Transformer backbones; the QUICEXT-25 stress test further shows that the repair principle transfers beyond TLS, although larger budgets are needed there. These results support robustness within the tested encrypted-application settings, but they do not establish universal transfer across networks or organizations. The exploratory IoT household port adds a different label space and flow representation: it shows low-recall device-type gains alongside substantial between-home variation and class-level harm. The strongest claim supported by all settings together is therefore conditional class-level repair, not a universally beneficial update rule.
 
 Selector effectiveness and cost.
 Finally, the choice of active selector determines how effectively the limited label budget is used. BADGE's higher mean performance than Margin is consistent with its selection of diverse, boundary-informative samples across multiple potential collapse regions. However, the BADGE configuration has about $3.4{\times}$ the program wall time ($166.6{\pm}8.2$\,s versus $48.5{\pm}0.8$\,s on one NVIDIA L20), and corrected significance tests do not establish a definitive ranking. Margin therefore remains attractive when latency and simplicity matter, whereas BADGE offers stronger mean recovery when the additional computation is acceptable.
@@ -922,6 +961,13 @@ An illustrative deployment could run \ours{} as a scheduled offline maintenance 
 Detection and operating trade-offs.
 The detector maintains recall of at least 0.80 across evaluated periods, but M12 precision is 0.50, so screening favors sensitivity and imposes review cost through false alerts. This behavior is appropriate for a diagnostic monitor only if operators validate alerts before labeling and repair; otherwise, false positives could trigger unnecessary work. Once a cycle is approved, active selection and replay can address several collapse regions together, but recovery of every class is not guaranteed. The downstream value for traffic accounting, security triage, and capacity planning must therefore be established in a field study with application-specific error costs.
 
+\subsection{Implications for Long-Term IoT Traffic Analytics}
+\label{sec:discussion_iot}
+
+The proposed workflow in Figure~\ref{fig:care_workflow} places class-health screening, limited label acquisition, head repair, and candidate validation beside a continuously serving traffic classifier. In an IoT environment, the relevant classes may be device types or application services, depending on the monitoring task. The monitor can flag risk from unlabeled traffic, but an operator must verify a class-level failure before labeling or deployment decisions. Periodic head repair is a bounded maintenance action, and per-class review is needed because an aggregate score can hide both recovered and newly harmed categories.
+
+The 11-home stress test makes this trade-off concrete for device types without demonstrating a complete gateway deployment. Its average gain is small, and five homes regress despite improvements in low-recall categories. Home-to-home differences in class presence and traffic composition are visible, but this development-only analysis does not identify which shift mechanism causes a given gain or loss. A production IoT maintenance policy would need an acceptance check for class-level harm and a way to abstain from updates that fail it; such a policy is not evaluated here.
+
 \subsection{Limitations and Future Work}
 \label{sec:discussion_limitations}
 
@@ -929,7 +975,7 @@ Technical limitations.
 Head-only repair cannot recover a class if its encoder representation has fully merged with an absorber; selective encoder adaptation or retraining may be required for such cases at higher cost. \ours{} repairs existing classes and does not address emerging classes, which require complementary class-incremental mechanisms~\cite{cai2024cpn}. S2 varies the reference month on one reconstructed December pool; sensitivity on the original S split and independent target periods remains untested. Prototype replay was evaluated only in a smaller targeted-replay variant; neither stored exemplars nor prototypes currently provide a formal privacy guarantee.
 
 External validity and future work.
-The primary evidence comes from university-network TLS traffic, while QUICEXT-25 is a cross-protocol stress test rather than a second full benchmark. The experiments do not validate CARE on IoT device-type traffic; different features, class frequencies, and labeling practices may change the repair--preservation trade-off. Cross-site replication, longer operational studies, and direct measurement of annotation and review costs are needed before production claims can be made. Future work should calibrate detector thresholds against deployment-specific false-alert costs, study adaptive maintenance schedules, evaluate privacy-preserving replay, and invoke encoder adaptation only when bounded head repair fails. These studies would test this trade-off under heterogeneous traffic and policies.
+The primary evidence comes from university-network TLS traffic, while QUICEXT-25 is a cross-protocol stress test rather than a second full benchmark. The IoT household analysis uses known device types in a curated closed set, mixed-protocol flows, a tabular MLP, uniform labels, and a development window examined during this project. It tests the repair stage but neither the proposed monitor nor BADGE selection in an IoT deployment. The five seeds within a home share data and source training; the final time window remains unopened. These restrictions and the small, heterogeneous mean benefit preclude a claim of independent IoT validation. Cross-site replication, an encrypted-only IoT setting, longer operational studies, and direct measurement of annotation and review costs are needed before production claims can be made. Future work should calibrate detector thresholds against deployment-specific false-alert costs, study adaptive maintenance schedules and acceptance checks, evaluate privacy-preserving replay, and invoke encoder adaptation only when bounded head repair fails.
 
 
 % ============================================================
@@ -940,18 +986,18 @@ Reliable encrypted traffic classification requires tracking failures that aggreg
 
 Under strict query-excluded evaluation, \ours{}-BADGE raises macro-F1 from 0.629 to $0.700{\pm}0.003$ and collapse-class F1 from 0.028 to $0.332{\pm}0.040$ using 1{,}000 target labels and 890 replay features, while retaining stable-class F1 of 0.894. Tested TTA variants leave collapse F1 below 0.031. On seed-matched holdouts, our Chen-inspired self-evolving implementation leaves all 12 collapsed classes below the recall threshold. These comparisons support the value of verified target labels for this failure mode; they do not equate the methods' supervision or update budgets.
 
-The component evidence supports evaluating target supervision with reference-based preservation, while the controls in S2 qualify the incremental value of reference cross-entropy. It does not establish that every loss term is necessary. Positive gains across the tested drift periods and backbones support reuse within these settings; the QUIC stress test exposes limits under a different protocol. CARE therefore offers an empirically supported maintenance framework for class-level prediction reliability on the evaluated encrypted application traffic. Fully merged representations, emerging classes, source-period sensitivity, validation on IoT device traffic and across sites, annotation cost, and privacy-preserving replay remain open issues.
+The component evidence supports evaluating target supervision with reference-based preservation, while the controls in S2 qualify the incremental value of reference cross-entropy. It does not establish that every loss term is necessary. Positive gains across the tested drift periods and backbones support reuse within these settings; the QUIC stress test exposes limits under a different protocol. The exploratory 11-home device-type test finds low-recall class recovery but minimal mean macro-F1 improvement and losses in five homes. CARE therefore offers an empirically supported maintenance framework for the evaluated encrypted application traffic and a conditional repair signal on IoT device traffic, with independent IoT validation still open. Fully merged representations, emerging classes, source-period sensitivity, cross-site replication, annotation cost, and privacy-preserving replay remain open issues.
 
 \section*{Funding}
 This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
 
 \section*{Data and Code Availability}
-The experiments use the public CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, available at \url{https://doi.org/10.5281/zenodo.10608607}, and CESNET-QUICEXT-25~\cite{cesnetquicext25,mucke2025waiting}, available at \url{https://doi.org/10.5281/zenodo.17249078}. Supplementary Material S1 is deposited in Figshare and is accessible for peer review via \url{https://figshare.com/s/bf40e243e93c5b2ac085}. S1 provides implementation files, configurations, archived experiment records, and available source checkpoints. Its result index maps manuscript tables and figures to the corresponding records and distinguishes strict query-excluded metrics from full-pool metrics. This Figshare link provides private peer-review access rather than a public DOI.
+The experiments use the public CESNET-TLS-Year22 dataset~\cite{hynek2024cesnet}, available at \url{https://doi.org/10.5281/zenodo.10608607}, CESNET-QUICEXT-25~\cite{cesnetquicext25,mucke2025waiting}, available at \url{https://doi.org/10.5281/zenodo.17249078}, and the public residential IoT flow archive associated with~\cite{pashamokhtari2023dynamic}, available at \url{https://iotanalytics.unsw.edu.au/homedataset.html}. Supplementary Material S1 is deposited in Figshare and is accessible for peer review via \url{https://figshare.com/s/bf40e243e93c5b2ac085}. S1 provides implementation files, configurations, archived experiment records, and available source checkpoints for the original CESNET experiments. Its result index maps the original CESNET tables and figures to the corresponding records and distinguishes strict query-excluded metrics from full-pool metrics. This Figshare link provides private peer-review access rather than a public DOI.
 
 Raw traffic datasets are distributed through the public repositories cited above and are not repackaged in S1. The original exact size-S row identities and full feature caches are unavailable. The archived materials support verification against the saved experiment records but do not provide a complete end-to-end reproduction of the original experiments. Supplementary Material S2 reports the separate reconstruction controls. Their frozen queries, selected training and reference features, fitted heads, per-class records, and provenance are included under \texttt{local\_controls/} in S1. These controls use independently reconstructed row identities and a reconstructed class mapping and are not substituted for the original size-S results.
 
 \section*{Declaration of Generative AI and AI-Assisted Technologies in the Manuscript Preparation Process}
-During preparation of this manuscript, OpenAI Codex assisted with language editing, organization of submission materials, and reproducible Matplotlib rendering from archived numeric records. It also assisted with implementing, executing, and verifying the separate reconstruction controls summarized in Supplementary Material S2. The original main-table results are retained and the additional controls are identified as a distinct protocol. The authors are responsible for reviewing the final text, code, and results and for the accuracy and integrity of the article.
+During preparation of this manuscript, OpenAI Codex assisted with language editing, organization of submission materials, reproducible Matplotlib rendering from archived numeric records, and read-only summarization of the exploratory IoT development results. It also assisted with implementing, executing, and verifying the separate reconstruction controls summarized in Supplementary Material S2. The original CESNET main-table results are retained; the reconstruction controls and IoT port are identified as distinct protocols. The authors are responsible for reviewing the final text, code, and results and for the accuracy and integrity of the article.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
