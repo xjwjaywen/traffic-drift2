@@ -42,9 +42,9 @@ Build from this directory with:
 latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex
 ```
 
-The current IEEE double-column PDF is 19 pages. S1 follows the previous
-submission's private Figshare-link route; the relabeled S1 ZIP in
-`submission_files/` is only an optional replacement. The updated S2 PDF and
-manuscript-source ZIP are also local. The S3 archive remains on the server and
-must be attached or made reviewer-accessible because the paper cites it. See
-`SUBMISSION_STATUS.md` for the simplified upload map and author checks.
+The current IEEE double-column PDF is 19 pages. IEEE Author Center advises
+uploading cited supplementary files separately, so the relabeled S1 ZIP and
+updated S2 PDF in `submission_files/` are prepared for the portal. The S3 archive
+remains on the server and must be provided for review because the paper cites
+it. The manuscript-source ZIP is available if the portal requests it. See
+`SUBMISSION_STATUS.md` for the upload map and author checks.
