@@ -10,17 +10,20 @@ explicit dataset and external-validity boundaries, IEEE citation formatting,
 and wide-float layout. The CARE method and original CESNET experimental
 protocols, tables, figures, and reported values remain intact.
 
-The current revision adds a separate, exploratory 11-home IoT device-type
-stress test based on the already completed server-side development evaluation.
-It reports per-home macro-F1 and negative flips, 17 low-baseline-recall
-home/device-type pairs, and class-level gains and harms. The source report is
-`/data/xjw/tma-care-data/unsw_iotj_scope_review_v1/REPORT.txt` on the server;
-its inputs are `unsw_home_temporal_development_v1/{summary,per_class}.csv` and
-`unsw_home_temporal_interference_v1/by_home_class.csv`. The results are not an
-independent final-window validation or a full CARE workflow test. The new IoT
-derived CSVs and prediction records are not yet in the older Figshare S1
-archive; add them to reviewer-accessible supplementary materials before
-submission if this section is retained.
+The current revision adds a separate 11-home IoT device-type stress test.
+Development results were used to specify a frozen final-window evaluation;
+the final predictions passed a complete preflight before device labels were
+decoded. The final-window report is at
+`/data/xjw/tma-care-data/unsw_iot_final_holdout_v1/evaluation/REPORT.txt` on
+the server, with per-home and per-class CSVs beside it. The frozen protocol and
+prediction/evaluation code are in `Experiment/unsw_home_temporal_v1/`.
+CARE improves final low-recall-class mean F1, but its equal-home macro-F1 is
+0.767 percentage points below static, while a fixed source-target interpolation
+control is 0.852 points above static. This is a temporally held-out test on the
+same examined archive, not an independent cross-site validation or a full CARE
+workflow test. The IoT derived CSVs and prediction records are not yet in the
+older Figshare S1 archive; add them to reviewer-accessible supplementary
+materials before submission if this section is retained.
 
 Author names, affiliations, contact details, the contribution statement, and
 the PDF author metadata are intentionally omitted from this review draft.
