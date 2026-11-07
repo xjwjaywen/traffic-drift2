@@ -39,7 +39,7 @@
 \maketitle
 
 \begin{abstract}
-Traffic-based inference supports device management and security monitoring in Internet of Things (IoT) networks, where evolving traffic calls for reliable classifier maintenance. We examine longitudinal encrypted application traffic, where aggregate metrics can conceal severe class-specific failures. We formalize absorber collapse, a class-asymmetric failure in which dominant classes absorb predictions from victim classes and drive their recall toward zero. On CESNET-TLS-Year22, 12 of 178 classes collapse within nine months, while five tested traffic-adapted test-time adaptation methods leave collapse-class F1 below 0.031. We propose Collapse-Aware Repair (CARE), which combines unsupervised class-health monitoring with head-only repair using newly labeled target samples, all-class reference replay, and knowledge distillation. With Batch Active Learning by Diverse Gradient Embeddings (BADGE), CARE raises macro-F1 from 0.629 to 0.700 and collapse-class F1 from 0.028 to 0.332 using 1{,}000 target labels under strict query-excluded evaluation over five repair seeds, while retaining stable-class F1 near the static level (0.894 versus 0.903). A QUIC stress test probes cross-protocol transfer. A separate 11-household IoT device-type holdout shows low-recall-class recovery alongside heterogeneous gains and losses across homes, underscoring the need to review candidate updates at the class level.
+Traffic-based inference supports device management and security monitoring in Internet of Things (IoT) networks, where evolving traffic calls for reliable classifier maintenance. We examine longitudinal encrypted application traffic, where aggregate metrics can conceal severe class-specific failures. We formalize absorber collapse, a class-asymmetric failure in which dominant classes absorb predictions from victim classes and drive their recall toward zero. On CESNET-TLS-Year22, 12 of 178 classes collapse within nine months, while five tested traffic-adapted test-time adaptation methods leave collapse-class F1 below 0.031. We propose Collapse-Aware Repair (CARE), which combines unsupervised class-health monitoring with head-only repair using newly labeled target samples, all-class reference replay, and knowledge distillation. With Batch Active Learning by Diverse Gradient Embeddings (BADGE), CARE raises macro-F1 from 0.629 to 0.700 and collapse-class F1 from 0.028 to 0.332 using 1{,}000 target labels under strict query-excluded evaluation over five repair seeds, while retaining stable-class F1 near the static level (0.894 versus 0.903). A separate QUIC experiment tests the repair principle with a QUIC-trained model. An 11-household IoT device-type holdout shows low-recall-class recovery alongside heterogeneous gains and losses across homes, underscoring the need to review candidate updates at the class level.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -141,7 +141,7 @@ We compare victim--absorber Fisher discriminant ratios at M4 and M12. Nine pairs
 \subsection{Why General TTA Methods Fail}
 \label{sec:tta_eval}
 
-We adapt Tent, EATA, SAR, CoTTA, and NOTE to 1D packet sequences; EATA, CoTTA, and NOTE require simplified traffic-specific components. All five leave M12 collapse F1 below 0.031 in Table~\ref{tab:main_results}, including across five learning rates from $10^{-5}$ to $10^{-3}$. When the model confidently predicts an absorber for a victim, minimizing entropy supplies no signal for the correct victim class. The implementation adaptations limit conclusions about the original methods, but the shared negative result motivates verified target labels.
+We adapt Tent, EATA, SAR, CoTTA, and NOTE to 1D packet sequences; EATA, CoTTA, and NOTE require simplified traffic-specific components. All five leave M12 collapse F1 below 0.031 at the reported settings (Table~\ref{tab:main_results}) and across five learning rates from $10^{-5}$ to $10^{-3}$ (S1). When the model confidently predicts an absorber for a victim, minimizing entropy supplies no signal for the correct victim class. The implementation adaptations limit conclusions about the original methods, but the shared negative result motivates verified target labels.
 
 % ============================================================
 
@@ -163,11 +163,11 @@ We adapt Tent, EATA, SAR, CoTTA, and NOTE to 1D packet sequences; EATA, CoTTA, a
 \label{sec:unsup_detect}
 
 
-For each class $c$, the monitor compares reference and target predictions using five unlabeled signals: predicted-class count ratio $r_c=(n_c^{\mathrm{tgt}}/N^{\mathrm{tgt}})/(n_c^{\mathrm{ref}}/N^{\mathrm{ref}})$, Fr\'{e}chet feature distance, mean margin drop, mean confidence drop, and mean entropy rise. The score is
+For each class $c$, the monitor compares reference and target predictions using five unlabeled signals: predicted-class count ratio $r_c=(n_c^{\mathrm{tgt}}/N^{\mathrm{tgt}})/(n_c^{\mathrm{ref}}/N^{\mathrm{ref}})$, Fr\'{e}chet feature distance, mean margin drop, mean confidence drop, and mean entropy rise. For classes predicted at least 10 times in each period, the score is
 \begin{equation}
  s_c=0.40\max(0,1-r_c)+0.20\tilde d_c+0.15\tilde m_c+0.15\tilde f_c+0.10\tilde e_c,
 \end{equation}
-where tildes denote median-absolute-deviation-normalized signals. We flag scores above 0.12, retaining at most 20 classes for operator review. Weights and threshold are fixed heuristics; Section~\ref{sec:detection_eval} reports diagnostic performance. The monitor does not select replay classes, which always cover the full label space.
+where each tilde is standardized by the across-class median and median absolute deviation, divided by 5 for distance or 3 for the other signals, then clipped to $[0,1]$. If target predictions fall below 10 while reference predictions reach 10, the implementation assigns a count-only score of 0.95; classes with fewer than 10 reference predictions are omitted. We flag scores above 0.12, retaining at most 20 classes for operator review. Weights and threshold are fixed heuristics; Section~\ref{sec:detection_eval} reports diagnostic performance. The monitor does not select replay classes, which always cover the full label space.
 
 \subsection{Active Sample Selection}
 \label{sec:sample_select}
@@ -237,7 +237,7 @@ This section evaluates \ours{} through overall repair performance and baseline c
 \label{sec:exp_setup}
 
 
-\textbf{Datasets and protocol.} CESNET-TLS-Year22~\cite{hynek2024cesnet} is the primary 178-class benchmark (M3 source; M7, M9, M11, M12 targets). CESNET-QUICEXT-25 XS~\cite{cesnetquicext25,mucke2025waiting} provides a 44-class cross-protocol test (M-2024-6 to M-2025-5). The TLS dataset also contains a documented flow-exporter change near week 10~\cite{hynek2024cesnet}; our evaluation measures the combined temporal shift. In the main \textit{strict} protocol, queried target flows are excluded from evaluation. A separate seed-matched protocol holds out 20\% before adaptation. Static/TTA rows use one fixed source checkpoint; active rows average five repair seeds. Other seed counts are stated where used.
+\textbf{Datasets and protocol.} CESNET-TLS-Year22~\cite{hynek2024cesnet} is the primary 178-class benchmark (M3 source; M7, M9, M11, M12 targets). CESNET-QUICEXT-25 XS~\cite{cesnetquicext25,mucke2025waiting} provides a separate 44-class QUIC test (M-2024-6 to M-2025-5). The TLS dataset also contains a documented flow-exporter change near week 10~\cite{hynek2024cesnet}; our evaluation measures the combined temporal shift. In the main \textit{strict} protocol, queried target flows are excluded from evaluation. A separate seed-matched protocol holds out 20\% before adaptation. Static/TTA rows use one fixed source checkpoint; active rows average five repair seeds. Other seed counts are stated where used.
 
 \textbf{Comparisons and metrics.} We test five unlabeled TTA variants, a Chen-inspired pseudo-label baseline~\cite{chen2025selfevolving}, entropy/coreset/random selectors, and adapted continual-learning methods. Labeled comparisons use the same $B=1{,}000$ budget unless stated otherwise. We report macro-F1; F1 of the 12 M12 classes with static recall $<0.1$ (Col.); F1 of a fixed 20-class M4--M12 stable diagnostic set (Stb.); and the number of those 12 classes still below 0.1 recall (\#Col.). Stable classes are selected retrospectively by the smallest absolute F1 change among classes with $\geq100$ M12 instances and M4 support; this is a preservation endpoint, not a prospective detection set. Per-class recovery is full at recall $\geq0.30$, partial at $0.05$--$0.30$, and failed below 0.05.
 
@@ -494,13 +494,12 @@ All-class replay with five features per class yields 0.686 macro-F1. At a matche
 \label{sec:transformer}
 Replacing GroupNorm with BatchNorm does not remove the collapse problem: BN-Adapt~\cite{schneider2020bn} leaves collapse F1 at 0.032. A targeted-replay CARE-Margin variant raises BN macro/collapse F1 from 0.613/0.030 to 0.665/0.314. A four-layer Transformer~\cite{vaswani2017attention} with the same targeted protocol reaches 0.767/0.401. These architecture controls use a different replay variant from the default CNN experiment.
 
-\subsubsection{Cross-Protocol Generalization}
+\subsubsection{Application to QUIC Traffic}
 \label{sec:cross_protocol}
 
-QUICEXT-25 stress test.
 \label{sec:quicext25}
 
-CESNET-QUICEXT-25 XS~\cite{cesnetquicext25,mucke2025waiting} provides 44 classes with M-2024-6 source and M-2025-5 target partitions. Three classes (17, 23, 25) newly fall below 0.1 recall; class 21 is excluded because it already fails in the reference period. Table~\ref{tab:quicext25} reports strict query-excluded results across label budgets.
+CESNET-QUICEXT-25 XS~\cite{cesnetquicext25,mucke2025waiting} provides 44 classes with M-2024-6 source and M-2025-5 target partitions. Its source model is trained separately on QUIC; this tests the repair procedure on another encrypted-application dataset, not transfer of a TLS-trained model. Three classes (17, 23, 25) newly fall below 0.1 recall; class 21 is excluded because it already fails in the reference period. Table~\ref{tab:quicext25} reports strict query-excluded results across label budgets.
 
 \begin{table}[!htbp]
 \centering
@@ -524,7 +523,7 @@ Static & 0 & 0.502 & 0.049 & 3.0 \\
 \end{table}
 
 
-With 1{,}000 labels, CARE-Margin raises macro/collapse F1 from 0.502/0.049 to 0.564/0.114. BADGE at 4{,}000 labels reaches 0.586/0.191. The higher QUIC label requirement motivates protocol-specific budget choice.
+With 1{,}000 labels, CARE-Margin raises macro/collapse F1 from 0.502/0.049 to 0.564/0.114. BADGE at 4{,}000 labels reaches 0.586/0.191. The tested budgets show that recovery in this QUIC setting depends on the annotation budget.
 
 \subsubsection{Training-Seed and Checkpoint Robustness}
 \label{sec:checkpoint_robustness}
@@ -536,7 +535,7 @@ Our primary checkpoint (static $0.629$, best epoch 27/30, validation F1 $0.892$)
 \label{sec:iot_homes}
 
 
-We evaluate a public residential IoT flow archive~\cite{pashamokhtari2023dynamic} as a closed-set, mixed-protocol device-type task. The official MAC inventory provides 24 type labels; MAC/IP addresses, ports, timestamps, and labels are excluded from model inputs, which comprise 22 flow statistics and six protocol indicators. Eleven homes contain all 24 source types. Each home uses chronological source, query, development, and final windows split at approximately 50\%, 70\%, and 85\% of observed days, with a separate 28-input tabular MLP. For each home and five overlapping repair seeds, 1{,}000 uniformly sampled query labels and five reference features per class train the ported CARE head. This port differs from the CNN/BADGE main study and evaluates repair without monitoring.
+We evaluate a public residential IoT flow archive~\cite{pashamokhtari2023dynamic} as a closed-set, mixed-protocol device-type task. The official MAC inventory provides 24 type labels; MAC/IP addresses, ports, timestamps, and labels are excluded from model inputs, which comprise 22 flow statistics and six protocol indicators. Eleven homes contain all 24 types in the source window; the remaining home lacks two source types and is excluded. Each home uses chronological source, query, development, and final windows split at approximately 50\%, 70\%, and 85\% of observed days, with a separate 28-input tabular MLP. For each home and five overlapping repair seeds, 1{,}000 uniformly sampled query labels and five reference features per class train the ported CARE head. This port differs from the CNN/BADGE main study and evaluates repair without monitoring.
 
 Source training uses a class-capped reservoir (up to 5{,}000 flows per type); the query pool is a uniform reservoir from the subsequent chronological window. The model uses flow statistics and protocol indicators rather than device identifiers, so the IoT experiment tests traffic-based type recognition rather than memorization of MAC addresses. The five repair seeds share each home's source model and are repeated measurements, not additional homes.
 
@@ -630,7 +629,7 @@ Detection recall stays at least 0.80 across periods, while precision rises from 
 
 \subsection{Class-Level Maintenance}
 \label{sec:discussion_efficacy}
-The TLS experiments show that verified target labels can recover classes missed by confidence-based adaptation, while reference replay and distillation limit damage to stable classes. CARE-BADGE offers the strongest mean recovery in the primary comparison; Margin has lower selection cost. The QUIC stress test shows the same direction with a larger budget. The IoT holdout exposes the harder acceptance problem: improved recognition of some device types can coexist with losses in other types and homes. A candidate head should therefore be assessed with per-class recovery and harm measures before activation.
+The TLS experiments show that verified target labels can recover classes missed by confidence-based adaptation, while reference replay and distillation limit damage to stable classes. CARE-BADGE offers the strongest mean recovery in the primary comparison; Margin has lower selection cost. The separately trained QUIC model also improves across the tested label budgets. The IoT holdout exposes the harder acceptance problem: improved recognition of some device types can coexist with losses in other types and homes. A candidate head should therefore be assessed with per-class recovery and harm measures before activation.
 
 The component-variant results also clarify the scope of the claim. Target-label supervision supplies a correction signal absent from the tested unlabeled methods, whereas all-class replay and source-head distillation constrain changes to previously learned classes. Because some component variants alter repeat factors and replay coverage together, they support the combined maintenance design rather than a causal ranking of every loss term. The separately reconstructed controls in S2 further qualify the incremental value of reference cross-entropy. These distinctions matter when porting the method: the IoT device-type update retains the head-repair principle but uses a different feature space, label distribution, and query policy.
 
@@ -652,7 +651,7 @@ The primary benchmark is university-network TLS application traffic. The househo
 \section{Conclusion}
 \label{sec:conclusion}
 
-We characterize absorber collapse and evaluate CARE as a class-aware repair workflow. On CESNET-TLS-Year22, 1{,}000 verified labels raise macro-F1 from 0.629 to 0.700 and collapsed-class F1 from 0.028 to 0.332 with BADGE, while stable-class F1 remains 0.894 versus 0.903 static. QUIC results support transfer across the tested encrypted-application settings. The 11-home device-type holdout shows low-recall recovery but mixed whole-model outcomes, making per-class validation central to practical maintenance.
+We characterize absorber collapse and evaluate CARE as a class-aware repair workflow. On CESNET-TLS-Year22, 1{,}000 verified labels raise macro-F1 from 0.629 to 0.700 and collapsed-class F1 from 0.028 to 0.332 with BADGE, while stable-class F1 remains 0.894 versus 0.903 static. A separately trained QUIC model shows gains under the same repair principle. The 11-home device-type holdout shows low-recall recovery but mixed whole-model outcomes, making per-class validation central to practical maintenance.
 
 \section*{Funding}
 This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.

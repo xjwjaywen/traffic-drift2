@@ -6,8 +6,8 @@ Build with `latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build m
 
 Checked artifacts:
 
-- `main.pdf`: 401,898 bytes; SHA-256 `517a46019004f40b9b87c3c4b1c1d84aefb6945a69d6db0c578a187bc68f29cd`.
-- `submission_files/S1_CARE_IoTJ_ten_page.zip`: 49,278,330 bytes; SHA-256 `34af8da2761bf77ac095353a3d025cc360bf07de2162bbebe5f9930feb3882e3`.
-- `submission_files/LaTeX_source_IoTJ_ten_page.zip`: 92,192 bytes; SHA-256 `d4f80a2ac8bcc24ead69231a397e8cb8ee7bcdede7bdeb2c0fd067dc0a2006e1`.
+- `main.pdf`: 402,235 bytes; SHA-256 `e79094fa0f6be3f7b5c220eb5c2f8b9ba492070f0169f6eefff81008fef38a7b`.
+- `submission_files/S1_CARE_IoTJ_ten_page.zip`: 49,278,327 bytes; SHA-256 `2e067488c22cdee15a979b0ebcef4b28dffe68148cc82efa1f09625b13ecc64d`.
+- `submission_files/LaTeX_source_IoTJ_ten_page.zip`: 92,274 bytes; SHA-256 `b84422302d2cfbdfe5e87504d9e31473a8d985513c2468ddfe2b4ee0f2fc28b9`.
 
 S1 scientific payloads match the verified complete-version archive byte-for-byte. A local copy of S2 is in `submission_files/`; the server-generated S3 accompanies the IoT final-window results. Submission ZIP files are local artifacts and are ignored by Git. See `SUBMISSION_CHECK.md` for the current submission audit and author/portal items.

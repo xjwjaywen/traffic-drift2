@@ -2,11 +2,12 @@
 
 ## Manuscript and files checked
 
-- `main.pdf` is 10 pages in IEEE double-column format, including references. The one-paragraph abstract is 192 words (journal rule: 150–250). All five named authors and the corresponding author appear in the PDF.
+- `main.pdf` is 10 pages in IEEE double-column format, including references. The one-paragraph abstract is 188 words (journal rule: 150–250). All five named authors and the corresponding author appear in the PDF.
 - The LaTeX build has no unresolved citations, cross-references, or overfull boxes. Every cited BibTeX key exists. Figures and tables were visually reviewed; fonts are embedded.
 - `submission_files/LaTeX_source_IoTJ_ten_page.zip` compiles from a clean extracted directory to a 10-page PDF.
 - `submission_files/S1_CARE_IoTJ_ten_page.zip` passes its manifest/integrity checks, indexes this exact manuscript PDF hash, and retains the verified full-version scientific payload byte-for-byte.
 - `submission_files/S2_CARE_component_controls.pdf` has the same five-author byline. The cover letter title matches the manuscript. The ten-page paper describes S1, S2, and S3 in Data and Code Availability.
+- A body-content audit aligned the monitor's sparse-prediction fallback and normalization with its archived implementation, clarified that the QUIC model was trained separately, and checked the IoT outcome claims against the frozen report. No result numbers were changed.
 - The previously supplied server report identifies S3 as `/data/xjw/tma-care-data/unsw_iot_final_holdout_v1/submission/S3_IoT_final_holdout.zip`, 16,728,571 bytes, SHA-256 `f2e7bf501e24366c48bf3a72bc71f3a75bfbadf41f1fafe1572a0b5d6f558e0c`. This Mac has not independently reopened that server file.
 
 ## Author/portal items before clicking Submit
