@@ -10,4 +10,4 @@ These are separate snapshots. Editing one directory does not overwrite the other
 
 The compact draft was derived from the full IoT revision. It is not a replacement for the pre-IoT manuscript. The pre-IoT PDF was copied byte-for-byte; the source and figures needed to continue editing it are also present.
 
-The existing S1 archive indexes the full IoT revision's PDF. Before submitting the compact version, regenerate or update that index so its manuscript hash matches the chosen final PDF. S2 and the server-generated S3 remain separate supplementary artifacts.
+Each IoT manuscript has its own S1 index. The compact S1 was rebuilt locally from the verified full-version archive with a compact-PDF hash and label map; its scientific payload is byte-identical. S2 and the server-generated S3 remain separate supplementary artifacts.
