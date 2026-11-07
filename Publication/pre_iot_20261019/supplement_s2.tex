@@ -1,0 +1,58 @@
+\documentclass[11pt]{article}
+\usepackage[letterpaper,margin=0.8in]{geometry}
+\usepackage{lmodern,amsmath,amssymb,booktabs,graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage[section]{placeins}
+\setlength{\emergencystretch}{2em}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\thetable}{S\arabic{table}}
+\title{Supplementary Material S2\\Fixed-Budget Component Controls for CARE}
+\author{Junwei Xiao \and Xiaobo Jin \and Xiucheng Wu \and Dongjie Liu}
+\date{}
+\begin{document}\maketitle
+\section{Scope and reconstructed data}
+These completed controls examine the incremental effect of reference supervision under fixed labels and updates. The original DataZoo size-S row identities and known-application metadata were unavailable. The controls therefore use independently sampled public CESNET-TLS-Year22 rows and retain the archived March-trained 178-class CNN checkpoint. They do not reproduce or replace the original manuscript tables.
+
+Daily captures were uniformly sampled with fraction $10{,}000{,}000/507{,}739{,}073$ and seed 20261009. The retained December pool contains 529{,}307 known-class rows. Source-side classifier alignment and March capture metadata support removing \texttt{ctu-kosapi} and \texttt{redmine} from 180 sorted services, leaving 178 outputs; this mapping cannot be checked against the missing original namespace file. The original 12 collapse-class and 20 stable-class indices are transferred only for retrospective evaluation. Packet preprocessing is unchanged: raw millisecond inter-arrival time, direction, and size for 30 packets. The frozen encoder runs on Apple MPS; head fitting and prediction run on CPU. Checkpoint hashes, raw-row provenance, and mapping evidence are in S1.
+
+\section{Paired training and evaluation}
+Each run uses 1{,}000 unique target labels and five reference features per class (890 total). Historical reference labels define the class-balanced reference selection even when reference CE is disabled. Margin queries are deterministic and shared across five repair/replay seeds. BADGE queries vary across seeds 0--4 using the archived top-three-block gradient approximation, PCA to 50 dimensions, and k-means++ selector. All queries were frozen before reading target truth; paired loss variants share queries, references, initialization, and sampling streams.
+
+Only the linear head is updated. AdamW uses 1{,}380 steps, batch size 64, learning rate 0.001, and weight decay 0.0001. The objective is
+\[
+\mathcal L=\tfrac{2000}{2890}\mathrm{CE}_{q}
+ +I_{\mathrm{CE}}\tfrac{890}{2890}\mathrm{CE}_{r}
+ +I_{\mathrm{KD}}\,0.5T^2\mathrm{KL}(p_{0,r}^{T}\Vert p_{\theta,r}^{T}),\quad T=2,
+\]
+where $p_{0,r}^{T}$ and $p_{\theta,r}^{T}$ are source and student probabilities on the same reference rows. Disabling a term leaves other weights unchanged. Each enabled term has 88{,}320 sample presentations. These fixed updates differ from the original concatenated-epoch trajectories. No unqueried target labels enter fitting or tuning.
+
+Strict evaluation excludes the 1{,}000 queries, leaving 528{,}307 rows per seed. NFR is the fraction of initially correct unqueried predictions becoming wrong. A new collapse is outside the transferred 12-class group, has positive support and source recall $\geq0.1$, and repaired recall $<0.1$; this count is distinct from all remaining collapsed classes. Low-support classes remain included. Table~\ref{tab:controls} reports means and sample standard deviations over five seeds. Loss comparisons share masks within each selector and seed; the table does not establish a cross-selector ranking.
+
+\section{Results and interpretation}
+\begin{table}[!htbp]\centering\small
+\caption{Fixed-budget controls with strict query exclusion. Every repair includes target CE. ``+ ref.'' identifies the added reference loss; full CARE uses both reference CE and KD.}
+\label{tab:controls}
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}lrrrrr@{}}\toprule
+Configuration & Macro F1 & 12-class F1 & Stable F1 & NFR (\%) & New collapse\\\midrule
+Margin, April, target CE & 0.5895 $\pm$ 0.0009 & 0.3010 $\pm$ 0.0016 & 0.8059 $\pm$ 0.0032 & 12.94 $\pm$ 0.15 & 11.20 $\pm$ 0.84 \\
+Margin, April, + ref. CE & 0.6579 $\pm$ 0.0027 & 0.3070 $\pm$ 0.0097 & 0.8614 $\pm$ 0.0083 & 9.13 $\pm$ 0.15 & 2.40 $\pm$ 0.89 \\
+Margin, April, + ref. KD & 0.6933 $\pm$ 0.0010 & 0.3481 $\pm$ 0.0091 & 0.8980 $\pm$ 0.0034 & 4.86 $\pm$ 0.12 & 1.00 $\pm$ 0.00 \\
+Margin, April, full CARE & 0.6895 $\pm$ 0.0014 & 0.3295 $\pm$ 0.0153 & 0.8949 $\pm$ 0.0039 & 4.98 $\pm$ 0.09 & 1.00 $\pm$ 0.00 \\
+BADGE, April, + ref. KD & 0.7017 $\pm$ 0.0020 & 0.3695 $\pm$ 0.0459 & 0.8939 $\pm$ 0.0042 & 4.96 $\pm$ 0.16 & 1.80 $\pm$ 0.45 \\
+BADGE, April, full CARE & 0.6989 $\pm$ 0.0022 & 0.3585 $\pm$ 0.0415 & 0.8912 $\pm$ 0.0046 & 5.05 $\pm$ 0.17 & 1.40 $\pm$ 0.55 \\
+Margin, February, + ref. KD & 0.6923 $\pm$ 0.0012 & 0.3442 $\pm$ 0.0081 & 0.8977 $\pm$ 0.0027 & 5.12 $\pm$ 0.16 & 1.00 $\pm$ 0.00 \\
+Margin, February, full CARE & 0.6876 $\pm$ 0.0009 & 0.3243 $\pm$ 0.0163 & 0.8958 $\pm$ 0.0025 & 5.21 $\pm$ 0.16 & 1.00 $\pm$ 0.00 \\
+\bottomrule\end{tabular}
+\end{table}
+\FloatBarrier
+For Margin with either tested reference month, and BADGE with April references, reference KD without reference CE gives higher mean F1 and lower NFR than full CARE. For April BADGE, the full-minus-KD differences in overall, 12-class, and stable F1 are negative in all five seeds, while NFR is higher in all five. Full CARE reduces the mean new-collapse count from 1.8 to 1.4: two seeds each avoid one additional collapse and three tie. The two avoided cases are \texttt{amazon-prime} (seed 0, 458 rows) and \texttt{slack} (seed 3, 362 rows); KD recalls of 0.0917 and 0.0967 are close to the 0.1 threshold. This limited count benefit does not establish broad protection superiority. In April Margin, both KD and full CARE newly collapse \texttt{vscode-update}, supported by nine rows, from source recall $2/9$ to zero.
+
+The reference-month check preserves the Margin KD-versus-full direction; target-only heads and predictions match across the February and April studies. Full numeric, common-mask, and per-class records are retained in S1. The controls do not establish that reference CE is independently beneficial or necessary at this setting. They also do not estimate each variant's performance after separate tuning.
+
+\section{Verification and limitations}
+All 50 previously completed runs are included in the archived records: 20 February Margin, 20 April Margin, and 10 April BADGE. Verification checks source/cache/code identities, paid-label counts, paired query/reference and random-stream hashes, update/presentation counts, saved-head reload predictions, and independent confusion-matrix/F1 calculations. Selected April reference features were re-extracted; full-pool BADGE selection was not repeated solely for verification. S1 includes frozen queries, selected training/reference features, fitted heads, metrics, and code; complete target arrays and raw traffic are excluded.
+
+All seeds share one source checkpoint and one previously explored December pool. Reference-month sensitivity is not independent target-time validation. Mapping uncertainty and reconstructed row identities prevent equivalence claims for the original S split. The controls qualify component interpretation and do not establish live deployment, universal safety, or universal loss rankings.
+\end{document}
