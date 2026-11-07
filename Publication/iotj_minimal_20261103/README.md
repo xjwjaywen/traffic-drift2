@@ -21,9 +21,9 @@ CARE improves final low-recall-class mean F1, but its equal-home macro-F1 is
 0.767 percentage points below static, while a fixed source-target interpolation
 control is 0.852 points above static. This is a temporally held-out test on the
 same examined archive, not an independent cross-site validation or a full CARE
-workflow test. The IoT derived CSVs and prediction records are not yet in the
-older Figshare S1 archive; add them to reviewer-accessible supplementary
-materials before submission if this section is retained.
+workflow test. The IoT derived CSVs and prediction records are not in the older
+Figshare S1 archive. Use `export_iot_supplement.py` on the server to verify and
+package them as S3, then make that package reviewer-accessible before submission.
 
 Author names, affiliations, contact details, the contribution statement, and
 the PDF author metadata are intentionally omitted from this review draft.
@@ -35,5 +35,6 @@ latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex
 ```
 
 The current IEEE double-column PDF is 19 pages. The private Figshare reviewer
-link is inherited from the JNCA submission and should be checked before a new
-submission. This is a review draft, not a submission package.
+link is inherited from the JNCA submission. See `SUBMISSION_STATUS.md` for the
+remaining author, journal-status, and supplement steps. This is a review draft,
+not a submission package.
